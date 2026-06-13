@@ -1,0 +1,81 @@
+export enum Role {
+  ADMIN = 'ADMIN',
+  RECEPTION = 'RECEPTION',
+  MANAGER = 'MANAGER',
+}
+
+export enum BookingStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  CHECKED_IN = 'CHECKED_IN',
+  CHECKED_OUT = 'CHECKED_OUT',
+  CANCELLED = 'CANCELLED',
+  NO_SHOW = 'NO_SHOW',
+}
+
+export enum BookingSource {
+  WEBSITE = 'WEBSITE',
+  RECEPTION = 'RECEPTION',
+  PARTNER = 'PARTNER',
+}
+
+export enum FolioStatus {
+  ACTIVE = 'ACTIVE',
+  SETTLED = 'SETTLED',
+  VOID = 'VOID',
+}
+
+export enum TransactionType {
+  CHARGE = 'CHARGE',
+  PAYMENT = 'PAYMENT',
+  REFUND = 'REFUND',
+  DISCOUNT = 'DISCOUNT',
+}
+
+export enum TransactionCategory {
+  ROOM_CHARGE = 'ROOM_CHARGE',
+  SERVICE = 'SERVICE',
+  TAX = 'TAX',
+  DISCOUNT = 'DISCOUNT',
+  PAYMENT = 'PAYMENT',
+  REFUND = 'REFUND',
+}
+
+export enum PaymentMethod {
+  STRIPE = 'STRIPE',
+  PAYPAL = 'PAYPAL',
+  MOBICASH = 'MOBICASH',
+  IDFA3LY = 'IDFA3LY',
+  YASERPAY = 'YASERPAY',
+  ONEPAY = 'ONEPAY',
+  CASH = 'CASH',
+  CARD = 'CARD',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+  PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED',
+}
+
+export enum RoomStatus {
+  AVAILABLE = 'AVAILABLE',
+  OCCUPIED = 'OCCUPIED',
+  MAINTENANCE = 'MAINTENANCE',
+  DIRTY = 'DIRTY',
+}
+
+export enum HousekeepingStatus {
+  CLEAN = 'CLEAN',
+  DIRTY = 'DIRTY',
+  IN_PROGRESS = 'IN_PROGRESS',
+  INSPECTED = 'INSPECTED',
+}
+
+export enum RoomChargeStatus {
+  PENDING = 'PENDING',
+  POSTED = 'POSTED',
+  VOID = 'VOID',
+}

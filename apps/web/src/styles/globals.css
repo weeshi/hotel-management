@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8D48B;
+    --gold-dark: #A8882E;
+    --bg-primary: #0D0D12;
+    --bg-secondary: #13131A;
+    --bg-card: #1A1A24;
+    --bg-card-hover: #22222E;
+    --text-primary: #F0EDE8;
+    --text-secondary: #A09C96;
+    --text-muted: #6B6760;
+    --border: #2A2A36;
+    --border-gold: rgba(201, 168, 76, 0.3);
+    --green: #2ECC71;
+    --red: #E74C3C;
+    --yellow: #F1C40F;
+    --blue: #3498DB;
+    --purple: #9B59B6;
+  }
+
+  * {
+    @apply border-[var(--border)];
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] font-cairo antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-6 transition-all duration-300;
+  }
+  .card:hover {
+    @apply bg-[var(--bg-card-hover)] border-[var(--border-gold)] -translate-y-0.5;
+  }
+
+  .tag {
+    @apply inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold;
+  }
+  .tag-gold {
+    @apply bg-[rgba(201,168,76,0.12)] text-[var(--gold)];
+  }
+  .tag-green {
+    @apply bg-[rgba(46,204,113,0.1)] text-[var(--green)];
+  }
+  .tag-red {
+    @apply bg-[rgba(231,76,60,0.1)] text-[var(--red)];
+  }
+  .tag-blue {
+    @apply bg-[rgba(52,152,219,0.1)] text-[var(--blue)];
+  }
+}
+
+@layer utilities {
+  .rtl {
+    direction: rtl;
+  }
+  .ltr {
+    direction: ltr;
+  }
+}

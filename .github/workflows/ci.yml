@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    name: ✅ Lint & TypeCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: استخدام Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: تثبيت الاعتماديات
+        run: npm ci
+
+      - name: فحص الكود (Lint)
+        run: npm run lint
+
+      - name: فحص الأنواع (TypeCheck)
+        run: npm run typecheck
+
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hotel
+          POSTGRES_PASSWORD: hotel_test
+          POSTGRES_DB: hotel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: استخدام Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: تثبيت الاعتماديات
+        run: npm ci
+
+      - name: إنشاء قاعدة البيانات
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://hotel:hotel_test@localhost:5432/hotel_test
+
+      - name: تشغيل الاختبارات
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://hotel:hotel_test@localhost:5432/hotel_test
+          REDIS_URL: redis://default@localhost:6379
+          JWT_ACCESS_SECRET: test-access-secret-min-32-chars-long!!
+          JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-long!!
+
+  deploy:
+    name: 🚀 Deploy
+    needs: [lint-and-typecheck, test]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: بناء صورة Docker
+        run: docker build -t hotel-app .
+
+      - name: نشر على Railway
+        run: |
+          npm install -g @railway/cli
+          railway up --service hotel-app
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
