@@ -35,6 +35,7 @@ export class FolioService {
     value: number;
     reason?: string;
     createdById: string;
+    userRole: string;
   }) {
     const folio = await prisma.folio.findUnique({ where: { id: folioId } });
     if (!folio) throw new NotFoundError('Folio غير موجود');
@@ -50,6 +51,10 @@ export class FolioService {
       if (discountAmount > totalCharges) {
         throw new ValidationError('الخصم لا يتجاوز إجمالي الفاتورة');
       }
+    }
+
+    if (data.userRole === 'MANAGER' && discountAmount > totalCharges * 0.15) {
+      throw new ValidationError('الخصم يتجاوز الحد المسموح للمدير (15%)');
     }
 
     await prisma.folioDiscount.create({
@@ -68,6 +73,33 @@ export class FolioService {
       category: 'DISCOUNT',
       description: data.reason || `خصم ${data.value}${data.type === 'PERCENTAGE' ? '%' : ' د.ل'}`,
       amount: -discountAmount,
+      createdById: data.createdById,
+    });
+  }
+
+  async voidTransaction(folioId: string, transactionId: string, data: {
+    reason: string;
+    createdById: string;
+  }) {
+    const folio = await prisma.folio.findUnique({ where: { id: folioId } });
+    if (!folio) throw new NotFoundError('Folio غير موجود');
+    if (folio.status === 'SETTLED') {
+      throw new ValidationError('لا يمكن تعديل فاتورة مسددة');
+    }
+
+    const transaction = await prisma.folioTransaction.findUnique({
+      where: { id: transactionId },
+    });
+    if (!transaction) throw new NotFoundError('المعاملة غير موجودة');
+    if (transaction.folioId !== folioId) {
+      throw new ValidationError('المعاملة لا تنتمي لهذه الفاتورة');
+    }
+
+    return folioRepo.addTransaction(folioId, {
+      type: 'REFUND',
+      category: transaction.category as any,
+      description: `إلغاء: ${transaction.description}${data.reason ? ` - ${data.reason}` : ''}`,
+      amount: -transaction.amount,
       createdById: data.createdById,
     });
   }

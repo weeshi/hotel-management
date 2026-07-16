@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 
@@ -11,6 +11,6 @@ export async function GET() {
     });
     return successResponse(types);
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل جلب أنواع الغرف');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¬ظ„ط¨ ط£ظ†ظˆط§ط¹ ط§ظ„ط؛ط±ظپ');
   }
 }

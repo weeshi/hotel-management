@@ -27,7 +27,7 @@ export const createRoomTypeSchema = z.object({
   description: z.string().optional(),
   baseRate: z.number().positive(),
   capacity: z.number().int().positive(),
-  amenities: z.array(z.string()).optional(),
+  amenityServiceIds: z.array(z.string()).optional(),
   images: z.array(z.string()).optional(),
 });
 
@@ -122,12 +122,12 @@ export const hotelSchema = z.object({
 
 export const guestSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  nationality: z.string().optional(),
-  idNumber: z.string().optional(),
-  notes: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  nationality: z.string().optional().or(z.literal('')),
+  idNumber: z.string().optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
 });
 
 export const folioTransactionSchema = z.object({
@@ -137,6 +137,170 @@ export const folioTransactionSchema = z.object({
   description: z.string().min(1),
   amount: z.number(),
   createdById: z.string().uuid().optional(),
+});
+
+export const createRatePlanSchema = z.object({
+  roomTypeId: z.string().uuid(),
+  name: z.string().min(2),
+  nameAr: z.string().optional(),
+  nightlyRate: z.number().positive(),
+  startDate: z.string(),
+  endDate: z.string(),
+  minStay: z.number().int().positive().default(1),
+  maxAdults: z.number().int().positive().default(2),
+  maxChildren: z.number().int().min(0).default(0),
+  extraBedPrice: z.number().positive().optional(),
+  applyDays: z.string().optional(),
+  cancellationPolicyId: z.string().uuid().optional(),
+});
+
+export const createCancellationPolicySchema = z.object({
+  name: z.string().min(2),
+  nameAr: z.string().optional(),
+  rules: z.string().min(1),
+});
+
+export const createHousekeepingSchema = z.object({
+  roomId: z.string().uuid(),
+  taskType: z.string().min(1, 'نوع المهمة مطلوب'),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+  assignedTo: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const updateHousekeepingSchema = z.object({
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
+  assignedTo: z.string().optional(),
+  notes: z.string().optional(),
+  taskType: z.string().min(1).optional(),
+});
+
+export const updateRoomStatusSchema = z.object({
+  status: z.enum(['AVAILABLE', 'OCCUPIED', 'MAINTENANCE', 'DIRTY']).optional(),
+  housekeepingStatus: z.enum(['CLEAN', 'DIRTY', 'IN_PROGRESS', 'INSPECTED']).optional(),
+});
+
+export const createTaskTypeSchema = z.object({
+  name: z.string().min(2),
+  nameAr: z.string().optional(),
+  icon: z.string().optional(),
+  sortOrder: z.number().int().default(0),
+});
+
+export const updateTaskTypeSchema = z.object({
+  name: z.string().min(2).optional(),
+  nameAr: z.string().optional(),
+  icon: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const createMenuCategorySchema = z.object({
+  name: z.string().min(2),
+  nameAr: z.string().optional(),
+  icon: z.string().optional(),
+  sortOrder: z.number().int().default(0),
+});
+
+export const createMenuItemSchema = z.object({
+  categoryId: z.string().uuid(),
+  name: z.string().min(2),
+  nameAr: z.string().optional(),
+  description: z.string().optional(),
+  price: z.number().positive(),
+  image: z.string().optional(),
+});
+
+export const createRestaurantOrderSchema = z.object({
+  bookingId: z.string().uuid().optional(),
+  orderType: z.enum(['DINE_IN', 'ROOM_SERVICE', 'TAKEAWAY']).default('DINE_IN'),
+  tableNo: z.string().optional(),
+  roomNo: z.string().optional(),
+  guestName: z.string().optional(),
+  notes: z.string().optional(),
+  items: z.array(
+    z.object({
+      menuItemId: z.string().uuid(),
+      quantity: z.number().int().positive().default(1),
+      notes: z.string().optional(),
+    })
+  ).min(1),
+});
+
+export const updateRestaurantOrderSchema = z.object({
+  status: z.enum(['PENDING', 'PREPARING', 'READY', 'SERVED', 'COMPLETED', 'CANCELLED']).optional(),
+  notes: z.string().optional(),
+});
+
+export const createSafeDepositSchema = z.object({
+  roomId: z.string().uuid().optional(),
+  bookingId: z.string().uuid().optional(),
+  externalClientId: z.string().uuid().optional(),
+  notes: z.string().optional(),
+  items: z.array(
+    z.object({
+      description: z.string().min(1, 'وصف العنصر مطلوب'),
+      quantity: z.number().int().positive().default(1),
+      notes: z.string().optional(),
+    })
+  ).optional(),
+}).refine(
+  (data) => {
+    const hasBooking = !!data.bookingId;
+    const hasExternal = !!data.externalClientId;
+    return hasBooking !== hasExternal;
+  },
+  { message: 'يجب تحديد إما الحجز أو العميل الخارجي، وليس كليهما' }
+);
+
+export const addSafeDepositItemSchema = z.object({
+  description: z.string().min(1, 'وصف العنصر مطلوب'),
+  quantity: z.number().int().positive().default(1),
+  notes: z.string().optional(),
+});
+
+export const closeSafeDepositSchema = z.object({
+  notes: z.string().optional(),
+});
+
+export const createLostItemSchema = z.object({
+  description: z.string().min(1, 'وصف الغرض مطلوب'),
+  locationFound: z.string().min(1, 'مكان العثور مطلوب'),
+  roomId: z.string().uuid().optional(),
+  imageUrl: z.string().url('رابط الصورة غير صالح').optional(),
+  notes: z.string().optional(),
+});
+
+export const updateLostItemSchema = z.object({
+  status: z.enum(['PENDING', 'CLAIMED', 'DISPOSED']).optional(),
+  claimedByName: z.string().optional(),
+  claimedByIdNumber: z.string().optional(),
+  imageUrl: z.string().url('رابط الصورة غير صالح').optional(),
+  notes: z.string().optional(),
+});
+
+export const reportSettingsSchema = z.object({
+  logoUrl: z.string().url('رابط الشعار غير صالح').optional().nullable(),
+  headerText: z.string().optional().nullable(),
+  footerText: z.string().optional().nullable(),
+  taxNumber: z.string().optional().nullable(),
+});
+
+export const reportExportSchema = z.object({
+  type: z.enum(['occupancy', 'revenue', 'housekeeping', 'restaurant', 'safe-deposit', 'lost-found']),
+  format: z.enum(['json', 'csv', 'print']).default('json'),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});
+
+export const reportShareSchema = z.object({
+  type: z.enum(['occupancy', 'revenue', 'housekeeping', 'restaurant', 'safe-deposit', 'lost-found']),
+  format: z.enum(['json', 'csv', 'print']).default('print'),
+  emails: z.array(z.string().email('البريد الإلكتروني غير صالح')).min(1, 'يجب إدخال بريد إلكتروني واحد على الأقل'),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  message: z.string().optional(),
 });
 
 export const auditLogSchema = z.object({

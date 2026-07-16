@@ -2,48 +2,54 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Button, Card, Input, Modal, Badge, EmptyState } from '@/components/ui';
-
-interface FolioSummary {
-  folioId: string;
-  status: string;
-  totalCharges: number;
-  totalPaid: number;
-  balance: number;
-  guest: { name: string; email?: string };
-  rooms: { number: string; checkIn: string; checkOut: string; nightlyRate: number }[];
-  transactions: any[];
-  discounts: any[];
-  payments: any[];
-}
+import { Button, EmptyState } from '@/components/ui';
+import { InvoiceModal } from '@/components/folio/invoice';
+import { apiGet, apiPost } from '@/lib/utils/api-client';
+import { FolioSearch } from '@/components/folio/FolioSearch';
+import { FolioSummaryCard } from '@/components/folio/FolioSummaryCard';
+import { FolioDetails } from '@/components/folio/FolioDetails';
+import { AddChargeModal } from '@/components/folio/AddChargeModal';
+import { AddServiceModal } from '@/components/folio/AddServiceModal';
+import { RestaurantOrdersModal } from '@/components/folio/RestaurantOrdersModal';
+import { DiscountModal } from '@/components/folio/DiscountModal';
+import { PaymentModal } from '@/components/folio/PaymentModal';
+import { VoidTransactionModal } from '@/components/folio/VoidTransactionModal';
+import type { FolioSummary, RestaurantOrder, Service } from '@/components/folio/types';
 
 export default function FolioPage() {
   const searchParams = useSearchParams();
   const initialBookingId = searchParams.get('bookingId');
 
   const [bookingId, setBookingId] = useState(initialBookingId || '');
-  const [searchInput, setSearchInput] = useState('');
   const [folio, setFolio] = useState<FolioSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [liveBookingId, setLiveBookingId] = useState(initialBookingId || '');
+
   const [showAddCharge, setShowAddCharge] = useState(false);
+  const [showAddService, setShowAddService] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
+  const [showRestaurantOrders, setShowRestaurantOrders] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const [voidTarget, setVoidTarget] = useState<{ id: string; description: string; amount: number } | null>(null);
+
+  const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
 
   async function fetchFolio() {
     if (!bookingId) return;
     setLoading(true);
     setError('');
+    setLiveBookingId(bookingId);
     try {
-      const res = await fetch(`/api/admin/bookings/${bookingId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
-      const data = await res.json();
-      if (data.success && data.data.folio) {
-        const folioRes = await fetch(`/api/folio/${data.data.folio.id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-        });
-        const folioData = await folioRes.json();
-        if (folioData.success) setFolio(folioData.data);
+      const res = await apiGet(`/api/admin/bookings/${bookingId}`);
+      if (res.success && res.data.folio) {
+        const folioRes = await apiGet(`/api/folio/${res.data.folio.id}`);
+        if (folioRes.success) setFolio(folioRes.data);
         else setError('لا توجد فاتورة لهذا الحجز');
       } else {
         setError('لا توجد فاتورة لهذا الحجز');
@@ -55,90 +61,119 @@ export default function FolioPage() {
     }
   }
 
+  async function fetchRestaurantOrders() {
+    if (!liveBookingId) return;
+    setOrdersLoading(true);
+    try {
+      const res = await apiGet(`/api/admin/restaurant-orders?bookingId=${liveBookingId}`);
+      if (res.success) setRestaurantOrders(res.data);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }
+
+  async function fetchServices() {
+    try {
+      const res = await apiGet('/api/admin/services');
+      if (res.success) setServices(res.data);
+    } catch {}
+  }
+
   useEffect(() => {
-    if (initialBookingId) fetchFolio();
+    if (initialBookingId) { setBookingId(initialBookingId); fetchFolio(); }
   }, [initialBookingId]);
+
+  useEffect(() => {
+    if (liveBookingId) fetchRestaurantOrders();
+  }, [liveBookingId]);
 
   async function addCharge(description: string, amount: number) {
     if (!folio) return;
     try {
-      const res = await fetch(`/api/folio/${folio.folioId}/charge`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description, amount, category: 'SERVICE' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowAddCharge(false);
-        fetchFolio();
-      }
+      const res = await apiPost(`/api/folio/${folio.folioId}/charge`, { description, amount, category: 'SERVICE' });
+      if (res.success) { setShowAddCharge(false); fetchFolio(); fetchRestaurantOrders(); }
     } catch {}
   }
 
-  async function applyDiscount(type: string, value: number, reason: string) {
+  async function addServiceToFolio(serviceId: string, quantity: number) {
+    if (!folio) return;
+    const res = await apiPost(`/api/admin/bookings/${liveBookingId}/charge-service`, { serviceId, quantity });
+    if (res.success) { setShowAddService(false); fetchFolio(); }
+  }
+
+  async function collectPayment(amount: number, method: string) {
+    if (!folio) throw new Error('لا توجد فاتورة');
+    const res = await apiPost('/api/payments/create', { bookingId: liveBookingId, amount, method, currency: 'LYD' });
+    if (res.success) {
+      if (method === 'CASH' || method === 'CARD' || method === 'WALLET') fetchFolio();
+      return res.data;
+    }
+    throw new Error(res.error?.message || 'فشل إنشاء الدفع');
+  }
+
+  async function applyDiscount(type: 'PERCENTAGE' | 'FIXED', value: number, reason: string) {
     if (!folio) return;
     try {
-      const res = await fetch(`/api/folio/${folio.folioId}/discount`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type, value, reason }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowDiscount(false);
-        fetchFolio();
-      }
+      const res = await apiPost(`/api/folio/${folio.folioId}/discount`, { type, value, reason });
+      if (res.success) { setShowDiscount(false); fetchFolio(); }
     } catch {}
   }
 
-  const [chargeDesc, setChargeDesc] = useState('');
-  const [chargeAmount, setChargeAmount] = useState('');
-  const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
-  const [discountValue, setDiscountValue] = useState('');
-  const [discountReason, setDiscountReason] = useState('');
+  async function downloadPdf() {
+    if (!folio) return;
+    setPdfLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`/api/folio/${folio.folioId}/invoice-pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'فشل التحميل'); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `فاتورة-${folio.folioId.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  async function voidTransaction(transactionId: string, reason: string) {
+    if (!folio) return;
+    try {
+      const res = await apiPost(`/api/folio/${folio.folioId}/transactions/${transactionId}/void`, { reason });
+      if (res.success) { setVoidTarget(null); fetchFolio(); }
+    } catch {}
+  }
+
+  async function chargeOrderToFolio(orderId: string) {
+    if (!folio) return;
+    try {
+      const res = await apiPost(`/api/admin/restaurant-orders/${orderId}`);
+      if (res.success) { fetchFolio(); fetchRestaurantOrders(); }
+    } catch {}
+  }
+
+  const hasUnchargedOrders = restaurantOrders.some(o => ['PENDING', 'PREPARING', 'READY', 'SERVED'].includes(o.status));
 
   return (
-    <div>
+    <div data-component="FolioPage">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">💰 الفواتير (Folio Billing)</h1>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <Card title="🔍 بحث عن فاتورة">
-          <div className="space-y-3">
-            <Input
-              placeholder="رقم الحجز"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setBookingId(searchInput); fetchFolio(); } }}
-            />
-            <Button className="w-full" onClick={() => { setBookingId(searchInput); fetchFolio(); }}>بحث</Button>
-          </div>
-        </Card>
-
-        <Card title="📊 ملخص">
-          <div className="space-y-3">
-            {[
-              { label: 'فواتير نشطة', value: '—', color: 'var(--gold)' },
-            ].map((item) => (
-              <div key={item.label} className="flex justify-between items-center p-3 rounded-lg bg-[var(--bg-primary)]">
-                <span className="text-sm text-[var(--text-secondary)]">{item.label}</span>
-                <span className="font-bold" style={{ color: item.color }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <FolioSearch onSearch={(id) => { setBookingId(id); fetchFolio(); }} />
+        <FolioSummaryCard folio={folio} />
       </div>
 
-      {error && (
-        <div className="bg-[rgba(231,76,60,0.1)] text-[var(--red)] text-sm p-3 rounded-lg mb-6">{error}</div>
-      )}
+      {error && <div className="bg-[rgba(231,76,60,0.1)] text-[var(--red)] text-sm p-3 rounded-lg mb-6">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -148,114 +183,35 @@ export default function FolioPage() {
           </svg>
         </div>
       ) : folio ? (
-        <div>
-          <div className="bg-gradient-to-br from-[#0F0F18] to-[#161620] border border-[var(--border-gold)] rounded-xl p-6 max-w-2xl mx-auto mb-6">
-            <div className="flex items-center justify-between border-b border-dashed border-[var(--border)] pb-3 mb-4">
-              <h2 className="text-[var(--gold)] font-bold text-lg">
-                FOLIO
-              </h2>
-              <Badge variant={folio.status === 'ACTIVE' ? 'green' : 'gold'}>
-                {folio.status === 'ACTIVE' ? 'نشط' : 'مسدد'}
-              </Badge>
-            </div>
-
-            <div className="text-sm mb-4">
-              <div>الضيف: <strong>{folio.guest.name}</strong></div>
-              {folio.guest.email && <div>البريد: <strong>{folio.guest.email}</strong></div>}
-              {folio.rooms.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {folio.rooms.map((room, i) => (
-                    <div key={i} className="text-xs text-[var(--text-muted)]">
-                      الغرفة {room.number}: {new Date(room.checkIn).toLocaleDateString('ar-LY')} ← {new Date(room.checkOut).toLocaleDateString('ar-LY')} ({room.nightlyRate} د.ل/ليلة)
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 text-sm">
-              {folio.transactions.map((tx: any) => (
-                <div key={tx.id} className="flex justify-between">
-                  <span className="text-[var(--text-secondary)]">{tx.description}</span>
-                  <span className={`font-semibold ${tx.amount >= 0 ? 'text-[var(--text-primary)]' : 'text-[var(--green)]'}`}>
-                    {tx.amount >= 0 ? '' : '-'}{Math.abs(tx.amount).toFixed(2)} د.ل
-                  </span>
-                </div>
-              ))}
-
-              <div className="flex justify-between pt-2 border-t border-[var(--border)] font-bold">
-                <span>الإجمالي</span>
-                <span className="text-[var(--gold)]">{folio.totalCharges.toFixed(2)} د.ل</span>
-              </div>
-
-              <div className="flex justify-between text-xs text-[var(--green)]">
-                <span>✅ مدفوع</span>
-                <span>{folio.totalPaid.toFixed(2)} د.ل</span>
-              </div>
-
-              <div className="flex justify-between pt-2 border-t-2 border-[var(--gold)] font-bold text-lg">
-                <span>⏳ الرصيد</span>
-                <span className={folio.balance > 0 ? 'text-[var(--gold)]' : 'text-[var(--green)]'}>
-                  {folio.balance.toFixed(2)} د.ل
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <Button size="sm" variant="secondary" className="flex-1" onClick={() => setShowAddCharge(true)}>
-                ➕ إضافة رسوم
-              </Button>
-              <Button size="sm" variant="secondary" className="flex-1" onClick={() => setShowDiscount(true)}>
-                🏷️ خصم
-              </Button>
-              <Button size="sm" className="flex-1">
-                💳 دفع
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-center">
-            <p className="text-xs text-[var(--text-muted)]">
-              💡 نظام Folio Billing — قلب الفوترة الفندقية. متكامل مع Stripe وموبي كاش.
-            </p>
-          </div>
-        </div>
+        <FolioDetails
+          folio={folio}
+          restaurantOrders={restaurantOrders}
+          hasUnchargedOrders={hasUnchargedOrders}
+          onAddCharge={() => setShowAddCharge(true)}
+          onAddService={() => { setShowAddService(true); fetchServices(); }}
+          onDiscount={() => setShowDiscount(true)}
+          onInvoice={() => setShowInvoice(true)}
+          onPayment={() => setShowPayment(true)}
+          onShowRestaurantOrders={() => setShowRestaurantOrders(true)}
+          onDownloadPdf={downloadPdf}
+          onVoidTransaction={(id, description, amount) => setVoidTarget({ id, description, amount })}
+        />
       ) : !initialBookingId ? (
         <EmptyState icon="💰" title="ابحث عن فاتورة" description="أدخل رقم الحجز للبحث عن الفاتورة" />
       ) : null}
 
-      <Modal open={showAddCharge} onClose={() => setShowAddCharge(false)} title="إضافة رسوم">
-        <div className="space-y-4">
-          <Input label="الوصف" value={chargeDesc} onChange={(e) => setChargeDesc(e.target.value)} />
-          <Input label="المبلغ (د.ل)" type="number" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} />
-          <div className="flex gap-2 justify-end pt-2">
-            <Button variant="secondary" onClick={() => setShowAddCharge(false)}>إلغاء</Button>
-            <Button onClick={() => addCharge(chargeDesc, parseFloat(chargeAmount))}>إضافة</Button>
-          </div>
-        </div>
-      </Modal>
+      <AddChargeModal open={showAddCharge} onClose={() => setShowAddCharge(false)} onAdd={addCharge} />
+      <AddServiceModal open={showAddService} onClose={() => setShowAddService(false)} services={services} onAdd={addServiceToFolio} />
+      <RestaurantOrdersModal open={showRestaurantOrders} onClose={() => setShowRestaurantOrders(false)} orders={restaurantOrders} loading={ordersLoading} onChargeOrder={chargeOrderToFolio} />
+      <DiscountModal open={showDiscount} onClose={() => setShowDiscount(false)} onApply={applyDiscount} />
 
-      <Modal open={showDiscount} onClose={() => setShowDiscount(false)} title="تطبيق خصم">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]">نوع الخصم</label>
-            <select
-              value={discountType}
-              onChange={(e) => setDiscountType(e.target.value as 'PERCENTAGE' | 'FIXED')}
-              className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--gold)]"
-            >
-              <option value="PERCENTAGE">نسبة مئوية (%)</option>
-              <option value="FIXED">قيمة ثابتة (د.ل)</option>
-            </select>
-          </div>
-          <Input label={discountType === 'PERCENTAGE' ? 'النسبة (%)' : 'المبلغ (د.ل)'} type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
-          <Input label="السبب" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
-          <div className="flex gap-2 justify-end pt-2">
-            <Button variant="secondary" onClick={() => setShowDiscount(false)}>إلغاء</Button>
-            <Button onClick={() => applyDiscount(discountType, parseFloat(discountValue), discountReason)}>تطبيق</Button>
-          </div>
-        </div>
-      </Modal>
+      {showInvoice && folio && <InvoiceModal folio={folio} onClose={() => setShowInvoice(false)} />}
+
+      {folio && (
+        <PaymentModal open={showPayment} onClose={() => setShowPayment(false)} balance={folio.balance} onCollect={collectPayment} />
+      )}
+
+      <VoidTransactionModal open={!!voidTarget} transaction={voidTarget} onClose={() => setVoidTarget(null)} onVoid={voidTransaction} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 
 export default function PublicHomePage() {
   return (
@@ -25,7 +25,7 @@ export default function PublicHomePage() {
         <h2 className="text-2xl font-bold text-center mb-8">لماذا تختار فندق السلام؟</h2>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: '🛏️', title: 'غرف مريحة', desc: 'غرف مجهزة بأحدث الوسائل لراحة ضيوفنا' },
+            { icon: '🛏️', title: 'غرف مريحة', desc: 'غرف مجهزة بأحدث الوسائل لراحة نزلاءنا' },
             { icon: '🌐', title: 'حجز إلكتروني', desc: 'نظام حجز متطور يتيح لك الحجز بسهولة' },
             { icon: '💳', title: 'دفع آمن', desc: 'بوابات دفع متعددة ومشفرة بالكامل' },
           ].map((item) => (

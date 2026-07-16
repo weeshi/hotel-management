@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function BookingConfirmedPage() {
+function BookingConfirmedContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('id');
 
@@ -27,5 +27,13 @@ export default function BookingConfirmedPage() {
         العودة للصفحة الرئيسية
       </Link>
     </div>
+  );
+}
+
+export default function BookingConfirmedPage() {
+  return (
+    <Suspense fallback={<div className="max-w-lg mx-auto px-4 py-16 text-center text-[var(--text-secondary)]">جاري التحميل...</div>}>
+      <BookingConfirmedContent />
+    </Suspense>
   );
 }

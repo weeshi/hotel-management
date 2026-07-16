@@ -1,0 +1,33 @@
+-- CreateEnum
+CREATE TYPE "SafeBoxTransactionType" AS ENUM ('DEPOSIT', 'WITHDRAWAL');
+-- CreateTable
+CREATE TABLE "ExternalClient" ("id" TEXT NOT NULL, "hotelId" TEXT NOT NULL, "name" TEXT NOT NULL, "phone" TEXT, "email" TEXT, "idNumber" TEXT, "address" TEXT, "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "ExternalClient_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SafeBoxPackage" ("id" TEXT NOT NULL, "hotelId" TEXT NOT NULL, "name" TEXT NOT NULL, "dailyPrice" DECIMAL(65,30) NOT NULL, "weeklyPrice" DECIMAL(65,30) NOT NULL, "monthlyPrice" DECIMAL(65,30) NOT NULL, "isActive" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "SafeBoxPackage_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SafeBoxTransaction" ("id" TEXT NOT NULL, "safeDepositBoxId" TEXT NOT NULL, "type" "SafeBoxTransactionType" NOT NULL, "amount" INTEGER, "description" TEXT, "staffId" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SafeBoxTransaction_pkey" PRIMARY KEY ("id"));
+ALTER TABLE "SafeDepositBox" ADD COLUMN "serialNumber" SERIAL NOT NULL;
+ALTER TABLE "SafeDepositBox" ADD COLUMN "externalClientId" TEXT;
+ALTER TABLE "SafeDepositBox" ADD COLUMN "packageId" TEXT;
+ALTER TABLE "SafeDepositBox" ADD COLUMN "rentalFee" DECIMAL(65,30);
+ALTER TABLE "SafeDepositBox" ADD COLUMN "rentalDuration" TEXT;
+ALTER TABLE "SafeDepositBox" ADD COLUMN "expectedEndDate" TIMESTAMP(3);
+ALTER TABLE "SafeDepositBox" DROP COLUMN "guestName";
+ALTER TABLE "SafeDepositBox" DROP COLUMN "guestIdNumber";
+ALTER TABLE "SafeDepositBox" ALTER COLUMN "roomId" DROP NOT NULL;
+ALTER TABLE "Invoice" ADD COLUMN "externalClientId" TEXT;
+ALTER TABLE "Invoice" ADD COLUMN "total" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "Invoice" ALTER COLUMN "folioId" DROP NOT NULL;
+CREATE INDEX "ExternalClient_hotelId_idx" ON "ExternalClient"("hotelId");
+CREATE INDEX "SafeBoxPackage_hotelId_idx" ON "SafeBoxPackage"("hotelId");
+CREATE INDEX "SafeBoxTransaction_safeDepositBoxId_idx" ON "SafeBoxTransaction"("safeDepositBoxId");
+CREATE INDEX "SafeBoxTransaction_createdAt_idx" ON "SafeBoxTransaction"("createdAt");
+CREATE UNIQUE INDEX "SafeDepositBox_serialNumber_key" ON "SafeDepositBox"("serialNumber");
+CREATE INDEX "SafeDepositBox_externalClientId_idx" ON "SafeDepositBox"("externalClientId");
+CREATE INDEX "SafeDepositBox_packageId_idx" ON "SafeDepositBox"("packageId");
+CREATE INDEX "Invoice_externalClientId_idx" ON "Invoice"("externalClientId");
+ALTER TABLE "ExternalClient" ADD CONSTRAINT "ExternalClient_hotelId_fkey" FOREIGN KEY ("hotelId") REFERENCES "Hotel"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SafeBoxPackage" ADD CONSTRAINT "SafeBoxPackage_hotelId_fkey" FOREIGN KEY ("hotelId") REFERENCES "Hotel"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SafeBoxTransaction" ADD CONSTRAINT "SafeBoxTransaction_safeDepositBoxId_fkey" FOREIGN KEY ("safeDepositBoxId") REFERENCES "SafeDepositBox"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SafeBoxTransaction" ADD CONSTRAINT "SafeBoxTransaction_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SafeDepositBox" ADD CONSTRAINT "SafeDepositBox_externalClientId_fkey" FOREIGN KEY ("externalClientId") REFERENCES "ExternalClient"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SafeDepositBox" ADD CONSTRAINT "SafeDepositBox_packageId_fkey" FOREIGN KEY ("packageId") REFERENCES "SafeBoxPackage"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_externalClientId_fkey" FOREIGN KEY ("externalClientId") REFERENCES "ExternalClient"("id") ON DELETE SET NULL ON UPDATE CASCADE;

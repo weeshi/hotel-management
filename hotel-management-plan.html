@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🏨 خطة مشروع إدارة الفنادق — النسخة الكاملة v2.0</title>
+<title>🏨 خطة مشروع إدارة الفنادق — النسخة الكاملة v3.0</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
-
 :root {
   --gold: #C9A84C;
   --gold-light: #E8D48B;
@@ -34,9 +33,7 @@
   --sidebar-width: 280px;
   --header-height: 70px;
 }
-
 * { margin:0; padding:0; box-sizing:border-box; }
-
 html { scroll-behavior:smooth; }
 body {
   font-family: 'Cairo', sans-serif;
@@ -45,14 +42,10 @@ body {
   line-height:1.7;
   overflow-x:hidden;
 }
-
-/* Scrollbar */
 ::-webkit-scrollbar { width:6px; }
 ::-webkit-scrollbar-track { background:var(--bg-secondary); }
 ::-webkit-scrollbar-thumb { background:var(--gold-dark); border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--gold); }
-
-/* ===== SIDEBAR ===== */
 .sidebar {
   position:fixed;
   top:0; right:0;
@@ -70,19 +63,9 @@ body {
   border-bottom:1px solid var(--border);
   text-align:center;
 }
-.sidebar-header .logo {
-  font-size:2rem;
-  margin-bottom:4px;
-}
-.sidebar-header h2 {
-  font-size:1rem;
-  color:var(--gold);
-  font-weight:700;
-}
-.sidebar-header p {
-  font-size:.75rem;
-  color:var(--text-muted);
-}
+.sidebar-header .logo { font-size:2rem; margin-bottom:4px; }
+.sidebar-header h2 { font-size:1rem; color:var(--gold); font-weight:700; }
+.sidebar-header p { font-size:.75rem; color:var(--text-muted); }
 .sidebar-nav { padding:12px 0; }
 .sidebar-nav a {
   display:flex;
@@ -119,14 +102,10 @@ body {
   letter-spacing:1px;
   font-weight:600;
 }
-
-/* ===== MAIN ===== */
 .main {
   margin-right:var(--sidebar-width);
   min-height:100vh;
 }
-
-/* Hero */
 .hero {
   position:relative;
   padding:60px 60px 50px;
@@ -174,11 +153,7 @@ body {
   margin-bottom:24px;
   max-width:650px;
 }
-.hero-meta {
-  display:flex;
-  gap:24px;
-  flex-wrap:wrap;
-}
+.hero-meta { display:flex; gap:24px; flex-wrap:wrap; }
 .hero-meta-item {
   display:flex;
   align-items:center;
@@ -187,15 +162,11 @@ body {
   color:var(--text-muted);
 }
 .hero-meta-item i { color:var(--gold); }
-
-/* Section */
 .section {
   padding:50px 60px;
   border-top:1px solid var(--border);
 }
-.section-header {
-  margin-bottom:32px;
-}
+.section-header { margin-bottom:32px; }
 .section-header .section-number {
   display:inline-block;
   font-size:.75rem;
@@ -214,8 +185,6 @@ body {
   font-size:.95rem;
   max-width:700px;
 }
-
-/* Cards */
 .card {
   background:var(--bg-card);
   border:1px solid var(--border);
@@ -239,13 +208,9 @@ body {
 }
 .card h3 i { color:var(--gold); font-size:1.1rem; }
 .card p, .card li { color:var(--text-secondary); font-size:.9rem; }
-
-/* Grid layouts */
 .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
 .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-
-/* Tags */
 .tag {
   display:inline-block;
   padding:2px 10px;
@@ -259,8 +224,6 @@ body {
 .tag-blue { background:var(--blue-bg); color:var(--blue); }
 .tag-purple { background:var(--purple-bg); color:var(--purple); }
 .tag-gold { background:rgba(201,168,76,0.12); color:var(--gold); }
-
-/* Tables */
 .table-wrap {
   overflow-x:auto;
   border-radius:12px;
@@ -289,8 +252,6 @@ tbody td {
 }
 tbody tr:last-child td { border-bottom:none; }
 tbody tr:hover { background:rgba(255,255,255,0.02); }
-
-/* Code Blocks */
 .code-block {
   background:#0A0A0F;
   border:1px solid var(--border);
@@ -312,8 +273,6 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 .code-block .type { color:#4EC9B0; }
 .code-block .enum { color:#B5CEA8; }
 .code-block .field { color:#9CDCFE; }
-
-/* Progress Bar */
 .progress-wrap { margin:8px 0; }
 .progress-label {
   display:flex;
@@ -333,12 +292,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   border-radius:3px;
   transition:width 1s ease;
 }
-
-/* Arrow Lists */
-.arrow-list {
-  list-style:none;
-  padding:0;
-}
+.arrow-list { list-style:none; padding:0; }
 .arrow-list li {
   padding:6px 0;
   color:var(--text-secondary);
@@ -356,8 +310,6 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   margin-top:4px;
   flex-shrink:0;
 }
-
-/* Tooltip Items for lists */
 .tip-item {
   position:relative;
   cursor:help;
@@ -365,9 +317,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   border-radius:6px;
   transition:background .2s;
 }
-.tip-item:hover {
-  background:rgba(201,168,76,0.06);
-}
+.tip-item:hover { background:rgba(201,168,76,0.06); }
 .tip-item .tip-popup {
   visibility:hidden;
   opacity:0;
@@ -402,13 +352,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   visibility:visible;
   opacity:1;
 }
-.tip-item .tip-popup strong {
-  color:var(--gold);
-  display:block;
-  margin-bottom:4px;
-}
-
-/* Feature Grid */
+.tip-item .tip-popup strong { color:var(--gold); display:block; margin-bottom:4px; }
 .feature-grid {
   display:grid;
   grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
@@ -434,17 +378,8 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   margin-bottom:10px;
   font-size:1.1rem;
 }
-.feature-item h4 {
-  font-size:.95rem;
-  font-weight:700;
-  margin-bottom:4px;
-}
-.feature-item p {
-  font-size:.8rem;
-  color:var(--text-muted);
-}
-
-/* Flow diagram */
+.feature-item h4 { font-size:.95rem; font-weight:700; margin-bottom:4px; }
+.feature-item p { font-size:.8rem; color:var(--text-muted); }
 .flow-diagram {
   display:flex;
   align-items:center;
@@ -469,12 +404,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   border-color:var(--gold);
   background:rgba(201,168,76,0.06);
 }
-.flow-arrow {
-  color:var(--gold);
-  font-size:.8rem;
-}
-
-/* Folio Display */
+.flow-arrow { color:var(--gold); font-size:.8rem; }
 .folio-display {
   background:linear-gradient(135deg, #0F0F18, #161620);
   border:1px solid var(--border-gold);
@@ -492,15 +422,8 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   padding-bottom:12px;
   margin-bottom:16px;
 }
-.folio-display .folio-header h4 {
-  color:var(--gold);
-  font-size:.95rem;
-  font-weight:700;
-}
-.folio-display .folio-header span {
-  font-size:.75rem;
-  color:var(--text-muted);
-}
+.folio-display .folio-header h4 { color:var(--gold); font-size:.95rem; font-weight:700; }
+.folio-display .folio-header span { font-size:.75rem; color:var(--text-muted); }
 .folio-line {
   display:flex;
   justify-content:space-between;
@@ -514,8 +437,6 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 .folio-line.paid { color:var(--green); }
 .folio-line.paid .amount { color:var(--green); }
 .folio-line.balance .amount { color:var(--gold); font-size:1.1rem; }
-
-/* Architecture SVG-like boxes */
 .arch-layer {
   display:flex;
   flex-direction:column;
@@ -539,8 +460,6 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 .arch-box.gold { border-color:var(--border-gold); color:var(--gold); }
 .arch-box.active { background:rgba(201,168,76,0.06); }
 .arch-arrow { color:var(--text-muted); font-size:.7rem; }
-
-/* Tooltip */
 .arch-box .tooltip {
   visibility:hidden;
   opacity:0;
@@ -578,12 +497,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   opacity:1;
 }
 .arch-box .tooltip strong { color:var(--gold); display:block; margin-bottom:4px; }
-
-/* Toggle Details */
-.details-toggle {
-  cursor:pointer;
-  user-select:none;
-}
+.details-toggle { cursor:pointer; user-select:none; }
 .details-toggle i { transition:transform .3s; }
 .details-toggle.open i { transform:rotate(180deg); }
 .details-content {
@@ -597,25 +511,9 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   opacity:1;
   margin-top:16px;
 }
-
-/* Score Card */
-.score-card {
-  text-align:center;
-  padding:30px;
-}
-.score-card .score {
-  font-size:3.5rem;
-  font-weight:800;
-  color:var(--gold);
-  line-height:1;
-}
-.score-card .score-label {
-  font-size:.85rem;
-  color:var(--text-muted);
-  margin-top:4px;
-}
-
-/* Check list */
+.score-card { text-align:center; padding:30px; }
+.score-card .score { font-size:3.5rem; font-weight:800; color:var(--gold); line-height:1; }
+.score-card .score-label { font-size:.85rem; color:var(--text-muted); margin-top:4px; }
 .check-list { list-style:none; padding:0; }
 .check-list li {
   display:flex;
@@ -628,14 +526,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 }
 .check-list li:last-child { border-bottom:none; }
 .check-list li i { color:var(--green); font-size:.8rem; }
-
-/* Tabs */
-.tabs {
-  display:flex;
-  gap:4px;
-  margin-bottom:20px;
-  flex-wrap:wrap;
-}
+.tabs { display:flex; gap:4px; margin-bottom:20px; flex-wrap:wrap; }
 .tab-btn {
   padding:8px 18px;
   border-radius:8px;
@@ -656,32 +547,18 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 }
 .tab-content { display:none; }
 .tab-content.active { display:block; }
-
-/* Comparison Table */
 .comparison-table td:first-child { font-weight:600; color:var(--text-primary); white-space:nowrap; }
 .comparison-table .before { color:var(--red); }
 .comparison-table .after { color:var(--green); }
-
-/* Status indicators */
-.status-dot {
-  display:inline-block;
-  width:8px; height:8px;
-  border-radius:50%;
-  margin-left:6px;
-}
+.status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-left:6px; }
 .status-dot.green { background:var(--green); }
 .status-dot.red { background:var(--red); }
 .status-dot.yellow { background:var(--yellow); }
-
-/* Responsive */
 @media (max-width:1200px) {
   .grid-4 { grid-template-columns:repeat(2,1fr); }
 }
 @media (max-width:992px) {
-  .sidebar {
-    transform:translateX(100%);
-    width:260px;
-  }
+  .sidebar { transform:translateX(100%); width:260px; }
   .sidebar.open { transform:translateX(0); }
   .main { margin-right:0; }
   .hero, .section { padding:30px 24px; }
@@ -711,8 +588,6 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   .flow-diagram { flex-direction:column; }
   .flow-arrow { transform:rotate(90deg); }
 }
-
-/* Overlay */
 .sidebar-overlay {
   display:none;
   position:fixed;
@@ -721,13 +596,10 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   z-index:90;
 }
 .sidebar-overlay.show { display:block; }
-
 @media (min-width:993px) {
   .mobile-toggle { display:none !important; }
   .sidebar-overlay { display:none !important; }
 }
-
-/* Animations */
 .fade-in {
   opacity:0;
   transform:translateY(30px);
@@ -737,15 +609,11 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   opacity:1;
   transform:translateY(0);
 }
-
-/* Icon color helpers */
 .icon-gold { color:var(--gold); }
 .icon-green { color:var(--green); }
 .icon-red { color:var(--red); }
 .icon-blue { color:var(--blue); }
 .icon-purple { color:var(--purple); }
-
-/* Phase timeline */
 .phase {
   position:relative;
   padding:0 0 0 30px;
@@ -764,17 +632,8 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   background:var(--border);
 }
 .phase:last-child::before { background:var(--gold); }
-.phase h4 {
-  font-size:.95rem;
-  font-weight:700;
-  color:var(--text-primary);
-  margin-bottom:4px;
-}
-.phase .phase-duration {
-  font-size:.75rem;
-  color:var(--text-muted);
-  margin-bottom:8px;
-}
+.phase h4 { font-size:.95rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+.phase .phase-duration { font-size:.75rem; color:var(--text-muted); margin-bottom:8px; }
 .phase ul { list-style:none; padding:0; }
 .phase ul li {
   padding:3px 0;
@@ -785,12 +644,10 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   gap:6px;
 }
 .phase ul li::before {
-  content:'□';
+  content:'\25a1';
   color:var(--text-muted);
   font-size:.7rem;
 }
-
-/* Pricing Cards */
 .pricing-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
 .pricing-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center; transition:all .3s; position:relative; }
 .pricing-card:hover { background:var(--bg-card-hover); border-color:var(--border-gold); transform:translateY(-2px); }
@@ -806,10 +663,8 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 .pricing-card .pricing-features li i.fa-xmark { color:var(--red); }
 .pricing-card .pricing-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--gold); color:#000; font-size:.65rem; font-weight:700; padding:2px 12px; border-radius:10px; text-transform:uppercase; }
 .flow-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.8rem; }
-.flow-step { padding:8px 14px; border-radius:6px; background:var(--bg-card); border:1px solid var(--border); min-width:70px; text-align:center; }
-.flow-arrow { color:var(--gold); font-size:.85rem; }
-
-/* Print */
+.flow-row .flow-step { padding:8px 14px; border-radius:6px; background:var(--bg-card); border:1px solid var(--border); min-width:70px; text-align:center; }
+.flow-row .flow-arrow { color:var(--gold); font-size:.85rem; }
 @media print {
   .sidebar, .mobile-toggle, .sidebar-overlay { display:none !important; }
   .main { margin-right:0; }
@@ -821,286 +676,230 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 </style>
 </head>
 <body>
-
-<!-- Mobile Toggle -->
 <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
   <i class="fas fa-bars"></i>
 </button>
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
-
-<!-- ===== SIDEBAR ===== -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="logo">🏨</div>
     <h2>Hotel Management</h2>
-    <p>خطة المشروع الكاملة v2.0</p>
+    <p>خطة المشروع الكاملة v3.0</p>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">الخطة</div>
-    <a href="#overview" class="active" onclick="closeSidebar()"><i class="fas fa-compass"></i>نظرة عامة</a>
-    <a href="#architecture" onclick="closeSidebar()"><i class="fas fa-sitemap"></i>العمارة التقنية</a>
+    <a href="#architecture" class="active" onclick="closeSidebar()"><i class="fas fa-sitemap"></i>العمارة التقنية</a>
     <a href="#structure" onclick="closeSidebar()"><i class="fas fa-folder-tree"></i>الهيكل التنظيمي</a>
     <a href="#database" onclick="closeSidebar()"><i class="fas fa-database"></i>قاعدة البيانات</a>
+    <a href="#security" onclick="closeSidebar()"><i class="fas fa-shield-halved"></i>المصادقة والأمان</a>
+    <a href="#core" onclick="closeSidebar()"><i class="fas fa-hotel"></i>الوحدات الأساسية</a>
     <a href="#folio" onclick="closeSidebar()"><i class="fas fa-file-invoice-dollar"></i>نظام الفوترة</a>
-    <a href="#payment" onclick="closeSidebar()"><i class="fas fa-credit-card"></i>نظام الدفع</a>
-    <a href="#security" onclick="closeSidebar()"><i class="fas fa-shield-halved"></i>الأمان</a>
-    <a href="#features" onclick="closeSidebar()"><i class="fas fa-star"></i>الميزات الجديدة</a>
-    <a href="#website" onclick="closeSidebar()"><i class="fas fa-globe"></i>الموقع الإلكتروني</a>
-    <a href="#pricing" onclick="closeSidebar()"><i class="fas fa-tags"></i>Freemium والأسعار</a>
-    <a href="#deployment" onclick="closeSidebar()"><i class="fas fa-cloud-upload-alt"></i>النشر و CI/CD</a>
+    <a href="#payment" onclick="closeSidebar()"><i class="fas fa-credit-card"></i>بوابات الدفع</a>
+    <a href="#wallet" onclick="closeSidebar()"><i class="fas fa-wallet"></i>المحفظة (Wallet)</a>
+    <a href="#modules" onclick="closeSidebar()"><i class="fas fa-utensils"></i>المطعم والخدمات</a>
+    <a href="#notifications" onclick="closeSidebar()"><i class="fas fa-bell"></i>الإشعارات والتواصل</a>
+    <a href="#partner" onclick="closeSidebar()"><i class="fas fa-plug"></i>API والتقارير</a>
+    <a href="#deployment" onclick="closeSidebar()"><i class="fas fa-cloud-upload-alt"></i>النشر والأسعار</a>
     <a href="#roadmap" onclick="closeSidebar()"><i class="fas fa-road"></i>خريطة التنفيذ</a>
-    <div class="nav-label">التقييم</div>
-    <a href="#comparison" onclick="closeSidebar()"><i class="fas fa-chart-simple"></i>قبل وبعد</a>
-    <a href="#checklist" onclick="closeSidebar()"><i class="fas fa-list-check"></i>قائمة التحقق</a>
   </nav>
 </aside>
-
-<!-- ===== MAIN ===== -->
 <main class="main">
-
-<!-- ===== HERO ===== -->
 <section class="hero" id="overview">
   <div class="hero-content fade-in visible">
-    <div class="hero-badge"><i class="fas fa-hotel"></i> خطة متكاملة v2.0</div>
+    <div class="hero-badge"><i class="fas fa-hotel"></i> خطة شاملة v3.0</div>
     <h1>🏨 نظام إدارة <span>الفنادق</span></h1>
-    <p class="subtitle">منصة متكاملة لإدارة الفنادق تشمل نظام حجوزات، فوترة فندقية (Folio Billing)، إدارة خدمات، بوابة دفع إلكتروني (Stripe، PayPal، موبي كاش، إدفع لي، يسر باي، ون باي)، و API للربط مع المنظومات العالمية — مع واجهة عربية كاملة (RTL).</p>
+    <p class="subtitle">منصة متكاملة لإدارة الفنادق: حجوزات، فوترة فندقية (Folio Billing)، مطعم، محفظة إلكترونية، صناديق أمانات، مفقودات، صيانة، وبوابات دفع متعددة — مع واجهة عربية كاملة (RTL) ودعم SaaS و On-Premise.</p>
     <div class="hero-meta">
       <div class="hero-meta-item"><i class="fas fa-layer-group"></i> 3 مراحل تنفيذ</div>
-      <div class="hero-meta-item"><i class="fas fa-table-cells"></i> 25+ نموذج قاعدة بيانات</div>
-      <div class="hero-meta-item"><i class="fas fa-shield"></i> 7 طبقات أمان</div>
-      <div class="hero-meta-item"><i class="fas fa-globe"></i> API للشركاء الخارجيين</div>
+      <div class="hero-meta-item"><i class="fas fa-table-cells"></i> 35+ نموذج قاعدة بيانات</div>
+      <div class="hero-meta-item"><i class="fas fa-shield"></i> 7 طبقات أمان — 7 أدوار</div>
+      <div class="hero-meta-item"><i class="fas fa-credit-card"></i> 7 بوابات دفع</div>
       <div class="hero-meta-item"><i class="fas fa-language"></i> عربي + English (RTL)</div>
     </div>
   </div>
 </section>
 
-<!-- ===== ARCHITECTURE ===== -->
 <section class="section" id="architecture">
   <div class="section-header fade-in">
     <div class="section-number">01</div>
-    <h2>🏗️ العمارة التقنية المُحسّنة</h2>
-    <p>هندسة متعددة الطبقات تفصل بين الـ UI ومنطق الأعمال والبيانات، مع طبقات Repository و Queue و Gateway.</p>
+    <h2>🏗️ العمارة التقنية</h2>
+    <p>هندسة متعددة الطبقات تفصل بين UI، منطق الأعمال، الوصول للبيانات، والخدمات الخارجية — مع PostgreSQL و Redis/Bull Queue.</p>
   </div>
 
   <div class="card fade-in">
     <h3><i class="fas fa-diagram-project"></i> المخطط العام</h3>
     <div class="arch-layer">
       <div class="arch-box gold">🌐 HTTP / HTTPS
-        <div class="tooltip"><strong>🔒 طبقة النقل الآمن</strong>جميع الاتصالات بين المتصفح والخادم مشفرة عبر HTTPS مع HSTS. يمنع هجمات man-in-the-middle واعتراض البيانات.</div>
+        <div class="tooltip"><strong>🔒 طبقة النقل الآمن</strong>جميع الاتصالات عبر HTTPS مع HSTS.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
-      <div class="arch-box active" style="border-color:var(--gold);color:var(--gold);font-weight:700;">Next.js (App Router)<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">API Routes ← بديل Express</span>
-        <div class="tooltip"><strong>⚡ خادم واحد يجمع Frontend + Backend</strong>يحتوي Next.js على نظام API Routes المدمج الذي يلغي الحاجة إلى خادم Express منفصل. هذا يقلل التعقيد، يلغي CORS، ويسرّع النشر. يمكنك كتابة API endpoints في نفس المشروع.</div>
+      <div class="arch-box active" style="border-color:var(--gold);color:var(--gold);font-weight:700;">Next.js (App Router + API Routes)<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">خادم Frontend + Backend موحد</span>
+        <div class="tooltip"><strong>⚡ خادم واحد — لا Express منفصل</strong>Next.js API Routes تغني عن خادم Express منفصل. تلغي الحاجة إلى CORS، وتوحّد النشر في مشروع واحد.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
       <div class="arch-box" style="border-color:var(--blue);color:var(--blue);">Middleware Layer<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">Auth | CSRF | RateLimiter | Validate | Audit</span>
-        <div class="tooltip"><strong>🛡️ طبقة الحماية والتحقق</strong>قبل الوصول إلى الخدمات، يمر الطلب عبر سلسلة من الـ Middleware: التحقق من صحة التوكن (Auth)، منع هجمات CSRF، تحديد عدد الطلبات (Rate Limiter)، التحقق من صحة البيانات (Zod Validation)، وتسجيل العملية (Audit Log).</div>
+        <div class="tooltip"><strong>🛡️ سلسلة الحماية</strong>كل طلب يمر عبر: التحقق من JWT، منع CSRF، تحديد معدل الطلبات، التحقق من صحة البيانات (Zod)، وتسجيل Audit Log.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
       <div class="arch-box" style="border-color:var(--green);color:var(--green);">Service Layer (Business Logic)
-        <div class="tooltip"><strong>🧠 قلب النظام — منطق الأعمال</strong>هنا يتم تنفيذ كل القواعد التجارية: إنشاء الحجوزات، حساب الفواتير، إدارة الخدمات، تطبيق الخصومات والضرائب. كل Service مستقل تماماً ويستدعي الـ Repository Layer للوصول إلى البيانات.</div>
+        <div class="tooltip"><strong>🧠 منطق الأعمال</strong>خدمات مستقلة لكل مجال: BookingService، FolioService، PaymentService، WalletService، RestaurantService، مع قواعد الأعمال والحسابات.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
-      <div class="arch-box" style="border-color:var(--purple);color:var(--purple);">Repository Layer (Data Access)<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">Abstracted from Prisma</span>
-        <div class="tooltip"><strong>🗃️ واجهة الوصول إلى البيانات</strong>طبقة تفصل منطق الأعمال عن قاعدة البيانات. كل كيان (Booking, User, Room) له Repository خاص به. هذا يسمح باختبار الـ Services بشكل منفصل، وتغيير ORM أو قاعدة البيانات مستقبلاً دون تعديل كود الخدمات.</div>
+      <div class="arch-box" style="border-color:var(--purple);color:var(--purple);">Repository Layer (Data Access)<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">Prisma ORM — PostgreSQL</span>
+        <div class="tooltip"><strong>🗃️ طبقة الوصول للبيانات</strong>تفصل منطق الأعمال عن قاعدة البيانات. كل كيان له Repository خاص به. تستخدم Prisma ORM مع PostgreSQL مع Decimal و Enums و Json.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
-      <div class="arch-box" style="border-color:var(--yellow);color:var(--yellow);">External Services Layer<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">Stripe | PayPal | MobiCash | Email</span>
-        <div class="tooltip"><strong>🔌 خدمات خارجية — قابلة للتبديل</strong>طبقة تجريدية تسمح باستبدال أي مزود خدمة دون تغيير كود النظام. حالياً: بوابات الدفع (Stripe، PayPal، موبي كاش)، البريد الإلكتروني (Resend)، والرسائل النصية. يمكن إضافة مزود جديد بكتابة Gateway واحد فقط.</div>
+      <div class="arch-box" style="border-color:var(--yellow);color:var(--yellow);">External Services &amp; Queue<br><span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">Gateways (7) + Bull + Redis</span>
+        <div class="tooltip"><strong>🔌 خدمات خارجية + طابور غير متزامن</strong>7 بوابات دفع، بريد إلكتروني، SMS. Bull + Redis للمهام غير المتزامنة: إيميلات، إشعارات، شحنات مجدولة.</div>
       </div>
       <div class="arch-arrow"><i class="fas fa-arrow-down"></i></div>
-      <div class="arch-box">🗄️ PostgreSQL &nbsp;|&nbsp; ⚡ Redis (Cache/Queue) &nbsp;|&nbsp; 🔔 Stripe Webhooks
-        <div class="tooltip"><strong>📦 البنية التحتية للبيانات</strong>PostgreSQL هي قاعدة البيانات الرئيسية لكل البيانات الهيكلية. Redis يُستخدم للتخزين المؤقت (Cache) وسير الانتظار (Queue) للمهام غير المتزامنة كالإيميلات والإشعارات. Webhooks من Stripe تخطر النظام بأحداث الدفع في الوقت الفعلي.</div>
+      <div class="arch-box">🗄️ PostgreSQL (مع Decimal/Enums/Json) &nbsp;|&nbsp; ⚡ Redis (Cache/Queue)
+        <div class="tooltip"><strong>📦 البنية التحتية</strong>PostgreSQL قاعدة البيانات الرئيسية مع Decimal للحسابات المالية، Enums للحالات، Json للقواعد. Redis للتخزين المؤقت و Bull Queue للمهام غير المتزامنة.</div>
       </div>
     </div>
   </div>
 
   <div class="grid-2 fade-in">
     <div class="card">
-      <h3><i class="fas fa-layer-group"></i> طبقات المشروع</h3>
+      <h3><i class="fas fa-check-circle" style="color:var(--green);"></i> لماذا PostgreSQL + Redis؟</h3>
+      <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:12px;">اختيارنا لـ PostgreSQL يأتي لمتطلبات نظام فندقي دقيق:</p>
+      <ul class="arrow-list">
+        <li><strong style="color:var(--text-primary);">Decimal</strong> للحسابات المالية — دقة كاملة بدون أخطاء تقريب Float</li>
+        <li><strong style="color:var(--text-primary);">Enums</strong> للحالات — BookingStatus, PaymentMethod, FolioStatus — تكامل على مستوى قاعدة البيانات</li>
+        <li><strong style="color:var(--text-primary);">Json/JsonB</strong> للقواعد المرنة — سياسات الإلغاء، إعدادات الفندق، أيام التطبيق</li>
+        <li><strong style="color:var(--text-primary);">Redis</strong> للتخزين المؤقت + Bull Queue للمهام غير المتزامنة</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-check-circle" style="color:var(--green);"></i> طبقات المشروع</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>الطبقة</th><th>المسار</th><th>الوظيفة</th></tr></thead>
           <tbody>
-            <tr><td>📦 Routes</td><td style="direction:ltr;text-align:left;">src/api/</td><td>تحديد نقاط الوصول (Public, Admin, Partner)</td></tr>
+            <tr><td>🌐 Routes</td><td style="direction:ltr;text-align:left;">src/app/api/</td><td>تحديد نقاط الوصول (Public, Admin, Partner)</td></tr>
             <tr><td>⚙️ Middleware</td><td style="direction:ltr;text-align:left;">src/middleware/</td><td>Auth, CSRF, Rate Limiting, Validation, Audit</td></tr>
-            <tr><td>🧠 Services</td><td style="direction:ltr;text-align:left;">src/lib/services/</td><td>منطق الأعمال (Booking, Folio, Payment, etc.)</td></tr>
-            <tr><td>🗃️ Repositories</td><td style="direction:ltr;text-align:left;">src/lib/repositories/</td><td>الوصول إلى البيانات عبر Prisma</td></tr>
-            <tr><td>🔌 Gateways</td><td style="direction:ltr;text-align:left;">src/lib/gateways/</td><td>تجريد مزودي الخدمة (Stripe, PayPal, MobiCash, Idfa3ly, YaserPay, OnePay, Email)</td></tr>
+            <tr><td>🧠 Services</td><td style="direction:ltr;text-align:left;">src/lib/services/</td><td>منطق الأعمال لكل وحدة</td></tr>
+            <tr><td>🗃️ Repositories</td><td style="direction:ltr;text-align:left;">src/lib/repositories/</td><td>الوصول إلى البيانات عبر Prisma + PostgreSQL</td></tr>
+            <tr><td>🔌 Gateways</td><td style="direction:ltr;text-align:left;">src/lib/gateways/</td><td>تجريد بوابات الدفع، الإيميل، SMS (Strategy Pattern)</td></tr>
             <tr><td>📨 Queue</td><td style="direction:ltr;text-align:left;">src/lib/queue/</td><td>Bull + Redis (إيميلات، إشعارات، شحنات مجدولة)</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-    <div class="card">
-      <h3><i class="fas fa-check-circle" style="color:var(--green);"></i> لماذا Next.js API Routes بدلاً من Express؟</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>المقارنة</th><th>Express منفصل</th><th>Next.js API Routes</th></tr></thead>
-          <tbody>
-            <tr><td>عدد الخوادم</td><td class="before">خادمان → CORS</td><td class="after">خادم واحد ← لا CORS</td></tr>
-            <tr><td>النشر</td><td class="before">معقد، تكاليف أعلى</td><td class="after">نشر أسهل، تكلفة أقل</td></tr>
-            <tr><td>زمن الاستجابة</td><td class="before">تأخير Network</td><td class="after">استدعاء مباشر</td></tr>
-            <tr><td>الصيانة</td><td class="before">مشروعان منفصلان</td><td class="after">Monorepo واحد</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p style="margin-top:12px;font-size:.82rem;color:var(--text-muted);"><i class="fas fa-info-circle"></i> يمكن إبقاء Express للـ Partner API فقط إذا كان الربط الخارجي مكثفاً.</p>
-    </div>
   </div>
 
   <div class="card fade-in">
-    <h3><i class="fas fa-cubes"></i> نمط الـ Repository Layer</h3>
+    <h3><i class="fas fa-layer-group"></i> نمط الـ Repository + Service + Gateway</h3>
     <div class="grid-3">
       <div>
         <span class="tag tag-gold" style="margin-bottom:8px;display:inline-block;">repositories/</span>
         <ul class="arrow-list">
-          <li class="tip-item">base.repository.ts — CRUD generic
-            <div class="tip-popup"><strong>⭐ CRUD عام</strong> يوفر دوال أساسية (findById, create, update, delete, paginate) لجميع الـ Repositories. يقلل تكرار الكود بنسبة 70% ويوحد واجهة الوصول للبيانات.</div>
-          </li>
-          <li class="tip-item">booking.repository.ts
-            <div class="tip-popup"><strong>📅 إدارة الحجوزات</strong> استعلامات معقدة للتوفر (availability check)، البحث بالتواريخ، الفلترة حسب الحالة (مؤكد/ملغي/منتهي)، تقارير الإشغال، والتكامل مع RatePlan لاحتساب السعر.</div>
-          </li>
-          <li class="tip-item">room.repository.ts
-            <div class="tip-popup"><strong>🚪 إدارة الغرف</strong> البحث برقم الغرفة، الفلترة حسب الحالة (متاح/مشغول/صيانة)، التوفر في تاريخ معين، والحصول على الغرف المتاحة لنوع معين في فترة زمنية.</div>
-          </li>
-          <li class="tip-item">folio.repository.ts
-            <div class="tip-popup"><strong>💰 إدارة الفوترة</strong> إنشاء Folio، إضافة معاملات (FolioTransaction) مع حساب الضريبة التلقائي، حساب الرصيد (balance)، استعلامات التقارير المالية، وترحيل الشحنات المجدولة.</div>
-          </li>
-          <li class="tip-item">guest.repository.ts
-            <div class="tip-popup"><strong>👤 إدارة الضيوف</strong> البحث بالإيميل أو رقم الهاتف، سجل الحجوزات السابقة، نقاط الولاء، وإدارة العناوين والبيانات الشخصية للضيوف المسجلين.</div>
-          </li>
-          <li class="tip-item">service.repository.ts
-            <div class="tip-popup"><strong>🛎️ إدارة الخدمات</strong> الفلترة حسب فئة الخدمة (مطعم، تنظيف، نقل)، البحث بالاسم، جلب الخدمات النشطة فقط، وحساب السعر مع الضريبة حسب TaxRule.</div>
-          </li>
-          <li class="tip-item">rate-plan.repository.ts
-            <div class="tip-popup"><strong>🏷️ خطط الأسعار</strong> البحث عن أرخص خطة سعرية لتاريخ معين، تطبيق minStay، التحقق من صحة الفترة (startDate/endDate)، وربط خطة السعر بسياسة الإلغاء المناسبة.</div>
-          </li>
+          <li class="tip-item">base.repository.ts — CRUD generic</li>
+          <li class="tip-item">booking.repository.ts</li>
+          <li class="tip-item">folio.repository.ts</li>
+          <li class="tip-item">guest.repository.ts</li>
+          <li class="tip-item">room.repository.ts</li>
+          <li class="tip-item">rate-plan.repository.ts</li>
+          <li class="tip-item">service.repository.ts</li>
+          <li class="tip-item">wallet.repository.ts</li>
         </ul>
       </div>
       <div>
         <span class="tag tag-blue" style="margin-bottom:8px;display:inline-block;">services/</span>
         <ul class="arrow-list">
-          <li class="tip-item">booking.service.ts ← BookingRepository
-            <div class="tip-popup"><strong>📋 منطق الحجوزات</strong> التحقق من توفر الغرفة، حساب السعر الإجمالي (بما في ذلك الموسمية)، تطبيق سياسة الإلغاء، إدارة حالات الحجز (Pending → Confirmed → CheckedIn → CheckedOut → Cancelled).</div>
-          </li>
-          <li class="tip-item">folio.service.ts ← FolioRepository
-            <div class="tip-popup"><strong>🧾 قلب نظام الفوترة</strong> إنشاء Folio عند Check-in، ترحيل RoomCharge تلقائياً كل ليلة، إضافة BookingService إلى الفاتورة، حساب الضريبة المركبة، تطبيق الخصومات، وتسوية الفاتورة عند Check-out.</div>
-          </li>
-          <li class="tip-item">payment.service.ts ← Gateway Abstraction
-            <div class="tip-popup"><strong>💳 طبقة دفع مجردة</strong> توحيد واجهات جميع بوابات الدفع (Stripe, PayPal, موبي كاش, إدفع لي) خلف واجهة واحدة. تتعامل مع الإنشاء والتأكيد والاسترداد وإشعارات Webhooks دون أن تعرف الخدمة أي بوابة تستخدم.</div>
-          </li>
-          <li class="tip-item">pricing.service.ts ← RatePlan + موسمية
-            <div class="tip-popup"><strong>💲 التسعير الذكي</strong> تحديد السعر المناسب تلقائياً حسب: الموسم (High/Low)، مدة الإقامة (تطبيق minStay)، يوم الأسبوع (عطلة/عمل)، خطة السعر المطبقة، وسياسة الإلغاء المرتبطة.</div>
-          </li>
-          <li class="tip-item">cancellation.service.ts ← سياسات الإلغاء
-            <div class="tip-popup"><strong>❌ الإلغاء والاسترداد</strong> حساب مبلغ الاسترداد بناءً على قواعد سياسة الإلغاء (JSON rules)، إنشاء Refund تلقائي عبر بوابة الدفع، تحديث حالة الحجز والفوليو، وإشعار العميل.</div>
-          </li>
-          <li class="tip-item">notification.service.ts ← Queue-based
-            <div class="tip-popup"><strong>📨 الإشعارات غير المتزامنة</strong> إرسال إيميلات و SMS عبر Bull Queue (Redis) مع إعادة محاولة تلقائية عند الفشل. يدعم: تأكيد الحجز، تذكير 24 ساعة قبل الدخول، فاتورة الخروج، وإشعار الإلغاء.</div>
-          </li>
-          <li class="tip-item">audit.service.ts ← AuditLog
-            <div class="tip-popup"><strong>📝 التدقيق التلقائي</strong> تسجيل كل عملية حساسة في النظام: من فعلها، متى، من أي IP، القيمة القديمة والجديدة. أمثلة: تعديل سعر غرفة، استرداد مبلغ، إلغاء حجز، إضافة موظف جديد.</div>
-          </li>
+          <li class="tip-item">auth.service.ts ← مصادقة + JWT + 2FA</li>
+          <li class="tip-item">booking.service.ts ← BookingRepository</li>
+          <li class="tip-item">folio.service.ts ← FolioRepository</li>
+          <li class="tip-item">payment.service.ts ← Gateway Abstraction</li>
+          <li class="tip-item">pricing.service.ts ← RatePlan + موسمية</li>
+          <li class="tip-item">cancellation.service.ts ← سياسات الإلغاء</li>
+          <li class="tip-item">notification.service.ts ← Queue-based</li>
+          <li class="tip-item">audit.service.ts ← AuditLog</li>
+          <li class="tip-item">guest.service.ts ← Guest</li>
+          <li class="tip-item">invoice-pdf.service.ts ← توليد فواتير PDF</li>
+          <li class="tip-item">wallet-receipt-pdf.service.ts ← إيصالات PDF</li>
         </ul>
       </div>
       <div>
         <span class="tag tag-purple" style="margin-bottom:8px;display:inline-block;">gateways/</span>
         <ul class="arrow-list">
-          <li class="tip-item">payment-gateway.interface.ts
-            <div class="tip-popup"><strong>🔌 واجهة بوابة الدفع الموحدة</strong> Strategy Pattern — تعرّف الواجهة الأساسية (interface) التي يجب على كل بوابة دفع تنفيذها: createPaymentIntent, authorize, capture, refund, verifyWebhook. أي بوابة جديدة تكتب class واحد implement هذه الواجهة.</div>
-          </li>
-          <li class="tip-item">stripe.gateway.ts
-            <div class="tip-popup"><strong>💳 Stripe</strong> البوابة العالمية الأكثر انتشاراً. تدعم: بطاقات ائتمان مع 3D Secure، Apple Pay، Google Pay، Pre-authorization (تجميد مبلغ تأمين)، Partial Refund، Webhooks (payment_intent.succeeded/failed).</div>
-          </li>
-          <li class="tip-item">paypal.gateway.ts
-            <div class="tip-popup"><strong>💳 PayPal</strong> محفظة رقمية عالمية. تدعم: PayPal Wallet، Credit Card عبر PayPal، Partial Refund، Webhooks (PAYMENT.CAPTURE.COMPLETED/REFUNDED). مثالية للحجوزات الدولية.</div>
-          </li>
-          <li class="tip-item">mobicash.gateway.ts
-            <div class="tip-popup"><strong>📱 موبي كاش (Libyana)</strong> محفظة إلكترونية ليبية من شركة ليبيانا. تدعم: دفع عبر رمز QR، تحويل فوري بين المحافظ، سحب نقدي من الوكلاء. مناسبة للدفع المحلي في ليبيا.</div>
-          </li>
-          <li class="tip-item">idfa3ly.gateway.ts
-            <div class="tip-popup"><strong>💼 إدفع لي (Idfa3ly)</strong> منصة دفع إلكتروني ليبية. تدعم: بطاقات مدى المحلية، الدفع عبر التطبيق، API مفتوح للتكامل المباشر مع المواقع والتطبيقات.</div>
-          </li>
-          <li class="tip-item">yaserpay.gateway.ts
-            <div class="tip-popup"><strong>💳 يسر باي (YaserPay)</strong> محفظة رقمية ليبية. تدعم: تحويل بين المستخدمين، سحب وإيداع نقدي عبر الوكلاء، QR Code للدفع في المتاجر والفنادق.</div>
-          </li>
-          <li class="tip-item">onepay.gateway.ts
-            <div class="tip-popup"><strong>💳 ون باي (OnePay)</strong> منصة دفع إلكتروني ليبي. تدعم: بطاقات ائتمان مسبقة الدفع، دفع الفواتير، API Gateway للتكامل مع أنظمة الفوترة. </div>
-          </li>
-          <li class="tip-item">email.gateway.ts
-            <div class="tip-popup"><strong>✉️ البريد الإلكتروني</strong> إرسال الإيميلات عبر Resend/SendGrid. يدعم: قوالب HTML (تأكيد حجز، فاتورة، تذكير)، مرفقات PDF، وتتبع حالة الإرسال (تم/فشل).</div>
-          </li>
-          <li class="tip-item">sms.gateway.ts
-            <div class="tip-popup"><strong>📱 الرسائل النصية</strong> إرسال SMS للعملاء عبر مزود محلي (اختياري). يُستخدم لإشعارات الحجز العاجلة وتذكيرات المواعيد. يمكن تعطيله إذا لم يكن مطلوباً.</div>
-          </li>
+          <li class="tip-item">payment-gateway.interface.ts — Strategy Pattern</li>
+          <li class="tip-item">stripe.gateway.ts</li>
+          <li class="tip-item">paypal.gateway.ts</li>
+          <li class="tip-item">mobicash.gateway.ts (Libyana)</li>
+          <li class="tip-item">idfa3ly.gateway.ts (إدفع لي)</li>
+          <li class="tip-item">yaserpay.gateway.ts (يسر باي)</li>
+          <li class="tip-item">onepay.gateway.ts (ون باي)</li>
+          <li class="tip-item">email.gateway.ts (Resend/SendGrid)</li>
+          <li class="tip-item">sms.gateway.ts (إشعارات SMS)</li>
         </ul>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ===== PROJECT STRUCTURE ===== -->
 <section class="section" id="structure">
   <div class="section-header fade-in">
     <div class="section-number">02</div>
     <h2>📂 الهيكل التنظيمي للمشروع</h2>
-    <p>هيكل Monorepo منظم مع Turborepo لتحسين سرعة البناء والتطوير.</p>
+    <p>Monorepo مع Turborepo — يضم تطبيق Next.js متكامل مع حزم مشتركة وتوثيق API.</p>
   </div>
 
   <div class="card fade-in">
-    <div class="code-block" style="max-height:500px;overflow-y:auto;">
-<span class="comment">// ===== الهيكل التنظيمي الكامل =====</span>
+    <div class="code-block" style="max-height:600px;overflow-y:auto;">
 hotel-management/
 │
-├── package.json                   <span class="comment"># Monorepo (npm workspaces)</span>
-├── turbo.json                     <span class="comment"># Turborepo (build orchestration)</span>
+├── package.json                   <span class="comment"># Monorepo (npm workspaces + Turborepo)</span>
+├── turbo.json                     <span class="comment"># تحسين البناء والتطوير</span>
 ├── docker-compose.yml             <span class="comment"># PostgreSQL + Redis + pgAdmin</span>
+├── Dockerfile                     <span class="comment"># نشر التطبيق</span>
 ├── .env.example
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                 <span class="comment"># Test + Lint</span>
-│       └── cd.yml                 <span class="comment"># Build + Deploy</span>
+├── .github/workflows/
+│   ├── ci.yml                     <span class="comment"># Lint + Typecheck + Test</span>
+│   └── cd.yml                     <span class="comment"># Build + Deploy</span>
 │
 ├── apps/
-│   └── web/                       <span class="comment"># Next.js (Frontend + Backend)</span>
+│   └── web/                       <span class="comment"># Next.js — Frontend + Backend موحد</span>
 │       ├── src/
 │       │   ├── app/
-│       │   │   ├── (public)/      <span class="comment"># موقع العملاء العام</span>
-│       │   │   ├── (dashboard)/   <span class="comment"># لوحة التحكم (RTL عربي)</span>
-│       │   │   │   ├── admin/     <span class="comment"># ↑ Rooms, RatePlans, Services, Partners, AuditLog</span>
-│       │   │   │   ├── reception/ <span class="comment"># ↑ Bookings, Folio, Housekeeping, Calendar</span>
-│       │   │   │   ├── manager/   <span class="comment"># ↑ Reports (Occupancy, Revenue, ADR/RevPAR)</span>
-│       │   │   │   └── guest/     <span class="comment"># ↑ بوابة العميل</span>
-│       │   │   └── auth/          <span class="comment"># login, register, 2fa, forgot-password</span>
+│       │   │   ├── (public)/      <span class="comment"># موقع الحجز العام</span>
+│       │   │   │   ├── page.tsx   <span class="comment"># الصفحة الرئيسية</span>
+│       │   │   │   ├── book/      <span class="comment"># حجز غرفة</span>
+│       │   │   │   ├── booking-confirmed/  <span class="comment"># تأكيد الحجز</span>
+│       │   │   │   └── rooms/     <span class="comment"># عرض الغرف</span>
+│       │   │   │
+│       │   │   ├── (dashboard)/   <span class="comment"># لوحة التحكم RTL</span>
+│       │   │   │   ├── admin/     <span class="comment"># 19 وحدة: غرف، حجوزات، خدمات، مستخدمين، تقارير، مطعم، صندوق أمانات، مفقودات، محفظة...</span>
+│       │   │   │   ├── reception/ <span class="comment"># 14 وحدة: حجوزات، تقويم، Check-in، Folio، مطعم، صيانة، مفقودات...</span>
+│       │   │   │   ├── manager/   <span class="comment"># تقارير وإحصائيات</span>
+│       │   │   │   └── guest/     <span class="comment"># بوابة الضيف</span>
+│       │   │   └── auth/          <span class="comment"># Login, 2FA, Forgot Password</span>
 │       │   │
-│       │   ├── api/               <span class="comment"># 📌 API Routes (بديل Express)</span>
+│       │   ├── api/               <span class="comment"># API Routes</span>
 │       │   │   ├── public/        <span class="comment"># API العملاء</span>
 │       │   │   ├── admin/         <span class="comment"># API الإدارة</span>
 │       │   │   └── partner/       <span class="comment"># API الشركاء الخارجيين</span>
 │       │   │
 │       │   ├── components/
 │       │   │   ├── ui/            <span class="comment"># shadcn/ui</span>
-│       │   │   ├── forms/
-│       │   │   ├── folio/         <span class="comment"># 🔴 NEW — مكونات الفوترة</span>
-│       │   │   ├── booking/
-│       │   │   ├── calendar/
-│       │   │   └── layout/
+│       │   │   ├── booking/, folio/, wallet/, pos/, safe-deposit/
+│       │   │   ├── lost-found/, housekeeping/, reports/, guests/
+│       │   │   ├── checkin/, room-types/, forms/, layout/
 │       │   │
 │       │   ├── lib/
-│       │   │   ├── repositories/  <span class="comment"># 📌 طبقة Repository</span>
-│       │   │   ├── services/      <span class="comment"># 📌 طبقة Services</span>
-│       │   │   ├── gateways/      <span class="comment"># 📌 طبقة الدفع المجردة</span>
-│       │   │   ├── queue/         <span class="comment"># Bull + Redis</span>
+│       │   │   ├── repositories/  <span class="comment"># طبقة Repository (Prisma + PostgreSQL)</span>
+│       │   │   ├── services/      <span class="comment"># طبقة Services (منطق الأعمال)</span>
+│       │   │   ├── gateways/      <span class="comment"># طبقة الدفع المجردة (Strategy Pattern)</span>
+│       │   │   ├── queue/         <span class="comment"># Bull + Redis (مهام غير متزامنة)</span>
 │       │   │   ├── utils/
-│       │   │   ├── validators/    <span class="comment"># Zod (مشترك)</span>
-│       │   │   └── i18n/          <span class="comment"># ترجمة</span>
+│       │   │   ├── validators/    <span class="comment"># Zod Schemas (مشتركة)</span>
+│       │   │   └── i18n/          <span class="comment"># ترجمة عربي/إنجليزي</span>
 │       │   │
-│       │   ├── middleware/        <span class="comment"># 📌 Middleware</span>
+│       │   ├── middleware/        <span class="comment"># Auth, CSRF, Rate Limit, Validate</span>
 │       │   └── styles/
 │       │
 │       ├── prisma/
-│       │   ├── schema.prisma      <span class="comment"># 📌 النموذج المعدل</span>
+│       │   ├── schema.prisma      <span class="comment"># PostgreSQL — 35+ نموذج مع Decimal/Enums/Json</span>
 │       │   └── seed.ts
 │       │
 │       └── tests/
@@ -1109,401 +908,377 @@ hotel-management/
 │           └── e2e/               <span class="comment"># Playwright</span>
 │
 ├── packages/
-│   ├── shared/                    <span class="comment"># Zod schemas + Types</span>
+│   ├── shared/                    <span class="comment"># Zod schemas + Types مشتركة</span>
 │   └── config-eslint/
 │
 └── docs/
-    ├── api/openapi.yaml           <span class="comment"># OpenAPI 3.0</span>
+    ├── api/openapi.yaml           <span class="comment"># OpenAPI 3.0 — توثيق API الشركاء</span>
     └── partner-guide.md           <span class="comment"># دليل ربط الشركاء</span>
     </div>
   </div>
 </section>
 
-<!-- ===== DATABASE ===== -->
 <section class="section" id="database">
   <div class="section-header fade-in">
     <div class="section-number">03</div>
-    <h2>🗄️ نموذج قاعدة البيانات الكامل</h2>
-    <p>25+ نموذج Prisma مع علاقات متكاملة، فهارس أداء، ودعم كامل لنظام الفوترة الفندقي.</p>
+    <h2>🗄️ قاعدة البيانات — PostgreSQL + Prisma</h2>
+    <p>35+ نموذج Prisma مع PostgreSQL — تستخدم Decimal للحسابات المالية، Enums للحالات، Json للقواعد المرنة.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-tag"></i> أنواع البيانات الأساسية (PostgreSQL Enums)</h3>
+    <div class="grid-3" style="margin-bottom:16px;">
+      <div>
+        <span class="tag tag-gold">أدوار المستخدمين</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">ADMIN, MANAGER, RECEPTION, HOUSEKEEPING, MAINTENANCE, RESTAURANT, ACCOUNTANT</div>
+      </div>
+      <div>
+        <span class="tag tag-gold">حالات الحجز</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">PENDING, CONFIRMED, CHECKED_IN, CHECKED_OUT, CANCELLED, NO_SHOW</div>
+      </div>
+      <div>
+        <span class="tag tag-gold">طرق الدفع</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">STRIPE, PAYPAL, MOBICASH, IDFA3LY, YASERPAY, ONEPAY, CASH, POS</div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div>
+        <span class="tag tag-blue">حالات الفوليو</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">ACTIVE, SETTLED, VOID</div>
+      </div>
+      <div>
+        <span class="tag tag-blue">حالات الغرفة</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">AVAILABLE, OCCUPIED, MAINTENANCE, DIRTY, RESERVED</div>
+      </div>
+      <div>
+        <span class="tag tag-blue">حالة الدفع</span>
+        <div style="font-size:.8rem;color:var(--text-secondary);margin-top:4px;">PENDING, SUCCEEDED, FAILED, REFUNDED, PARTIALLY_REFUNDED</div>
+      </div>
+    </div>
   </div>
 
   <div class="grid-2 fade-in">
     <div class="card">
-      <h3><i class="fas fa-cubes"></i> النماذج الأساسية</h3>
+      <h3><i class="fas fa-cubes"></i> النماذج الأساسية والفندق</h3>
       <ul class="arrow-list">
-        <li><strong>Hotel</strong> — معلومات الفندق، الإعدادات، أوقات الدخول/الخروج</li>
-        <li><strong>User</strong> — موظفون بأدوار (Admin, Reception, Manager) + 2FA</li>
-        <li><strong>RefreshToken</strong> — 🔴 NEW تدوير الـ Refresh Token مع عائلة</li>
-        <li><strong>Guest</strong> — الضيوف، التحقق من الإيميل، نقاط الولاء</li>
-        <li><strong>RoomType</strong> — أنواع الغرف، المرافق، الصور</li>
-        <li><strong>Room</strong> — الغرف الفردية + حالة التنظيف 🔴 NEW</li>
-        <li><strong>RatePlan</strong> — 🔴 NEW أسعار موسمية مع minStay وسياسة إلغاء</li>
-        <li><strong>CancellationPolicy</strong> — 🔴 NEW قواعد إلغاء مرنة (JSON rules)</li>
+        <li><strong>Hotel</strong> — إعدادات الفندق، العملة (LYD)، أوقات الدخول/الخروج، المنطقة الزمنية Asia/Tripoli، settings (Json)</li>
+        <li><strong>User</strong> — 7 أدوار مع 2FA، قفل حساب، تتبع آخر دخول</li>
+        <li><strong>RefreshToken</strong> — تدوير آمن مع عائلة (Replacement Detection)</li>
+        <li><strong>Guest</strong> — الضيوف مع تحقق الإيميل، نقاط الولاء</li>
+        <li><strong>RoomType</strong> — أنواع الغرف + baseRate (Decimal) + capacity + صور</li>
+        <li><strong>RoomTypeExtraBed</strong> — أسرّة إضافية لكل نوع غرفة (price Decimal)</li>
+        <li><strong>RoomTypeDefaultService</strong> — خدمات افتراضية لكل نوع غرفة</li>
+        <li><strong>RoomTypeAmenity</strong> — مرافق لكل نوع غرفة</li>
+        <li><strong>Room</strong> — غرف فردية + حالة نظافة + حالة تشغيل (RoomStatus Enum)</li>
       </ul>
     </div>
     <div class="card">
-      <h3><i class="fas fa-cubes"></i> الحجوزات والفوترة</h3>
+      <h3><i class="fas fa-cubes"></i> الأسعار والحجوزات والخدمات</h3>
       <ul class="arrow-list">
-        <li><strong>Booking</strong> — رقم تسلسلي، حالة، مصدر، سياسة إلغاء</li>
-        <li><strong>BookingRoom</strong> — 🔴 NEW حجوزات متعددة الغرف</li>
-        <li><strong>ServiceCategory</strong> — فئات الخدمات (قابلة للتوسع)</li>
-        <li><strong>Service</strong> — خدمات فردية مع ربط ضريبي</li>
-        <li><strong>BookingService</strong> — خدمات مرتبطة بالحجز (أثناء الحجز أو أثناء الإقامة)</li>
-        <li><strong>Folio</strong> — حساب الغرفة الشامل</li>
-        <li><strong>FolioTransaction</strong> — كل حركة مالية + ضريبة لكل معاملة</li>
-        <li><strong>ScheduledCharge</strong> — 🔴 NEW شحنات مجدولة (إيجار ليلي تلقائي)</li>
-        <li><strong>RoomCharge</strong> — 🔴 NEW شحن الإيجار الليلي لكل غرفة</li>
-        <li><strong>FolioDiscount</strong> — 🔴 NEW خصومات (نسبة أو مبلغ)</li>
+        <li><strong>RatePlan</strong> — أسعار موسمية مع nightlyRate (Decimal), minStay, maxAdults/Children, extraBedPrice, applyDays (Json)</li>
+        <li><strong>CancellationPolicy</strong> — قواعد إلغاء مرنة (Json rules)</li>
+        <li><strong>ServiceCategory</strong> — فئات الخدمات</li>
+        <li><strong>Service</strong> — خدمات فردية مع price (Decimal) + ربط ضريبي</li>
+        <li><strong>TaxRule</strong> — ضرائب متعددة (VAT, سياحية, بلدية) مع rate (Decimal)</li>
+        <li><strong>Booking</strong> — رقم تسلسلي، حالة (BookingStatus Enum)، مصدر (BookingSource Enum)</li>
+        <li><strong>BookingRoom</strong> — حجوزات متعددة الغرف + ربط بـ RatePlan + nightlyRate (Decimal)</li>
+        <li><strong>BookingService</strong> — خدمات مرتبطة بالحجز مع price (Decimal)</li>
       </ul>
     </div>
   </div>
 
   <div class="grid-2 fade-in">
     <div class="card">
-      <h3><i class="fas fa-cubes"></i> المدفوعات والتدقيق</h3>
+      <h3><i class="fas fa-cubes"></i> الفوترة والمدفوعات</h3>
       <ul class="arrow-list">
-        <li><strong>Payment</strong> — دعم Pre-auth, Idempotency, Metadata</li>
-        <li><strong>Refund</strong> — 🔴 NEW استرداد كامل وجزئي</li>
-        <li><strong>Invoice</strong> — فواتير مع تفصيل ضريبي</li>
-        <li><strong>TaxRule</strong> — 🔴 NEW ضرائب متعددة (VAT, سياحية, بلدية)</li>
-        <li><strong>AuditLog</strong> — 🔴 NEW سجل تدقيق كامل</li>
-        <li><strong>Notification</strong> — 🔴 NEW إشعارات (Email, SMS, WhatsApp)</li>
-        <li><strong>HousekeepingTask</strong> — 🔴 NEW مهام التدبير المنزلي</li>
+        <li><strong>Folio</strong> — حساب الغرفة مع totalCharges/totalPaid/balance (Decimal), status (FolioStatus Enum)</li>
+        <li><strong>FolioTransaction</strong> — حركة مالية مع amount/taxAmount/taxableAmount (Decimal)</li>
+        <li><strong>ScheduledCharge</strong> — شحنات مجدولة (إيجار ليلي تلقائي) مع amount (Decimal)</li>
+        <li><strong>RoomCharge</strong> — شحن الإيجار الليلي لكل غرفة مع amount/taxAmount (Decimal)</li>
+        <li><strong>FolioDiscount</strong> — خصومات (نسبة أو مبلغ) مع value/amount (Decimal)</li>
+        <li><strong>Payment</strong> — amount (Decimal), method (PaymentMethod Enum), status (PaymentStatus Enum)</li>
+        <li><strong>Refund</strong> — استرداد كامل وجزئي مع amount (Decimal)</li>
+        <li><strong>Invoice</strong> — فواتير مع رقم تسلسلي ورابط PDF</li>
       </ul>
     </div>
     <div class="card">
-      <h3><i class="fas fa-cubes"></i> الشراكات الخارجية</h3>
+      <h3><i class="fas fa-cubes"></i> الوحدات الإضافية</h3>
       <ul class="arrow-list">
-        <li><strong>ApiPartner</strong> — API Key + Secret + IP Whitelist + حد يومي</li>
-        <li><strong>WebhookEndpoint</strong> — مع إعادة محاولة (Retry + Interval)</li>
+        <li><strong>Wallet</strong> — محفظة إلكترونية للضيف مع balance (Decimal), unique (guestId, hotelId)</li>
+        <li><strong>WalletTransaction</strong> — حركات المحفظة مع amount (Decimal), idempotencyKey</li>
+        <li><strong>MenuCategory</strong> — فئات قائمة الطعام</li>
+        <li><strong>MenuItem</strong> — أصناف الطعام والشراب مع price (Decimal)</li>
+        <li><strong>RestaurantOrder</strong> — طلبات المطعم مع totalAmount (Decimal), status, orderNo</li>
+        <li><strong>RestaurantOrderItem</strong> — بنود الطلب مع quantity, price (Decimal)</li>
+        <li><strong>SafeDepositBox</strong> — صناديق الأمانات مع حالة وتوقيع الموظف</li>
+        <li><strong>SafeDepositBoxItem</strong> — أصناف داخل الصندوق</li>
+        <li><strong>LostItem</strong> — المفقودات مع صورة، حالة، بيانات المستلم</li>
       </ul>
-      <div style="margin-top:16px;">
-        <span class="tag tag-gold">فهارس أداء</span>
-        <ul class="arrow-list" style="margin-top:8px;">
-          <li><code>(hotelId, status, checkIn, checkOut)</code></li>
-          <li><code>(roomId, date)</code> على RoomCharge</li>
-          <li><code>(hotelId, entity, entityId)</code> على AuditLog</li>
-          <li><code>(hotelId, status)</code> على Notification</li>
-        </ul>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-cubes"></i> التدبير والصيانة</h3>
+      <ul class="arrow-list">
+        <li><strong>TaskType</strong> — أنواع المهام (تنظيف، صيانة كهرباء، سباكة، دهان...) مع أيقونة وترتيب</li>
+        <li><strong>HousekeepingTask</strong> — مهام التدبير مع priority (HIGH/NORMAL/LOW), assignedTo, status</li>
+      </ul>
+      <div style="margin-top:12px;">
+        <span class="tag tag-purple">ملاحظة</span>
+        <span style="font-size:.82rem;color:var(--text-muted);margin-right:6px;">مهام الصيانة تستخدم نفس النظام مع taskType مختلف وأولوية خاصة</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-cubes"></i> الإشعارات والشركاء والتقارير</h3>
+      <ul class="arrow-list">
+        <li><strong>Notification</strong> — إشعارات (Email, SMS, Push) مع إعادة محاولة, status</li>
+        <li><strong>AuditLog</strong> — سجل تدقيق كامل: user, action, entity, entityId, oldValue, newValue, ip, userAgent</li>
+        <li><strong>ApiPartner</strong> — شركاء خارجيون مع apiKey (unique), apiSecret, allowedIPs, rateLimit, dailyLimit</li>
+        <li><strong>WebhookEndpoint</strong> — نقاط Webhook مع retryCount, retryInterval</li>
+        <li><strong>ReportSetting</strong> — إعدادات التقارير: logoUrl, headerText, footerText, taxNumber</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="security">
+  <div class="section-header fade-in">
+    <div class="section-number">04</div>
+    <h2>🔐 المصادقة والأمان — 7 طبقات + 7 أدوار</h2>
+    <p>نظام أمني متكامل مع مصادقة متعددة العوامل (JWT + 2FA)، صلاحيات دقيقة (RBAC)، وتدقيق كامل (Audit Log).</p>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-layer-group icon-gold"></i> طبقات الأمان السبعة</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-green">الطبقة 1</span>
+          <span style="font-size:.85rem;">النقل: HTTPS + HSTS + Helmet.js</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-green">الطبقة 2</span>
+          <span style="font-size:.85rem;">المصادقة: JWT (Access 15min + Refresh 7days مع Rotation) + 2FA (TOTP)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-green">الطبقة 3</span>
+          <span style="font-size:.85rem;">الصلاحيات: RBAC مع 7 أدوار + Permission Check لكل نقطة وصول</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-green">الطبقة 4</span>
+          <span style="font-size:.85rem;">حماية: CSRF (Double-submit cookie) + Rate Limiting (100 req/min/IP) + Zod Validation</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-green">الطبقة 5</span>
+          <span style="font-size:.85rem;">المراقبة: Audit Log + قفل الحساب (5 محاولات فاشلة ← lock 15 دقيقة)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-yellow">الطبقة 6</span>
+          <span style="font-size:.85rem;">الشركاء: API Key + HMAC Signature + IP Whitelist + Rate Limit مخصص</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
+          <span class="tag tag-yellow">الطبقة 7</span>
+          <span style="font-size:.85rem;">الجلسات: Refresh Token Rotation + كشف سرقة التوكن (إلغاء عائلة التوكن عند إعادة استخدام ملغي)</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-arrows-rotate icon-blue"></i> استراتيجية Refresh Token Rotation</h3>
+      <div style="font-size:.82rem;color:var(--text-secondary);">
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 <strong>Access Token</strong>: 15 دقيقة فقط</div>
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 <strong>Refresh Token</strong>: 7 أيام مع التدوير التلقائي (نفس family)</div>
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 عند استخدام Refresh Token ← يُلغى القديم ويُنشأ جديد مع same family</div>
+        <div style="padding:8px 0;">🔹 إذا استُخدم Token ملغي ← جميع توكن العائلة تُلغى ← إشعار فوري بسرقة الجلسة</div>
+      </div>
+      <div style="margin-top:12px;background:var(--red-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--red);">
+        <i class="fas fa-triangle-exclamation"></i> يمنع سرقة الجلسات (Session Hijacking)
       </div>
     </div>
   </div>
 
   <div class="card fade-in">
-    <div class="details-toggle" onclick="toggleDetails(this)">
-      <h3 style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-        <span><i class="fas fa-code"></i> عرض نموذج Prisma الكامل</span>
-        <i class="fas fa-chevron-down" style="font-size:.8rem;color:var(--text-muted);"></i>
-      </h3>
-    </div>
-    <div class="details-content">
-      <div class="code-block" style="max-height:600px;overflow-y:auto;font-size:.75rem;">
-<span class="comment">// ===================================================================</span>
-<span class="comment">//  الفندق — إعدادات</span>
-<span class="comment">// ===================================================================</span>
-<span class="keyword">model</span> <span class="type">Hotel</span> {
-  id                <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  name              <span class="type">String</span>
-  nameAr            <span class="type">String</span>?
-  address           <span class="type">String</span>?
-  phone             <span class="type">String</span>?
-  email             <span class="type">String</span>?
-  website           <span class="type">String</span>?
-  currency          <span class="type">String</span>   <span class="field">@default</span>(<span class="string">"LYD"</span>)
-  checkInTime       <span class="type">String</span>   <span class="field">@default</span>(<span class="string">"14:00"</span>)    <span class="comment">// 🔴 NEW</span>
-  checkOutTime      <span class="type">String</span>   <span class="field">@default</span>(<span class="string">"12:00"</span>)    <span class="comment">// 🔴 NEW</span>
-  timezone          <span class="type">String</span>   <span class="field">@default</span>(<span class="string">"Asia/Riyadh"</span>)
-  settings          <span class="type">Json</span>?
-  createdAt         <span class="type">DateTime</span> <span class="field">@default</span>(now())
-
-  <span class="comment">// Relations</span>
-  rooms                <span class="type">Room</span>[]
-  roomTypes            <span class="type">RoomType</span>[]
-  ratePlans            <span class="type">RatePlan</span>[]
-  cancellationPolicies <span class="type">CancellationPolicy</span>[]
-  services             <span class="type">Service</span>[]
-  serviceCategories    <span class="type">ServiceCategory</span>[]
-  bookings             <span class="type">Booking</span>[]
-  users                <span class="type">User</span>[]
-  apiPartners          <span class="type">ApiPartner</span>[]
-  taxRules             <span class="type">TaxRule</span>[]
-  housekeepingTasks    <span class="type">HousekeepingTask</span>[]
-  notifications        <span class="type">Notification</span>[]
-  auditLogs            <span class="type">AuditLog</span>[]
-}
-
-<span class="comment">// ===================================================================</span>
-<span class="comment">//  المستخدمون والصلاحيات</span>
-<span class="comment">// ===================================================================</span>
-<span class="keyword">enum</span> <span class="enum">Role</span> { <span class="field">ADMIN RECEPTION MANAGER</span> }
-
-<span class="keyword">model</span> <span class="type">User</span> {
-  id                  <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  email               <span class="type">String</span>   <span class="field">@unique</span>
-  password            <span class="type">String</span>
-  name                <span class="type">String</span>
-  phone               <span class="type">String</span>?
-  role                <span class="type">Role</span>     <span class="field">@default</span>(<span class="field">RECEPTION</span>)
-  hotelId             <span class="type">String</span>?
-  hotel               <span class="type">Hotel</span>?   <span class="field">@relation</span>(fields: [hotelId], references: [id])
-  guestId             <span class="type">String</span>?
-  guest               <span class="type">Guest</span>?   <span class="field">@relation</span>(fields: [guestId], references: [id])
-  isActive            <span class="type">Boolean</span>  <span class="field">@default</span>(true)
-  twoFactorSecret     <span class="type">String</span>?    <span class="comment">// 🔴 NEW</span>
-  twoFactorEnabled    <span class="type">Boolean</span>  <span class="field">@default</span>(false)
-  lastLoginAt         <span class="type">DateTime</span>?
-  failedLoginAttempts <span class="type">Int</span>    <span class="field">@default</span>(0)
-  lockedUntil         <span class="type">DateTime</span>?
-  refreshTokens       <span class="type">RefreshToken</span>[]
-  createdAt           <span class="type">DateTime</span> <span class="field">@default</span>(now())
-}
-
-<span class="keyword">model</span> <span class="type">RefreshToken</span> {
-  id        <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  userId    <span class="type">String</span>
-  user      <span class="type">User</span>     <span class="field">@relation</span>(fields: [userId], references: [id])
-  token     <span class="type">String</span>   <span class="field">@unique</span>
-  expiresAt <span class="type">DateTime</span>
-  family    <span class="type">String</span>   <span class="comment">// 🔴 NEW — لعائلة الـ Refresh Token</span>
-  revoked   <span class="type">Boolean</span>  <span class="field">@default</span>(false)
-  replacedBy <span class="type">String</span>? <span class="comment">// 🔴 NEW — عند التدوير</span>
-  createdAt <span class="type">DateTime</span> <span class="field">@default</span>(now())
-}
-
-<span class="comment">// ===================================================================</span>
-<span class="comment">//  الأسعار الموسمية — 🔴 NEW</span>
-<span class="comment">// ===================================================================</span>
-<span class="keyword">model</span> <span class="type">RatePlan</span> {
-  id              <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  hotelId         <span class="type">String</span>
-  hotel           <span class="type">Hotel</span>    <span class="field">@relation</span>(fields: [hotelId], references: [id])
-  roomTypeId      <span class="type">String</span>
-  roomType        <span class="type">RoomType</span> <span class="field">@relation</span>(fields: [roomTypeId], references: [id])
-  name            <span class="type">String</span>
-  nameAr          <span class="type">String</span>?
-  nightlyRate     <span class="type">Float</span>
-  startDate       <span class="type">DateTime</span>
-  endDate         <span class="type">DateTime</span>
-  minStay         <span class="type">Int</span>      <span class="field">@default</span>(1)
-  applyDays       <span class="type">Json</span>?    <span class="comment">// [0,1,2,3,4,5,6]</span>
-  cancellationPolicyId <span class="type">String</span>?
-  cancellationPolicy <span class="type">CancellationPolicy</span>? <span class="field">@relation</span>(fields: [cancellationPolicyId], references: [id])
-  isActive        <span class="type">Boolean</span>  <span class="field">@default</span>(true)
-  createdAt       <span class="type">DateTime</span> <span class="field">@default</span>(now())
-
-  bookingRooms <span class="type">BookingRoom</span>[]
-}
-
-<span class="comment">// 🔴 NEW — سياسات الإلغاء</span>
-<span class="keyword">model</span> <span class="type">CancellationPolicy</span> {
-  id        <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  hotelId   <span class="type">String</span>
-  hotel     <span class="type">Hotel</span>    <span class="field">@relation</span>(fields: [hotelId], references: [id])
-  name      <span class="type">String</span>
-  nameAr    <span class="type">String</span>?
-  rules     <span class="type">Json</span>    <span class="comment">// مصفوفة قواعد الاسترداد</span>
-  isActive  <span class="type">Boolean</span>  <span class="field">@default</span>(true)
-  createdAt <span class="type">DateTime</span> <span class="field">@default</span>(now())
-
-  ratePlans <span class="type">RatePlan</span>[]
-}
-
-<span class="comment">// ===================================================================</span>
-<span class="comment">//  الحجوزات + الفوترة</span>
-<span class="comment">// ===================================================================</span>
-<span class="keyword">model</span> <span class="type">Booking</span> {
-  id           <span class="type">String</span>        <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  bookingNo    <span class="type">String</span>        <span class="field">@unique</span>  <span class="comment">// 🔴 NEW</span>
-  hotelId      <span class="type">String</span>
-  hotel        <span class="type">Hotel</span>         <span class="field">@relation</span>(fields: [hotelId], references: [id])
-  guestId      <span class="type">String</span>?
-  guest        <span class="type">Guest</span>?        <span class="field">@relation</span>(fields: [guestId], references: [id])
-  status       <span class="type">BookingStatus</span> <span class="field">@default</span>(<span class="field">PENDING</span>)
-  source       <span class="type">BookingSource</span> <span class="field">@default</span>(<span class="field">WEBSITE</span>)
-  adults       <span class="type">Int</span>           <span class="field">@default</span>(1)
-  children     <span class="type">Int</span>           <span class="field">@default</span>(0)
-  cancellationPolicyId <span class="type">String</span>?
-  cancellationPolicy <span class="type">CancellationPolicy</span>? <span class="field">@relation</span>(fields: [cancellationPolicyId], references: [id])
-  cancelledAt  <span class="type">DateTime</span>?
-  cancellationReason <span class="type">String</span>?
-
-  rooms            <span class="type">BookingRoom</span>[]
-  folio            <span class="type">Folio</span>?
-  bookingServices  <span class="type">BookingService</span>[]
-  payments         <span class="type">Payment</span>[]
-  notifications    <span class="type">Notification</span>[]
-  auditLogs        <span class="type">AuditLog</span>[]
-}
-
-<span class="comment">// 🔴 NEW — حجوزات متعددة الغرف</span>
-<span class="keyword">model</span> <span class="type">BookingRoom</span> {
-  id          <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  bookingId   <span class="type">String</span>
-  booking     <span class="type">Booking</span>  <span class="field">@relation</span>(fields: [bookingId], references: [id])
-  roomId      <span class="type">String</span>
-  room        <span class="type">Room</span>     <span class="field">@relation</span>(fields: [roomId], references: [id])
-  ratePlanId  <span class="type">String</span>?
-  ratePlan    <span class="type">RatePlan</span>? <span class="field">@relation</span>(fields: [ratePlanId], references: [id])
-  nightlyRate <span class="type">Float</span>
-  checkIn     <span class="type">DateTime</span>
-  checkOut    <span class="type">DateTime</span>
-
-  roomCharges <span class="type">RoomCharge</span>[]
-}
-
-<span class="comment">// ===================================================================</span>
-<span class="comment">//  نظام الفوترة (Folio Billing) v2.0</span>
-<span class="comment">// ===================================================================</span>
-<span class="keyword">model</span> <span class="type">Folio</span> {
-  id           <span class="type">String</span>      <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  bookingId    <span class="type">String</span>      <span class="field">@unique</span>
-  booking      <span class="type">Booking</span>     <span class="field">@relation</span>(fields: [bookingId], references: [id])
-  status       <span class="type">FolioStatus</span> <span class="field">@default</span>(<span class="field">ACTIVE</span>)
-  totalCharges <span class="type">Decimal</span>     <span class="field">@default</span>(0)
-  totalPaid    <span class="type">Decimal</span>     <span class="field">@default</span>(0)
-  balance      <span class="type">Decimal</span>     <span class="field">@default</span>(0)
-  settledAt    <span class="type">DateTime</span>?
-  settledById  <span class="type">String</span>?
-  settledBy    <span class="type">User</span>?       <span class="field">@relation</span>(fields: [settledById], references: [id])
-
-  transactions      <span class="type">FolioTransaction</span>[]
-  payments          <span class="type">Payment</span>[]
-  invoices          <span class="type">Invoice</span>[]
-  discounts         <span class="type">FolioDiscount</span>[]
-  scheduledCharges  <span class="type">ScheduledCharge</span>[]
-}
-
-<span class="comment">// 🔴 NEW — شحنات مجدولة (إيجار الغرفة كل ليلة)</span>
-<span class="keyword">model</span> <span class="type">ScheduledCharge</span> {
-  id          <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  folioId     <span class="type">String</span>
-  folio       <span class="type">Folio</span>    <span class="field">@relation</span>(fields: [folioId], references: [id])
-  description <span class="type">String</span>
-  amount      <span class="type">Decimal</span>
-  chargeDate  <span class="type">DateTime</span>
-  processed   <span class="type">Boolean</span>  <span class="field">@default</span>(false)
-  processedAt <span class="type">DateTime</span>?
-}
-
-<span class="comment">// 🔴 NEW — شحنات إيجار الغرفة الليلية</span>
-<span class="keyword">model</span> <span class="type">RoomCharge</span> {
-  id            <span class="type">String</span>   <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  bookingRoomId <span class="type">String</span>
-  bookingRoom   <span class="type">BookingRoom</span> <span class="field">@relation</span>(fields: [bookingRoomId], references: [id])
-  date          <span class="type">DateTime</span>
-  amount        <span class="type">Decimal</span>
-  taxAmount     <span class="type">Decimal</span>  <span class="field">@default</span>(0)
-  status        <span class="type">RoomChargeStatus</span> <span class="field">@default</span>(<span class="field">PENDING</span>)
-  postedToFolioAt <span class="type">DateTime</span>?
-}
-
-<span class="keyword">model</span> <span class="type">FolioTransaction</span> {
-  id            <span class="type">String</span>            <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  folioId       <span class="type">String</span>
-  folio         <span class="type">Folio</span>             <span class="field">@relation</span>(fields: [folioId], references: [id])
-  type          <span class="type">TransactionType</span>
-  category      <span class="type">TransactionCategory</span>
-  description   <span class="type">String</span>
-  amount        <span class="type">Decimal</span>
-  taxAmount     <span class="type">Decimal</span>  <span class="field">@default</span>(0)
-  taxableAmount <span class="type">Decimal</span>  <span class="field">@default</span>(0)
-  isPartial     <span class="type">Boolean</span>  <span class="field">@default</span>(false) <span class="comment">// 🔴 NEW</span>
-  referenceId   <span class="type">String</span>?
-  roomChargeId  <span class="type">String</span>?
-  roomCharge    <span class="type">RoomCharge</span>? <span class="field">@relation</span>(fields: [roomChargeId], references: [id])
-  createdById   <span class="type">String</span>?
-  createdBy     <span class="type">User</span>?     <span class="field">@relation</span>(fields: [createdById], references: [id])
-  createdAt     <span class="type">DateTime</span> <span class="field">@default</span>(now())
-}
-
-<span class="keyword">model</span> <span class="type">Payment</span> {
-  id          <span class="type">String</span>        <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  bookingId   <span class="type">String</span>?
-  booking     <span class="type">Booking</span>?      <span class="field">@relation</span>(fields: [bookingId], references: [id])
-  folioId     <span class="type">String</span>?
-  folio       <span class="type">Folio</span>?        <span class="field">@relation</span>(fields: [folioId], references: [id])
-  amount      <span class="type">Decimal</span>
-  currency    <span class="type">String</span>        <span class="field">@default</span>(<span class="string">"LYD"</span>)
-  method      <span class="type">PaymentMethod</span>
-  gateway     <span class="type">String</span>?
-  gatewayPaymentId <span class="type">String</span>?
-  gatewayIntentId  <span class="type">String</span>?  <span class="comment">// 🔴 NEW — للـ Pre-auth</span>
-  idempotencyKey   <span class="type">String</span>?  <span class="field">@unique</span> <span class="comment">// 🔴 NEW</span>
-  metadata    <span class="type">Json</span>?
-  refundedAmount <span class="type">Decimal</span> <span class="field">@default</span>(0) <span class="comment">// 🔴 NEW</span>
-
-  refunds <span class="type">Refund</span>[]
-}
-
-<span class="keyword">model</span> <span class="type">Refund</span> {
-  id     <span class="type">String</span>  <span class="field">@id</span> <span class="field">@default</span>(uuid())
-  paymentId <span class="type">String</span>
-  payment   <span class="type">Payment</span> <span class="field">@relation</span>(fields: [paymentId], references: [id])
-  amount    <span class="type">Decimal</span>
-  reason    <span class="type">String</span>?
-  gatewayRefundId <span class="type">String</span>?
-  status    <span class="type">RefundStatus</span> <span class="field">@default</span>(<span class="field">PENDING</span>)
-}
-
-<span class="comment">// وإليك بقية النماذج...</span>
-<span class="keyword">model</span> <span class="type">AuditLog</span> { <span class="comment">/* hotelId, userId, action, entity, entityId, oldValue, newValue, ip, userAgent */</span> }
-<span class="keyword">model</span> <span class="type">Notification</span> { <span class="comment">/* hotelId, bookingId, type, event, recipient, subject, body, status */</span> }
-<span class="keyword">model</span> <span class="type">HousekeepingTask</span> { <span class="comment">/* hotelId, roomId, taskType, priority, assignedTo, status */</span> }
-<span class="keyword">model</span> <span class="type">ApiPartner</span> { <span class="comment">/* hotelId, name, apiKey, apiSecret, allowedIPs, rateLimit, dailyLimit */</span> }
+    <h3><i class="fas fa-user-shield"></i> مصفوفة الصلاحيات — 7 أدوار</h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;background:#0A0A0F;border-radius:10px;border:1px solid var(--border);">
+        <div style="text-align:center;padding:6px 12px;border-radius:6px;background:var(--red-bg);color:var(--red);font-weight:700;font-size:.8rem;width:100%;">👑 Admin</div>
+        <div style="color:var(--text-muted);font-size:.65rem;padding:3px 0;"><i class="fas fa-arrow-down"></i></div>
+        <div style="text-align:center;padding:6px 12px;border-radius:6px;background:rgba(201,168,76,0.12);color:var(--gold);font-weight:700;font-size:.8rem;width:100%;">🏅 Manager</div>
+        <div style="color:var(--text-muted);font-size:.65rem;padding:3px 0;"><i class="fas fa-arrow-down"></i></div>
+        <div style="text-align:center;padding:6px 12px;border-radius:6px;background:var(--blue-bg);color:var(--blue);font-weight:700;font-size:.8rem;width:100%;">🎯 Reception</div>
+        <div style="color:var(--text-muted);font-size:.65rem;padding:3px 0;"><i class="fas fa-arrow-down"></i></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%;margin-top:4px;">
+          <div style="text-align:center;padding:4px 6px;border-radius:4px;background:var(--green-bg);color:var(--green);font-weight:600;font-size:.7rem;">🧹 HK</div>
+          <div style="text-align:center;padding:4px 6px;border-radius:4px;background:rgba(231,76,60,0.12);color:var(--red);font-weight:600;font-size:.7rem;">🔧 Maint</div>
+          <div style="text-align:center;padding:4px 6px;border-radius:4px;background:var(--purple-bg);color:var(--purple);font-weight:600;font-size:.7rem;">🍽️ Rest</div>
+          <div style="text-align:center;padding:4px 6px;border-radius:4px;background:var(--yellow-bg);color:var(--yellow);font-weight:600;font-size:.7rem;">📊 Acct</div>
+        </div>
+        <div style="color:var(--text-muted);font-size:.65rem;padding:3px 0;"><i class="fas fa-arrow-down"></i></div>
+        <div style="text-align:center;padding:6px 12px;border-radius:6px;background:rgba(46,204,113,0.12);color:var(--green);font-weight:700;font-size:.8rem;width:100%;">👤 Guest</div>
+      </div>
+      <div style="flex:3;min-width:300px;">
+        <div class="table-wrap">
+          <table style="font-size:.75rem;">
+            <thead><tr><th>المورد</th><th style="color:var(--red);text-align:center;">Admin</th><th style="color:var(--gold);text-align:center;">Mngr</th><th style="color:var(--blue);text-align:center;">Recp</th><th style="color:var(--green);text-align:center;">HK</th><th style="color:var(--red);text-align:center;">Maint</th><th style="color:var(--purple);text-align:center;">Rest</th><th style="color:var(--yellow);text-align:center;">Acct</th><th style="color:var(--green);text-align:center;">Guest</th></tr></thead>
+            <tbody>
+              <tr><td>إدارة الموظفين</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>إعدادات الفندق</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>إدارة الغرف/الأسعار</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>إنشاء/تعديل حجوزات</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅(خاص)</td></tr>
+              <tr><td>Check-in / Check-out</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>Folio + تسوية</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅(قراءة)</td><td style="text-align:center;">✅(خاص)</td></tr>
+              <tr><td>خصم على الفاتورة</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅≤15%</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>استرداد (Refund)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>مهام التدبير</td><td style="text-align:center;">✅</td><td style="text-align:center;">👁️</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>مهام الصيانة</td><td style="text-align:center;">✅</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>المطعم (POS)</td><td style="text-align:center;">✅</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>المحفظة (Wallet)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅(خاص)</td></tr>
+              <tr><td>صندوق الأمانات</td><td style="text-align:center;">✅</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>المفقودات</td><td style="text-align:center;">✅</td><td style="text-align:center;">👁️</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>التقارير المالية</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>سجل التدقيق (Audit)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+              <tr><td>إدارة الشركاء (API)</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:.7rem;color:var(--text-muted);margin-top:6px;">✅ = كامل الصلاحية | 👁️ = عرض فقط | ❌ = لا صلاحية</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ===== FOLIO ===== -->
-<section class="section" id="folio">
+<section class="section" id="core">
   <div class="section-header fade-in">
-    <div class="section-number">04</div>
-    <h2>💳 نظام الفوترة — Folio Billing v2.0</h2>
-    <p>قلب النظام: حساب غرفة متكامل يعتمد على المعيار الفندقي العالمي مع دعم الشحن الليلي التلقائي، الخصومات، والضرائب المتعددة.</p>
+    <div class="section-number">05</div>
+    <h2>🏨 الوحدات الأساسية — الفندق، الغرف، الحجوزات، الأسعار</h2>
+    <p>اللبنة الأساسية للنظام: إدارة الفنادق، الغرف، الأسعار الموسمية، سياسات الإلغاء، والحجوزات مع دعم كامل للتعددية.</p>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-hotel"></i> إدارة الفندق والغرف</h3>
+      <ul class="arrow-list">
+        <li><strong>Hotel</strong> — معلومات الفندق، العملة (LYD الافتراضية)، أوقات الدخول/الخروج، المنطقة الزمنية Asia/Tripoli</li>
+        <li><strong>RoomType</strong> — أنواع الغرف مع baseRate (Decimal), capacity, صور، مرافق</li>
+        <li><strong>RoomTypeExtraBed</strong> — أسرّة إضافية مع سعر منفصل وحد أقصى للعدد</li>
+        <li><strong>RoomTypeDefaultService</strong> — خدمات مضمنة مع نوع الغرفة (مجانية أو مدفوعة)</li>
+        <li><strong>RoomTypeAmenity</strong> — مرافق ووسائل راحة لكل نوع غرفة</li>
+        <li><strong>Room</strong> — غرف فردية بحالتين: حالة تشغيلية (Available/Occupied/Maintenance) وحالة نظافة (Clean/Dirty)</li>
+        <li>تقويم شهري ملون يعرض توفر الغرف (متاح/مشغول/صيانة/قيد التنظيف)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-tags"></i> الأسعار الموسمية (Rate Plans)</h3>
+      <ul class="arrow-list">
+        <li>خطط أسعار ديناميكية تغطي فترات متعددة (صيف، رمضان، عيد، عطلات)</li>
+        <li>سعر ليلي (nightlyRate) من نوع Decimal — دقة مالية كاملة</li>
+        <li>دعم minStay (الحد الأدنى لليالي)، maxAdults، maxChildren</li>
+        <li>سعر سرير إضافي منفصل (extraBedPrice)</li>
+        <li>أيام التطبيق (applyDays كـ Json): [0,1,2,3,4,5,6]</li>
+        <li>ربط كل خطة بسياسة إلغاء مختلفة (Flexible/Moderate/Strict)</li>
+        <li>إمكانية تفعيل/تعطيل الخطة (isActive)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-ban"></i> سياسات الإلغاء</h3>
+      <p style="font-size:.85rem;color:var(--text-secondary);">نظام قواعد Json مرن يدعم مستويات متعددة غير محدودة:</p>
+      <div style="margin-top:8px;">
+        <div style="padding:8px;border-radius:6px;background:var(--green-bg);margin-bottom:6px;">
+          <span class="tag tag-green">مرنة</span>
+          <span style="font-size:.8rem;color:var(--text-secondary);margin-right:6px;">إلغاء مجاني قبل 48 ساعة من الدخول</span>
+        </div>
+        <div style="padding:8px;border-radius:6px;background:var(--yellow-bg);margin-bottom:6px;">
+          <span class="tag tag-yellow">معتدلة</span>
+          <span style="font-size:.8rem;color:var(--text-secondary);margin-right:6px;">استرداد 50% قبل 24 ساعة</span>
+        </div>
+        <div style="padding:8px;border-radius:6px;background:var(--red-bg);margin-bottom:6px;">
+          <span class="tag tag-red">صارمة</span>
+          <span style="font-size:.8rem;color:var(--text-secondary);margin-right:6px;">لا استرداد بعد تأكيد الحجز</span>
+        </div>
+        <div style="padding:8px;border-radius:6px;background:var(--blue-bg);">
+          <span class="tag tag-blue">مخصصة</span>
+          <span style="font-size:.8rem;color:var(--text-secondary);margin-right:6px;">قواعد Json مرنة لأي سيناريو (Non-refundable, partial حسب تاريخ الإلغاء)</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-calendar-check"></i> الحجوزات</h3>
+      <ul class="arrow-list">
+        <li>حجوزات متعددة الغرف عبر BookingRoom — غرفتين أو أكثر بفاتورة موحدة</li>
+        <li>أرقام تسلسلية (bookingNo) فريدة</li>
+        <li>مصادر متعددة: Website, Reception, Partner (BookingSource Enum)</li>
+        <li>حالات: PENDING → CONFIRMED → CHECKED_IN → CHECKED_OUT → CANCELLED / NO_SHOW</li>
+        <li>خدمات مرتبطة بالحجز (أثناء الحجز أو أثناء الإقامة)</li>
+        <li>إلغاء مع استرداد تلقائي (كامل/جزئي حسب سياسة الإلغاء المرتبطة)</li>
+        <li>حقول للضيوف غير المسجلين: guestName, guestEmail, guestPhone</li>
+      </ul>
+    </div>
   </div>
 
   <div class="card fade-in">
-    <h3><i class="fas fa-receipt"></i> نموذج Folio — كما سيراه موظف الاستقبال</h3>
+    <h3><i class="fas fa-diagram-project"></i> سير عمل الحجز الكامل</h3>
+    <div class="flow-row" style="flex-wrap:wrap;">
+      <span class="flow-step">بحث عن غرفة</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">اختيار تواريخ</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">اختيار نوع الغرفة</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">إضافة خدمات</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">تسجيل/دخول</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">مراجعة + دفع</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">تأكيد الحجز</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step" style="border-color:var(--gold);">إنشاء Folio</span>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="folio">
+  <div class="section-header fade-in">
+    <div class="section-number">06</div>
+    <h2>💳 نظام الفوترة — Folio Billing</h2>
+    <p>قلب النظام المالي: حساب غرفة متكامل مع شحن ليلي تلقائي (ScheduledCharge)، ضرائب متعددة (TaxRule)، خصومات، وفواتير PDF.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-receipt"></i> Folio — كما يراه موظف الاستقبال</h3>
     <div class="folio-display">
       <div class="folio-header">
         <h4><i class="fas fa-file-invoice"></i> FOLIO #F-2026-0001</h4>
-        <span><i class="far fa-clock"></i> نشط</span>
+        <span><i class="far fa-clock"></i> نشط (ACTIVE)</span>
       </div>
       <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
         <div>الغرفة: <strong style="color:var(--text-primary);">201</strong> | الضيف: <strong style="color:var(--text-primary);">أحمد محمد</strong></div>
-        <div>الدخول: <strong>15/06/2026</strong> ← الخروج: <strong>18/06/2026</strong></div>
+        <div>الدخول: <strong>15/06/2026</strong> ← الخروج: <strong>18/06/2026</strong> (3 ليال)</div>
       </div>
-
-      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;">إيجار الغرفة</div>
-      <div class="folio-line"><span>15/06 — السعر الأساسي</span><span class="amount">450.00 د.ل</span></div>
-      <div class="folio-line"><span>16/06 — السعر الأساسي</span><span class="amount">450.00 د.ل</span></div>
-      <div class="folio-line"><span>17/06 — 🏷️ خطة الجمعة</span><span class="amount">550.00 د.ل</span></div>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;">إيجار الغرفة (Decimal — دقة كاملة)</div>
+      <div class="folio-line"><span>15/06 — السعر الأساسي</span><span class="amount">450.00</span></div>
+      <div class="folio-line"><span>16/06 — السعر الأساسي</span><span class="amount">450.00</span></div>
+      <div class="folio-line"><span>17/06 — 🏷️ خطة الجمعة</span><span class="amount">550.00</span></div>
       <div class="folio-line total"><span>إجمالي الغرفة</span><span class="amount">1,450.00 د.ل</span></div>
-
       <div style="font-size:.75rem;color:var(--text-muted);margin-top:12px;margin-bottom:6px;">الخدمات</div>
-      <div class="folio-line"><span>🍽️ عشاء (15/06)</span><span class="amount">250.00 د.ل</span></div>
-      <div class="folio-line"><span>🧹 تنظيف جاف</span><span class="amount">80.00 د.ل</span></div>
-      <div class="folio-line"><span>🚗 نقل مطار (ذهاب)</span><span class="amount">150.00 د.ل</span></div>
-      <div class="folio-line total"><span>إجمالي الخدمات</span><span class="amount">480.00 د.ل</span></div>
-
+      <div class="folio-line"><span>🍽️ عشاء (15/06)</span><span class="amount">250.00</span></div>
+      <div class="folio-line"><span>🧹 تنظيف جاف</span><span class="amount">80.00</span></div>
+      <div class="folio-line"><span>🚗 نقل مطار</span><span class="amount">150.00</span></div>
+      <div class="folio-line total"><span>إجمالي الخدمات</span><span class="amount">480.00</span></div>
       <div class="folio-line total" style="margin-top:8px;">
-        <span>🏷️ خصم العميل الدائم (10%)</span>
-        <span class="amount" style="color:var(--red);">(193.00 د.ل)</span>
+        <span>🏷️ خصم 10%</span>
+        <span class="amount" style="color:var(--red);">(193.00)</span>
       </div>
-
+      <div class="folio-line"><span>💰 ضريبة قيمة مضافة 5%</span><span class="amount">96.50</span></div>
+      <div class="folio-line"><span>🏛️ ضريبة سياحية</span><span class="amount">30.00</span></div>
       <div class="folio-line total" style="font-weight:700;">
-        <span>💵 إجمالي الفاتورة</span>
+        <span>💵 الإجمالي</span>
         <span class="amount" style="font-size:1.1rem;">2,127.50 د.ل</span>
       </div>
-      <div class="folio-line paid"><span>✅ مدفوع (Stripe + موبي كاش + كاش)</span><span class="amount">1,700.00 د.ل</span></div>
+      <div class="folio-line paid"><span>✅ مدفوع (Stripe + موبي كاش + محفظة)</span><span class="amount">1,700.00</span></div>
       <div class="folio-line balance" style="border-top:2px solid var(--gold);padding-top:10px;margin-top:6px;">
-        <span>⏳ الرصيد المتبقي</span>
+        <span>⏳ الرصيد</span>
         <span class="amount" style="font-size:1.2rem;">427.50 د.ل</span>
       </div>
       <div style="display:flex;gap:8px;margin-top:16px;">
         <span style="flex:1;text-align:center;padding:8px;border-radius:8px;border:1px solid var(--gold);color:var(--gold);font-size:.8rem;cursor:pointer;"><i class="fas fa-credit-card"></i> ادفع الآن</span>
-        <span style="flex:1;text-align:center;padding:8px;border-radius:8px;border:1px solid var(--border);color:var(--text-muted);font-size:.8rem;cursor:pointer;"><i class="fas fa-file-pdf"></i> إصدار فاتورة</span>
+        <span style="flex:1;text-align:center;padding:8px;border-radius:8px;border:1px solid var(--border);color:var(--text-muted);font-size:.8rem;cursor:pointer;"><i class="fas fa-file-pdf"></i> فاتورة PDF</span>
       </div>
     </div>
   </div>
@@ -1515,47 +1290,51 @@ hotel-management/
         <div style="position:relative;padding:8px 0;">
           <span style="position:absolute;right:-24px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--gold);"></span>
           <strong>📝 إنشاء الحجز</strong>
-          <div style="font-size:.8rem;color:var(--text-muted);">اختيار الخدمات الأساسية (اختياري)</div>
+          <div style="font-size:.8rem;color:var(--text-muted);">اختيار Rate Plan + خدمات أساسية</div>
         </div>
         <div style="position:relative;padding:8px 0;">
           <span style="position:absolute;right:-24px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--border);"></span>
           <strong>🔑 CHECK-IN</strong>
-          <div style="font-size:.8rem;color:var(--text-muted);">إنشاء Folio + ScheduledCharges + Pre-authorization</div>
+          <div style="font-size:.8rem;color:var(--text-muted);">إنشاء Folio (ACTIVE) + ScheduledCharges + Pre-authorization</div>
         </div>
         <div style="position:relative;padding:8px 0;">
           <span style="position:absolute;right:-24px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--border);"></span>
           <strong>🔄 أثناء الإقامة</strong>
-          <div style="font-size:.8rem;color:var(--text-muted);">كل صباح: Queue ← RoomCharge ← Folio. إضافة خدمات / دفع جزئي / خصم</div>
+          <div style="font-size:.8rem;color:var(--text-muted);">كل صباح: Queue ← RoomCharge ← ترحيل لـ Folio. إضافة خدمات، دفع جزئي، خصم، شحن محفظة</div>
         </div>
         <div style="position:relative;padding:8px 0;">
           <span style="position:absolute;right:-24px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--green);"></span>
           <strong>✅ CHECK-OUT</strong>
-          <div style="font-size:.8rem;color:var(--text-muted);">ترحيل آخر ليلة → حساب الضريبة → تطبيق الخصومات → تحصيل الرصيد → إصدار فاتورة PDF</div>
+          <div style="font-size:.8rem;color:var(--text-muted);">ترحيل آخر ليلة ← حساب الضرائب ← تطبيق الخصومات ← تحصيل الرصيد ← PDF ← تسوية (SETTLED)</div>
         </div>
       </div>
     </div>
-
     <div class="card">
-      <h3><i class="fas fa-calculator"></i> معادلات الفوترة</h3>
+      <h3><i class="fas fa-calculator"></i> معادلات الفوترة (PostgreSQL Decimal)</h3>
       <div style="background:#0A0A0F;border:1px solid var(--border);border-radius:8px;padding:16px;font-size:.82rem;direction:ltr;text-align:left;font-family:'Inter',monospace;">
-        <div style="color:var(--text-secondary);margin-bottom:8px;">// معادلات حساب الفاتورة</div>
-        <div><span style="color:#569CD6;">totalCharges</span> = Σ nightlyRate × nights × rooms <span style="color:#6A9955;">+</span></div>
-        <div style="padding-right:20px;">Σ (service.price × qty) <span style="color:#6A9955;">+</span> totalTax <span style="color:#6A9955;">−</span> discounts</div>
-        <div style="margin-top:8px;"><span style="color:#569CD6;">balance</span> = totalCharges <span style="color:#6A9955;">−</span> totalPaid</div>
-        <div style="margin-top:12px;color:#6A9955;font-style:italic;">// تفاصيل الضريبة:</div>
-        <div>taxBreakdown = Σ (taxRule.rate × taxableAmount)</div>
-        <div style="color:#6A9955;">// roomCharges تنشأ تلقائياً كل ليلة عبر ScheduledCharge</div>
+        <div style="color:var(--text-secondary);margin-bottom:8px;">// معادلات حساب الفاتورة (Decimal)</div>
+        <div><span style="color:#569CD6;">totalRoomCharges</span> = Σ nightlyRate × nights × rooms</div>
+        <div><span style="color:#569CD6;">totalServiceCharges</span> = Σ (service.price × qty)</div>
+        <div><span style="color:#569CD6;">subtotal</span> = totalRoomCharges + totalServiceCharges</div>
+        <div><span style="color:#569CD6;">discountAmount</span> = (type=PERCENTAGE) ? subtotal × value/100 : value</div>
+        <div><span style="color:#569CD6;">totalTax</span> = Σ (taxRule.rate × taxableAmount)  <span style="color:#6A9955;">// Json tax breakdown</span></div>
+        <div><span style="color:#569CD6;">totalCharges</span> = subtotal − discountAmount + totalTax</div>
+        <div><span style="color:#569CD6;">balance</span> = totalCharges − totalPaid</div>
       </div>
     </div>
   </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-file-pdf"></i> فواتير PDF</h3>
+    <p style="font-size:.85rem;color:var(--text-secondary);">توليد فاتورة PDF عبر مكتبة pdfmake. تحتوي على: شعار الفندق، رقم الفاتورة، بيانات الضيف، تفصيل البنود مع Decimal، رمز QR للدفع، توقيع الموظف. تُرسل تلقائياً بالإيميل عند تسجيل الخروج.</p>
+  </div>
 </section>
 
-<!-- ===== PAYMENT ===== -->
 <section class="section" id="payment">
   <div class="section-header fade-in">
-    <div class="section-number">05</div>
-    <h2>💳 نظام الدفع الإلكتروني — طبقة مجردة</h2>
-    <p>Gateway Abstraction Layer مع Strategy Pattern تسمح بإضافة أي بوابة دفع جديدة دون تعديل الكود.</p>
+    <div class="section-number">07</div>
+    <h2>💳 بوابات الدفع — طبقة مجردة بـ 7 طرق</h2>
+    <p>Gateway Abstraction Layer مع Strategy Pattern — تدعم 7 بوابات دفع محلية وعالمية قابلة للتبديل دون تعديل كود الخدمات.</p>
   </div>
 
   <div class="card fade-in">
@@ -1563,33 +1342,17 @@ hotel-management/
     <div class="code-block" style="font-size:.78rem;">
 <span class="comment">// lib/gateways/payment-gateway.interface.ts</span>
 <span class="keyword">interface</span> <span class="type">PaymentGateway</span> {
-  <span class="comment">// إنشاء عملية دفع (مع 3D Secure)</span>
   createPaymentIntent(params: {
-    amount: <span class="type">number</span>;
+    amount: <span class="type">Decimal</span>;
     currency: <span class="type">string</span>;
     metadata: <span class="type">Record</span>&lt;<span class="type">string</span>, <span class="type">string</span>&gt;;
-    idempotencyKey: <span class="type">string</span>;  <span class="comment">// 🔴 NEW — منع التكرار</span>
+    idempotencyKey: <span class="type">string</span>;
   }): <span class="type">Promise</span>&lt;<span class="type">PaymentIntentResult</span>&gt;;
 
-  <span class="comment">// تجميد مبلغ (Pre-authorization) — تأمين</span>
-  authorize(params: {
-    amount: <span class="type">number</span>;
-    currency: <span class="type">string</span>;
-  }): <span class="type">Promise</span>&lt;<span class="type">AuthorizationResult</span>&gt;;
-
-  <span class="comment">// تحصيل المبلغ المجمد عند CHECK-OUT</span>
-  capture(authorizationId: <span class="type">string</span>, amount?: <span class="type">number</span>): <span class="type">Promise</span>&lt;<span class="type">CaptureResult</span>&gt;;
-
-  <span class="comment">// إطلاق التجميد (إذا غادر بدون رسوم إضافية)</span>
-  release(authorizationId: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">void</span>&gt;;
-
-  <span class="comment">// استرداد كامل أو جزئي</span>
-  refund(paymentIntentId: <span class="type">string</span>, amount?: <span class="type">number</span>): <span class="type">Promise</span>&lt;<span class="type">RefundResult</span>&gt;;
-
-  <span class="comment">// التحقق من Webhook</span>
+  authorize(params: { amount: <span class="type">Decimal</span>; currency: <span class="type">string</span> }): <span class="type">Promise</span>&lt;<span class="type">AuthorizationResult</span>&gt;;
+  capture(authorizationId: <span class="type">string</span>, amount?: <span class="type">Decimal</span>): <span class="type">Promise</span>&lt;<span class="type">CaptureResult</span>&gt;;
+  refund(paymentIntentId: <span class="type">string</span>, amount?: <span class="type">Decimal</span>): <span class="type">Promise</span>&lt;<span class="type">RefundResult</span>&gt;;
   verifyWebhook(payload: <span class="type">string</span>, signature: <span class="type">string</span>): <span class="type">boolean</span>;
-
-  <span class="comment">// التعامل مع حدث Webhook</span>
   handleWebhook(event: <span class="type">WebhookEvent</span>): <span class="type">Promise</span>&lt;<span class="type">void</span>&gt;;
 }
     </div>
@@ -1599,28 +1362,28 @@ hotel-management/
     <div class="card">
       <h3><i class="fab fa-stripe" style="color:#6772E5;"></i> Stripe</h3>
       <ul class="arrow-list">
-        <li>بطاقات ائتمان مع <strong>3D Secure</strong></li>
+        <li>بطاقات ائتمان مع 3D Secure</li>
         <li>Apple Pay / Google Pay</li>
         <li>Pre-authorization + Capture</li>
         <li>Partial Refund</li>
-        <li>Webhooks</li>
+        <li>Webhooks كاملة</li>
       </ul>
     </div>
     <div class="card">
       <h3><i class="fab fa-paypal" style="color:#0070BA;"></i> PayPal</h3>
       <ul class="arrow-list">
         <li>PayPal Wallet</li>
-        <li>بطاقات ائتمان</li>
+        <li>بطاقات ائتمان عبر PayPal</li>
         <li>Partial Refund</li>
         <li>Webhooks</li>
       </ul>
     </div>
     <div class="card" style="border-color:var(--green);">
-      <h3><i class="fas fa-mobile-screen" style="color:var(--green);"></i> Libyana MobiCash</h3>
+      <h3><i class="fas fa-mobile-screen" style="color:var(--green);"></i> موبي كاش (Libyana)</h3>
       <ul class="arrow-list">
         <li>محفظة إلكترونية ليبية</li>
         <li>دفع عبر رمز QR</li>
-        <li>تحويل فوري</li>
+        <li>تحويل فوري بين المحافظ</li>
         <li>يدعم متصفح الهاتف</li>
       </ul>
     </div>
@@ -1648,11 +1411,11 @@ hotel-management/
         <li>منصة دفع إلكتروني ليبي</li>
         <li>بطاقات ائتمان مسبقة الدفع</li>
         <li>دفع الفواتير</li>
-        <li>API Gateway للتكامل</li>
+        <li>API Gateway</li>
       </ul>
     </div>
     <div class="card" style="border-color:var(--gold);">
-      <h3><i class="fab fa-cc-visa" style="color:var(--gold);"></i> بطاقة مصرفية</h3>
+      <h3><i class="fab fa-cc-visa" style="color:var(--gold);"></i> POS / بطاقة</h3>
       <ul class="arrow-list">
         <li>فيزا / ماستركارد</li>
         <li>بطاقة مدى الليبية</li>
@@ -1672,329 +1435,271 @@ hotel-management/
   </div>
 
   <div class="card fade-in">
-      <h3><i class="fas fa-shield"></i> تدفق الدفع الأمني مع 3D Secure</h3>
+    <h3><i class="fas fa-shield"></i> تدفق الدفع الأمني مع Idempotency + Webhooks</h3>
     <div class="flow-diagram">
       <div class="flow-step" style="border-color:var(--blue);">🌐 المتصفح</div>
       <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
-      <div class="flow-step" style="border-color:var(--gold);">🖥️ Next.js</div>
+      <div class="flow-step" style="border-color:var(--gold);">🖥️ Next.js API</div>
       <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
-      <div class="flow-step" style="border-color:var(--purple);">💳 Stripe / PayPal / موبي كاش</div>
+      <div class="flow-step" style="border-color:var(--purple);">💳 Stripe/PayPal/موبي كاش</div>
     </div>
     <div style="font-size:.82rem;color:var(--text-secondary);margin-top:12px;">
-      <strong>1.</strong> طلب إنشاء حجز ← <strong>2.</strong> إنشاء PaymentIntent (مع idempotencyKey) ← <strong>3.</strong> clientSecret ← <strong>4.</strong> تأكيد الدفع في المتصفح (مع 3D Secure) ← <strong>5.</strong> Webhook: payment_intent.succeeded ← <strong>6.</strong> التحقق من التوقيع + تحديث الحجز ← <strong>7.</strong> Queue → إيميل تأكيد
+      <strong>1.</strong> طلب إنشاء حجز مع idempotencyKey ← <strong>2.</strong> إنشاء PaymentIntent (Decimal) ← <strong>3.</strong> clientSecret ← <strong>4.</strong> تأكيد الدفع في المتصفح (3D Secure) ← <strong>5.</strong> Webhook (payment_intent.succeeded) ← <strong>6.</strong> التحقق من التوقيع ← تحديث الحجز + Folio ← <strong>7.</strong> Queue → إيميل تأكيد + إشعار
     </div>
   </div>
 </section>
 
-<!-- ===== SECURITY ===== -->
-<section class="section" id="security">
-  <div class="section-header fade-in">
-    <div class="section-number">06</div>
-    <h2>🔐 الأمان — Security Hardening</h2>
-    <p>7 طبقات أمان متكاملة لحماية البيانات ومنع الهجمات.</p>
-  </div>
-
-  <div class="grid-2 fade-in">
-    <div class="card">
-      <h3><i class="fas fa-layer-group icon-gold"></i> طبقات الأمان السبعة</h3>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-green">الطبقة 1</span>
-          <span style="font-size:.85rem;">النقل: HTTPS + HSTS + Helmet.js</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-green">الطبقة 2</span>
-          <span style="font-size:.85rem;">المصادقة: JWT + Refresh Rotation + 2FA</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-green">الطبقة 3</span>
-          <span style="font-size:.85rem;">الصلاحيات: RBAC + Permission Check</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-green">الطبقة 4</span>
-          <span style="font-size:.85rem;">حماية: CSRF + Rate Limiting + Zod Validation</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-green">الطبقة 5</span>
-          <span style="font-size:.85rem;">المراقبة: Audit Log + Geolocation Check</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-yellow">الطبقة 6</span>
-          <span style="font-size:.85rem;">الشركاء: API Key + HMAC + IP Whitelist</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:rgba(46,204,113,0.06);">
-          <span class="tag tag-yellow">الطبقة 7</span>
-          <span style="font-size:.85rem;">الجلسات: Session Management + Login Alert</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3><i class="fas fa-arrows-rotate icon-blue"></i> استراتيجية Refresh Token Rotation</h3>
-      <div style="font-size:.82rem;color:var(--text-secondary);">
-        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 <strong>Access Token</strong>: 15 دقيقة فقط</div>
-        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 <strong>Refresh Token</strong>: 7 أيام مع التدوير التلقائي</div>
-        <div style="padding:8px 0;border-bottom:1px solid var(--border);">🔹 عند استخدام Refresh Token ← يُلغى القديم ويُنشأ جديد</div>
-        <div style="padding:8px 0;">🔹 إذا استُخدم Token ملغي ← جميع توكن العائلة تُلغى ← إشعار فوري</div>
-      </div>
-      <div style="margin-top:12px;background:var(--red-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--red);">
-        <i class="fas fa-triangle-exclamation"></i> هذا يمنع سرقة الجلسات (Session Hijacking)
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2 fade-in">
-    <div class="card">
-      <h3><i class="fas fa-ban icon-red"></i> الحماية من الهجمات</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>الهجوم</th><th>الحماية</th></tr></thead>
-          <tbody>
-            <tr><td>Brute Force</td><td>Rate Limiting: 5 محاولات/دقيقة + Account Lockout 15 د</td></tr>
-            <tr><td>CSRF</td><td>Double-submit cookie pattern</td></tr>
-            <tr><td>XSS</td><td>React auto-escaping + CSP Header</td></tr>
-            <tr><td>SQL Injection</td><td>Prisma (parameterized queries)</td></tr>
-            <tr><td>DoS</td><td>Rate Limiting عام: 100 req/min/IP</td></tr>
-            <tr><td>Session Hijack</td><td>Refresh Token Rotation + HttpOnly Cookies</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3><i class="fas fa-user-check icon-green"></i> الأدوار والصلاحيات — مصفوفة الصلاحيات</h3>
-      <div style="display:flex;gap:20px;flex-wrap:wrap;">
-        <!-- Hierarchy Diagram -->
-        <div style="flex:1;min-width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;background:#0A0A0F;border-radius:10px;border:1px solid var(--border);">
-          <div style="text-align:center;padding:8px 16px;border-radius:8px;background:var(--red-bg);color:var(--red);font-weight:700;font-size:.85rem;width:100%;">👑 Admin</div>
-          <div style="color:var(--text-muted);font-size:.7rem;padding:4px 0;"><i class="fas fa-arrow-down"></i></div>
-          <div style="text-align:center;padding:8px 16px;border-radius:8px;background:rgba(201,168,76,0.12);color:var(--gold);font-weight:700;font-size:.85rem;width:100%;">🏅 Manager</div>
-          <div style="color:var(--text-muted);font-size:.7rem;padding:4px 0;"><i class="fas fa-arrow-down"></i></div>
-          <div style="text-align:center;padding:8px 16px;border-radius:8px;background:var(--blue-bg);color:var(--blue);font-weight:700;font-size:.85rem;width:100%;">🎯 Reception</div>
-          <div style="color:var(--text-muted);font-size:.7rem;padding:4px 0;"><i class="fas fa-arrow-down"></i></div>
-          <div style="text-align:center;padding:8px 16px;border-radius:8px;background:var(--green-bg);color:var(--green);font-weight:700;font-size:.85rem;width:100%;">👤 Guest</div>
-        </div>
-        <!-- Permission Matrix -->
-        <div style="flex:3;min-width:300px;">
-          <div class="table-wrap">
-            <table style="font-size:.78rem;">
-              <thead><tr><th>المورد / الإجراء</th><th style="color:var(--red);text-align:center;">🛡️ Admin</th><th style="color:var(--gold);text-align:center;">🏅 Manager</th><th style="color:var(--blue);text-align:center;">🎯 Reception</th><th style="color:var(--green);text-align:center;">👤 Guest</th></tr></thead>
-              <tbody>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">👥 المستخدمون</td></tr>
-                <tr><td>إدارة الموظفين (إضافة/حذف/تعديل)</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>عرض الموظفين والصلاحيات</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">🏠 الغرف وأنواعها</td></tr>
-                <tr><td>إضافة/تعديل/حذف نوع غرفة</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>تغيير حالة غرفة (صيانة/متاحة)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>عرض الغرف والتوفر</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">📅 الحجوزات</td></tr>
-                <tr><td>إنشاء حجز جديد</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅ (لنفسه)</td></tr>
-                <tr><td>تعديل/إلغاء أي حجز</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅ (حجوزاته)</td></tr>
-                <tr><td>تسجيل دخول/خروج (Check-in/out)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">🛎️ الخدمات</td></tr>
-                <tr><td>إدارة فئات الخدمات والخدمات</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>إضافة خدمة لحجز (أثناء الإقامة)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">💰 الفوترة والمدفوعات</td></tr>
-                <tr><td>عرض الفاتورة (Folio)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅ (خاصته)</td></tr>
-                <tr><td>إضافة خصم على الفاتورة</td><td style="text-align:center;">✅ (بدون حد)</td><td style="text-align:center;">✅ (حتى 15%)</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>تسوية الفاتورة (Check-out)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>استرداد مبلغ (Refund)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">📊 التقارير</td></tr>
-                <tr><td>تقارير الإشغال والإيرادات</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>سجل التدقيق (Audit Log)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td colspan="5" style="font-size:.75rem;color:var(--text-muted);background:var(--bg-secondary);">⚙️ الإعدادات</td></tr>
-                <tr><td>إعدادات الفندق (Hotel Settings)</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>إدارة الشركاء (Partner API)</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-                <tr><td>إدارة خطط الأسعار (RatePlans)</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== NEW FEATURES ===== -->
-<section class="section" id="features">
-  <div class="section-header fade-in">
-    <div class="section-number">07</div>
-    <h2>⭐ الميزات الجديدة المضافة</h2>
-    <p>الميزات التي أضفناها بعد تحليل الفجوات — مرتبة حسب الأولوية.</p>
-  </div>
-
-  <div class="feature-grid fade-in">
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(201,168,76,0.12);color:var(--gold);"><i class="fas fa-calendar-dollar"></i></div>
-      <h4>الأسعار الموسمية (Rate Plans)</h4>
-      <p>خطط أسعار ديناميكية تغطي فترات متعددة مثل الصيف، رمضان، العيد، وعطلات نهاية الأسبوع. تدعم minStay (الحد الأدنى لليالي)، سياسات إلغاء مختلفة لكل خطة، وتطبيق السعر التلقائي حسب تاريخ الحجز. <strong style="color:var(--text-primary);">مثال:</strong> خطة "الصيف 2026" = 450 د.ل/ليلة مع إلغاء مجاني 48 ساعة، خطة "رمضان" = 350 د.ل/ليلة بدون استرداد.</p>
-      <span class="tag tag-gold" style="margin-top:6px;">MVP</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:var(--red-bg);color:var(--red);"><i class="fas fa-ban"></i></div>
-      <h4>سياسات الإلغاء</h4>
-      <p>نظام قواعد JSON مرن يدعم 3 مستويات أساسية: <strong>مرنة</strong> (إلغاء مجاني قبل 48 ساعة من الدخول)، <strong>معتدلة</strong> (استرداد 50% قبل 24 ساعة)، <strong>صارمة</strong> (لا استرداد بعد تأكيد الحجز). تُربط كل خطة سعرية بسياسة إلغاء منفصلة، مما يسمح بمرونة تسعيرية كاملة. <strong style="color:var(--text-primary);">مثال:</strong> ضيف ألغى قبل يومين ← استرداد كامل تلقائي.</p>
-      <span class="tag tag-gold" style="margin-top:6px;">MVP</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:var(--blue-bg);color:var(--blue);"><i class="fas fa-money-bill-wave"></i></div>
-      <h4>الإلغاء مع استرداد</h4>
-      <p>سير عمل كامل وآلي: ضيف يلغي ← النظام يحسب مبلغ الاسترداد حسب سياسة الإلغاء ← ينشئ Refund في بوابة الدفع (كلي أو جزئي) ← يحدّث Folio ← يرسل إشعاراً للعميل بالإيميل. <strong style="color:var(--text-primary);">يدعم:</strong> الإلغاء قبل الدخول، الإلغاء أثناء الإقامة (مع احتساب الليالي المستخدمة)، و No-show.</p>
-      <span class="tag tag-gold" style="margin-top:6px;">MVP</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-door-open"></i></div>
-      <h4>حجوزات متعددة الغرف</h4>
-      <p>عبر نموذج <strong>BookingRoom</strong> الوسيط، يمكن للضيف حجز غرفتين أو أكثر في حجز واحد مع فاتورة موحدة. <strong style="color:var(--text-primary);">مثال:</strong> عائلة من 5 أفراد تحجز غرفتين متجاورتين (غرفة رقم 201 بسعر 450 د.ل/ليلة + غرفة رقم 202 بسعر 350 د.ل/ليلة) ← فاتورة واحدة عند الخروج.</p>
-      <span class="tag tag-gold" style="margin-top:6px;">MVP</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(52,152,219,0.12);color:#3498DB;"><i class="fas fa-bell"></i></div>
-      <h4>الإشعارات (Queue-based)</h4>
-      <p>نظام إشعارات غير متزامن عبر <strong>Bull + Redis</strong>. يُرسل إيميلات تأكيد الحجز فوراً، تذكير قبل 24 ساعة من الدخول ("غداً موعد وصولك في فندقنا")، فاتورة الخروج PDF، وإشعار الإلغاء. مع إعادة محاولة تلقائية (3 محاولات) إذا فشل الإرسال.</p>
-      <span class="tag tag-yellow" style="margin-top:6px;">مرحلة 2</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(46,204,113,0.12);color:#2ECC71;"><i class="fas fa-broom"></i></div>
-      <h4>التدبير المنزلي</h4>
-      <p>إدارة تنظيف الغرف بجدولة ذكية: عند تسجيل الخروج ← حالة الغرفة ← <strong>DIRTY</strong> ← تعيين لعامل النظافة ← <strong>IN_PROGRESS</strong> ← تفتيش ← <strong>INSPECTED</strong> ← متاحة للحجز. يدعم أولويات (عاجل/عادي) وتعيين موظفين محددين لكل مهمة.</p>
-      <span class="tag tag-yellow" style="margin-top:6px;">مرحلة 2</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(241,196,15,0.12);color:#F1C40F;"><i class="fas fa-chart-line"></i></div>
-      <h4>التقارير الأساسية</h4>
-      <p>لوحة تحليلية مع المقاييس الفندقية الأساسية: <strong>Occupancy Rate</strong> = (ليالٍ مشغولة ÷ إجمالي الليالي) × 100، <strong>ADR</strong> (Average Daily Rate) = إيراد الغرف ÷ ليالٍ مشغولة، <strong>RevPAR</strong> (Revenue Per Available Room) = إيراد الغرف ÷ إجمالي الغرف المتاحة. مع تصفية حسب اليوم/الأسبوع/الشهر.</p>
-      <span class="tag tag-yellow" style="margin-top:6px;">مرحلة 2</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(155,89,182,0.12);color:#9B59B6;"><i class="fas fa-history"></i></div>
-      <h4>سجل التدقيق (Audit Log)</h4>
-      <p>تتبع كل عملية حساسة في النظام مع 6 أبعاد: <strong>من</strong> (user)، <strong>متى</strong> (timestamp)، <strong>إيش</strong> (action)، <strong>على إيش</strong> (entity + entityId)، <strong>من وين</strong> (IP + userAgent)، <strong>التغيير</strong> (oldValue → newValue). <strong style="color:var(--text-primary);">أمثلة:</strong> "Admin@2026-06-15 14:30 ← غيّر سعر الغرفة 201 من 450 إلى 550"، "Reception@2026-06-15 15:00 ← سجّل دخول الضيف أحمد".</p>
-      <span class="tag tag-yellow" style="margin-top:6px;">مرحلة 2</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(46,204,113,0.12);color:#2ECC71;"><i class="fas fa-shield-halved"></i></div>
-      <h4>2FA — توثيق ثنائي</h4>
-      <p>تفعيل التوثيق الثنائي (TOTP) عبر Google Authenticator للمستخدمين. خطوات التفعيل: الإعدادات ← تفعيل 2FA ← مسح QR code ← إدخال رمز التحقق للتأكيد. يدعم رموز احتياطية (backup codes) لاستعادة الوصول في حال فقدان الجهاز.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(201,168,76,0.12);color:#C9A84C;"><i class="fas fa-tags"></i></div>
-      <h4>الخصومات</h4>
-      <p>نوعان من الخصومات: <strong>نسبة مئوية</strong> (مثل خصم 10% للعملاء الدائمين) و<strong>مبلغ ثابت</strong> (مثل 50 د.ل خصم تعويضي). صلاحية كل دور: Admin بدون حد، Manager حتى 15% من إجمالي الفاتورة. يُسجل الخصم في FolioDiscount مع توقيع المسؤول المخوّل.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(231,76,60,0.12);color:#E74C3C;"><i class="fas fa-file-pdf"></i></div>
-      <h4>فواتير PDF</h4>
-      <p>توليد فاتورة PDF قابلة للطباعة تحتوي على: شعار الفندق وعنوانه، رقم الفاتورة التسلسلي، بيانات الضيف، تفصيل البنود (إيجار ليلي + خدمات + ضرائب)، رمز QR للدفع الإلكتروني، وتوقيع موظف الاستقبال. تُرسل تلقائياً بالإيميل عند تسجيل الخروج.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-    <div class="feature-item">
-      <div class="fi-icon" style="background:rgba(52,152,219,0.12);color:#3498DB;"><i class="fas fa-plug"></i></div>
-      <h4>Partner API</h4>
-      <p>واجهة API موثقة (OpenAPI 3.0) للربط مع منصات الحجز العالمية مثل Booking.com و Expedia. تدعم: API Key + HMAC Signature للتحقق من الهوية، IP Whitelist للتقييد الجغرافي، Rate Limit مخصص لكل شريك، و Webhooks (booking.created, booking.cancelled, payment.completed).</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-
-    <!-- 3 NEW FEATURES -->
-    <div class="feature-item" style="border-color:var(--green);">
-      <div class="fi-icon" style="background:rgba(231,76,60,0.12);color:#E74C3C;"><i class="fas fa-wrench"></i></div>
-      <h4>نظام الصيانة (Maintenance Tracking) 🔴 جديد</h4>
-      <p>تسجيل أعطال الغرف (مكيف لا يعمل، سباكة، كهرباء) مع تحديد الأولوية (عاجل/عادي/منخفض)، تعيين لفني الصيانة، تتبع حالة الإصلاح، وجدولة الصيانة الدورية (مثل فحص المكيفات كل 3 أشهر). يُنشئ تذكيرات تلقائية عند تأخير الإصلاح.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-    <div class="feature-item" style="border-color:var(--blue);">
-      <div class="fi-icon" style="background:rgba(52,152,219,0.12);color:#3498DB;"><i class="fas fa-mobile-screen-button"></i></div>
-      <h4>تطبيق ويب للهاتف (PWA) 🔴 جديد</h4>
-      <p>تحويل موقع الحجز إلى تطبيق ويب تقدمي (Progressive Web App) يمكن تثبيته على شاشة الهاتف الرئيسية مثل التطبيقات العادية. يدعم الإشعارات اللحظية (push notifications) لتأكيد الحجز والتذكير، ويعمل دون اتصال جزئي (offline mode) لعرض الحجوزات السابقة.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-    <div class="feature-item" style="border-color:var(--purple);">
-      <div class="fi-icon" style="background:rgba(155,89,182,0.12);color:#9B59B6;"><i class="fas fa-calendar-check"></i></div>
-      <h4>تكامل التقويم (Calendar Sync) 🔴 جديد</h4>
-      <p>مزامنة توفر الغرف مع Google Calendar و iCal تلقائياً. يُنشئ كل حجز حدثاً في التقويم باسم الغرفة وتاريخ الدخول/الخروج. إذا غيّر الضيف حجزه ← يُحدّث الحدث تلقائياً. يساعد موظفي الاستقبال على رؤية التوفر في لمحة دون فتح النظام.</p>
-      <span class="tag tag-blue" style="margin-top:6px;">مرحلة 3</span>
-    </div>
-  </div>
-</section>
-
-<!-- ===== WEBSITE ===== -->
-<section class="section" id="website">
+<section class="section" id="wallet">
   <div class="section-header fade-in">
     <div class="section-number">08</div>
-    <h2>🌐 الموقع الإلكتروني العام — SaaS فقط</h2>
-    <p>الواجهة العامة لتطبيق حجوزات الفنادق على السحابة. متاحة فقط لمستخدمي SaaS، غير متوفرة في On-Premise.</p>
+    <h2>💰 المحفظة الإلكترونية (Wallet)</h2>
+    <p>محفظة رقمية لكل ضيف لكل فندق — تتيح إيداع وسحب الرصيد، مع تسوية تلقائية مع فاتورة الفندق (Folio).</p>
   </div>
-  <div class="card fade-in">
-    <h3><i class="fas fa-sitemap"></i> هيكل الصفحات</h3>
-    <div class="grid-3">
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-globe"></i> صفحات عامة (public)</h4>
-        <ul class="arrow-list" style="font-size:.8rem;">
-          <li><strong>الصفحة الرئيسية</strong> — بحث عن فنادق، تصفح، فلترة (مدينة/نجوم/السعر)، خريطة، عروض مميزة</li>
-          <li><strong>صفحة الفندق</strong> — صور + فيديو، وصف، قائمة الغرف وأنواعها، التقويم الشهري للتوفر، التقييمات، سياسة الإلغاء</li>
-          <li><strong>صفحة الحجز</strong> — اختيار تواريخ الدخول/الخروج، أنواع الغرف، عدد الضيوف، وجبات إضافية، مراجعة السعر</li>
-          <li><strong>تسجيل الدخول</strong> — إنشاء حساب (نزيل/فندق/مسوق)، توثيق البريد، استعادة كلمة المرور</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-gauge-high"></i> لوحة التحكم (dashboard)</h4>
-        <ul class="arrow-list" style="font-size:.8rem;">
-          <li><strong>الفنادق</strong> — إضافة/تعديل/حذف فنادق، إدارة الصور والفيديو، تحديد أنواع الغرف والأسعار</li>
-          <li><strong>الغرف</strong> — إدارة مخزون الغرف، تحديد التوفر، Rate Plans</li>
-          <li><strong>الحجوزات</strong> — عرض/تأكيد/إلغاء حجوزات، تسجيل دخول/خروج النزلاء</li>
-          <li><strong>Housekeeping</strong> — جدول تنظيف الغرف، تحديث حالة الغرفة (نظيفة/قيد التنظيف/صيانة)</li>
-          <li><strong>الفواتير (Folio)</strong> — عرض فواتير النزلاء، إضافة رسوم إضافية، إصدار المبالغ المستردة</li>
-          <li><strong>التقييمات</strong> — عرض تقييمات النزلاء والرد عليها</li>
-          <li><strong>التقارير</strong> — إحصائيات الإشغال والإيرادات مع رسوم بيانية</li>
-          <li><strong>الإعدادات</strong> — الملف الشخصي، الدفع، سياسة الإلغاء، Rate Plans</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-user"></i> لوحة النزيل (guest)</h4>
-        <ul class="arrow-list" style="font-size:.8rem;">
-          <li><strong>حجوزاتي</strong> — عرض الحجوزات السابقة والقادمة، إلغاء، تعديل</li>
-          <li><strong>فاتورتي (Folio)</strong> — عرض الفاتورة الحالية والمدفوعات والرسوم الإضافية</li>
-          <li><strong>طلبات الخدمة</strong> — طلب تنظيف الغرفة، خدمة الغرف، الصيانة</li>
-          <li><strong>تقييماتي</strong> — تقييم الإقامة بعد المغادرة</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="card fade-in">
-    <h3><i class="fas fa-arrow-right-to-bracket"></i> تدفق الحجز الكامل (متوافق مع نظام Folio والدفع)</h3>
-    <div class="flow-row" style="flex-wrap:wrap;margin-bottom:16px;">
-      <span class="flow-step">تصفح الفنادق</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">اختيار فندق</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">اختيار تواريخ</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">اختيار غرفة</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">تسجيل/دخول</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">مراجعة السعر</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">تطبيق كود خصم</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">اختيار الدفع</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">تأكيد الدفع</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
-      <span class="flow-step">إنشاء Folio</span>
-    </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div style="padding:10px 16px;background:var(--blue-bg);border-radius:8px;font-size:.78rem;color:var(--blue);"><i class="fas fa-calendar"></i> API: <code style="color:var(--gold);">POST /api/bookings</code> — إنشاء حجز مع Idempotency Key</div>
-      <div style="padding:10px 16px;background:var(--green-bg);border-radius:8px;font-size:.78rem;color:var(--green);"><i class="fas fa-credit-card"></i> API: <code style="color:var(--gold);">POST /api/payments</code> — معالجة الدفع عبر Stripe/PayPal/MobiCash</div>
-      <div style="padding:10px 16px;background:var(--purple-bg);border-radius:8px;font-size:.78rem;color:var(--purple);"><i class="fas fa-file-invoice"></i> API: <code style="color:var(--gold);">POST /api/folio</code> — إنشاء Folio وإضافة Booking.Room</div>
-    </div>
-  </div>
+
   <div class="grid-2 fade-in">
-    <div class="card"><h3><i class="fas fa-cubes"></i> المكونات الرئيسية</h3><ul class="arrow-list"><li>Next.js App Router (SSR + CSR)</li><li>shadcn/ui لمكونات الواجهة</li><li>Tailwind CSS + Cairo Font (RTL)</li><li>React Query لإدارة حالة الخادم</li><li>Zod للتحقق من صحة النماذج</li><li>Socket.io للإشعارات اللحظية</li></ul></div>
-    <div class="card"><h3><i class="fas fa-cloud"></i> متاح فقط على SaaS</h3><div style="font-size:.82rem;color:var(--text-secondary);"><div style="padding:6px 0;"><i class="fas fa-check" style="color:var(--green);margin-left:8px;"></i>نطاق عام (example.com)</div><div style="padding:6px 0;"><i class="fas fa-check" style="color:var(--green);margin-left:8px;"></i>SEO مع SSR و Open Graph</div><div style="padding:6px 0;"><i class="fas fa-check" style="color:var(--green);margin-left:8px;"></i>بحث متقدم + فلترة + خريطة</div><div style="padding:6px 0;"><i class="fas fa-check" style="color:var(--green);margin-left:8px;"></i>حجز فوري + دفع إلكتروني</div><div style="padding:6px 0;"><i class="fas fa-xmark" style="color:var(--red);margin-left:8px;"></i>On-Premise: لا يوجد موقع عام (لوحة تحكم فقط محليًا)</div></div></div>
+    <div class="card">
+      <h3><i class="fas fa-wallet"></i> نموذج المحفظة</h3>
+      <ul class="arrow-list">
+        <li><strong>Wallet</strong> — لكل ضيف محفظة مرتبطة بالفندق (unique constraint: guestId + hotelId)</li>
+        <li><strong>WalletTransaction</strong> — سجل حركات المحفظة مع balance (Decimal) و idempotencyKey (لمنع مضاعفة الحركات)</li>
+        <li>أنواع الحركات: DEPOSIT (إيداع), WITHDRAW (سحب), PAYMENT (دفع), REFUND (استرداد)</li>
+        <li>طرق الإيداع: كاش، تحويل بنكي، من محفظة أخرى، استرداد من فاتورة</li>
+        <li>إيصال PDF للمحفظة عبر wallet-receipt-pdf.service.ts</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-arrow-right-arrow-left"></i> التكامل مع Folio</h3>
+      <ul class="arrow-list">
+        <li>تسوية تلقائية: يمكن استخدام رصيد المحفظة لتسديد فاتورة الفندق عند Check-out</li>
+        <li>إنشاء FolioTransaction تلقائياً عند الخصم من المحفظة</li>
+        <li>إشعار للضيف عند كل حركة (إيداع/سحب)</li>
+        <li>صلاحيات: Admin/Manager/Reception يديرون المحفظة، Guest يرى محفظته فقط</li>
+        <li>خيار إعادة الرصيد المتبقي نقداً عند المغادرة</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-arrow-trend-up"></i> سير عمل المحفظة</h3>
+    <div class="flow-row" style="flex-wrap:wrap;">
+      <span class="flow-step">إيداع نقدي</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">تسجيل في Wallet</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">إضافة رصيد (Decimal)</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step" style="border-color:var(--gold);">استخدام للدفع</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">تسوية Folio</span><span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+      <span class="flow-step">إيصال PDF</span>
+    </div>
   </div>
 </section>
 
-<!-- ===== PRICING ===== -->
-<section class="section" id="pricing">
+<section class="section" id="modules">
   <div class="section-header fade-in">
     <div class="section-number">09</div>
-    <h2>💰 Freemium والأسعار</h2>
-    <p>نموذج Freemium: نسخة مجانية للتثبيت المحلي، ونسخ مدفوعة للميزات المتقدمة والسحابة.</p>
+    <h2>🍽️ المطعم والخدمات الإضافية</h2>
+    <p>مطعم (POS)، صناديق الأمانات، المفقودات والمعثورات، التدبير المنزلي والصيانة — وحدات متكاملة ضمن النظام الموحد.</p>
   </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-utensils"></i> نظام المطعم (Restaurant POS)</h3>
+    <div class="grid-2">
+      <div>
+        <ul class="arrow-list">
+          <li><strong>MenuCategory</strong> — فئات القائمة (مشروبات، مقبلات، رئيسية، حلويات) مع ترتيب وأيقونة</li>
+          <li><strong>MenuItem</strong> — أصناف الطعام مع price (Decimal)، صورة، وصف</li>
+          <li><strong>RestaurantOrder</strong> — طلبات المطعم مع رقم طلب تسلسلي، حالة (PENDING, PREPARING, SERVED, PAID)</li>
+          <li><strong>RestaurantOrderItem</strong> — بنود الطلب مع quantity, price (Decimal), ملاحظات</li>
+        </ul>
+      </div>
+      <div>
+        <ul class="arrow-list">
+          <li>أنواع الطلبات: DINE_IN (داخلي), ROOM_SERVICE (غرفة), TAKEAWAY (خارجي)</li>
+          <li>ربط الطلب بحجز الفندق (bookingId) لترحيل التكلفة إلى Folio</li>
+          <li>إمكانية تحويل فاتورة المطعم مباشرة إلى فاتورة الغرفة</li>
+          <li>واجهة Reception + Admin + Restaurant لإدارة الطلبات</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-box"></i> صناديق الأمانات (Safe Deposit Box)</h3>
+      <ul class="arrow-list">
+        <li><strong>SafeDepositBox</strong> — لكل غرفة، مع حالة (ACTIVE/CLOSED), توقيع الموظف الفاتح والمغلق</li>
+        <li><strong>SafeDepositBoxItem</strong> — أصناف داخل الصندوق مع وصف وعدد</li>
+        <li>سير عمل: فتح الصندوق ← تسجيل الأصناف ← إغلاق عند المغادرة ← توقيع إلكتروني</li>
+        <li>صلاحية: Reception + Admin فقط</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-magnifying-glass"></i> المفقودات والمعثورات (Lost &amp; Found)</h3>
+      <ul class="arrow-list">
+        <li><strong>LostItem</strong> — وصف القطعة، مكان العثور، صورة (imageUrl)، حالة (PENDING/RETURNED)</li>
+        <li>بيانات المستلم: الاسم، رقم الهوية، تاريخ الاستلام</li>
+        <li>تسجيل من قبل أي موظف (HK, Maintenance, Reception, Restaurant)</li>
+        <li>لوحة عرض وتصفية وبحث في Admin و Reception</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-broom"></i> التدبير المنزلي (Housekeeping)</h3>
+      <ul class="arrow-list">
+        <li><strong>TaskType</strong> — أنواع المهام (تنظيف عام، تنظيف عميق، تعقيم، ترتيب السرير...) مع أيقونة</li>
+        <li><strong>HousekeepingTask</strong> — مهام مع priority (HIGH/NORMAL/LOW), تعيين موظف, حالة</li>
+        <li>حالات الغرفة: CLEAN → DIRTY (بعد الخروج) → IN_PROGRESS → INSPECTED → CLEAN</li>
+        <li>جدولة تلقائية: عند Check-out ← حالة الغرفة DIRTY ← إنشاء مهمة تنظيف</li>
+        <li>صلاحية: Housekeeping (تنفيذ), Admin (إدارة)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-wrench"></i> الصيانة (Maintenance)</h3>
+      <ul class="arrow-list">
+        <li>يستخدم نفس <strong>HousekeepingTask</strong> لكن مع TaskType مختلف (كهرباء، سباكة، تكييف، دهان...)</li>
+        <li>أولوية خاصة: HIGH (عاجل) — استجابة فورية</li>
+        <li>إمكانية إرفاق ملاحظات وصور للعطل</li>
+        <li>تعيين لفني الصيانة المختص</li>
+        <li>جدولة صيانة دورية (يومية/أسبوعية/شهرية)</li>
+        <li>صلاحية: Maintenance (تنفيذ), Reception (إبلاغ), Admin (إدارة)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="notifications">
+  <div class="section-header fade-in">
+    <div class="section-number">10</div>
+    <h2>📨 الإشعارات والتواصل — Queue-based</h2>
+    <p>نظام إشعارات غير متزامن عبر Bull + Redis — يدعم إيميلات (Resend/SendGrid) و SMS مع إعادة محاولة تلقائية.</p>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-server"></i> البنية التحتية للإشعارات</h3>
+      <ul class="arrow-list">
+        <li><strong>Bull Queue</strong> + Redis — طابور مهام غير متزامن</li>
+        <li>إعادة محاولة تلقائية: 3 محاولات مع فاصل زمني متزايد</li>
+        <li>تصنيف الإشعارات حسب النوع: Email, SMS, Push</li>
+        <li>تسجيل حالة كل إشعار: PENDING, SENT, FAILED</li>
+        <li>إمكانية إعادة إرسال الإشعارات الفاشلة يدوياً</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-envelope"></i> أنواع الإشعارات</h3>
+      <ul class="arrow-list">
+        <li><strong>تأكيد الحجز</strong> — فوري بعد الدفع، مع ملخص الحجز ورابط PDF</li>
+        <li><strong>تذكير 24 ساعة</strong> — قبل موعد الدخول: "غداً موعد وصولك في فندقنا"</li>
+        <li><strong>فاتورة الخروج</strong> — PDF للفاتورة عند تسجيل المغادرة</li>
+        <li><strong>إشعار الإلغاء</strong> — عند إلغاء الحجز مع تفاصيل الاسترداد</li>
+        <li><strong>إشعار المحفظة</strong> — عند إيداع/سحب/تسوية</li>
+        <li><strong>SMS</strong> — إشعارات عاجلة (اختياري، حسب مزود الخدمة)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-diagram-project"></i> سير عمل الإشعارات</h3>
+    <div class="flow-diagram">
+      <div class="flow-step" style="border-color:var(--blue);">📱 حدث (حجز/دفع)</div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-step" style="border-color:var(--gold);">📥 Bull Queue</div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-step" style="border-color:var(--green);">📧 Email Gateway</div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-step" style="border-color:var(--purple);">📱 SMS Gateway</div>
+    </div>
+    <div style="font-size:.82rem;color:var(--text-secondary);margin-top:12px;">
+      عند فشل الإرسال ← إعادة محاولة تلقائية (3 مرات) ← تحديث حالة الإشعار إلى FAILED ← تنبيه المسؤول
+    </div>
+  </div>
+</section>
+
+<section class="section" id="partner">
+  <div class="section-header fade-in">
+    <div class="section-number">11</div>
+    <h2>🔌 API الشركاء والتقارير</h2>
+    <p>واجهة برمجة تطبيقات موثقة للشركاء الخارجيين (Booking.com, Expedia)، مع نظام تقارير شامل وتحكم كامل.</p>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card">
+      <h3><i class="fas fa-plug"></i> Partner API</h3>
+      <ul class="arrow-list">
+        <li><strong>ApiPartner</strong> — إدارة الشركاء مع apiKey (فريد), apiSecret, allowedIPs (IP Whitelist)</li>
+        <li><strong>WebhookEndpoint</strong> — نقاط Webhook مع تحديد الأحداث المسموح بها</li>
+        <li>Rate Limit مخصص لكل شريك (rateLimit + dailyLimit)</li>
+        <li>HMAC Signature للتحقق من هوية الطلبات</li>
+        <li>توثيق OpenAPI 3.0 كامل (docs/api/openapi.yaml)</li>
+        <li><strong>Channel Manager</strong> — الربط مع منصات الحجز: Booking.com, Expedia, Airbnb</li>
+        <li>API endpoints: الحجوزات، الغرف، الأسعار، التوفر، التقارير</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-chart-line"></i> التقارير والإحصائيات</h3>
+      <ul class="arrow-list">
+        <li><strong>Occupancy Rate</strong> = (ليالٍ مشغولة ÷ إجمالي الليالي المتاحة) × 100</li>
+        <li><strong>ADR</strong> (Average Daily Rate) = إيراد الغرف ÷ ليالٍ مشغولة</li>
+        <li><strong>RevPAR</strong> (Revenue Per Available Room) = إيراد الغرف ÷ إجمالي الغرف المتاحة</li>
+        <li><strong>GOPPAR</strong> (Gross Operating Profit Per Available Room) — متقدم</li>
+        <li><strong>Pickup Report</strong> — تتبع الحجوزات القادمة</li>
+        <li><strong>Forecast</strong> — توقعات الإشغال والإيرادات</li>
+        <li>تصفية حسب: اليوم، الأسبوع، الشهر، السنة، نطاق زمني مخصص</li>
+        <li><strong>ReportSetting</strong> — تخصيص التقارير: شعار الفندق، ترويسة، تذييل، رقم ضريبي</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-history"></i> سجل التدقيق (Audit Log)</h3>
+    <p style="font-size:.85rem;color:var(--text-secondary);">تتبع كل عملية حساسة في النظام مع 6 أبعاد: <strong>من</strong> (user)، <strong>متى</strong> (timestamp)، <strong>إيش</strong> (action)، <strong>على إيش</strong> (entity + entityId)، <strong>من وين</strong> (IP + userAgent)، <strong>التغيير</strong> (oldValue → newValue). </p>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="background:var(--bg-card);border:1px solid var(--border);padding:6px 12px;border-radius:6px;font-size:.78rem;color:var(--text-secondary);">مثال: Admin@2026-06-15 14:30 ← غيّر سعر الغرفة 201 من 450.00 إلى 550.00</span>
+      <span style="background:var(--bg-card);border:1px solid var(--border);padding:6px 12px;border-radius:6px;font-size:.78rem;color:var(--text-secondary);">مثال: Reception@2026-06-15 15:00 ← سجّل دخول الضيف أحمد (Booking #B-0001)</span>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="deployment">
+  <div class="section-header fade-in">
+    <div class="section-number">12</div>
+    <h2>🚀 النشر، الأسعار، والبنية التحتية</h2>
+    <p>استراتيجية نشر مرنة: SaaS سحابي أو On-Premise محلي، مع Docker و CI/CD ونظام أسعار Freemium.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-sitemap"></i> هيكل الصفحات — الموقع العام</h3>
+    <div class="grid-3">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-globe"></i> صفحات عامة (Public)</h4>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li><strong>الصفحة الرئيسية</strong> — بحث عن فنادق، فلترة، عروض مميزة</li>
+          <li><strong>صفحة الفندق</strong> — صور، وصف، أنواع الغرف، التقويم، التقييمات</li>
+          <li><strong>صفحة الحجز</strong> — تواريخ، أنواع غرف، ضيوف، وجبات، مراجعة السعر</li>
+          <li><strong>تأكيد الحجز</strong> — عرض تفاصيل الحجز بعد الدفع</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-gauge-high"></i> لوحة التحكم (Dashboard)</h4>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li><strong>Admin</strong> — 19 وحدة إدارة كاملة</li>
+          <li><strong>Reception</strong> — 14 وحدة تشغيل يومي</li>
+          <li><strong>Manager</strong> — تقارير وإحصائيات</li>
+          <li><strong>Guest</strong> — بوابة الضيف (حجوزاتي، فاتورتي، Wallet)</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:8px;"><i class="fas fa-mobile-screen-button"></i> PWA + تحسينات</h4>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li>تطبيق ويب تقدمي (PWA) — قابل للتثبيت على الهاتف</li>
+          <li>إشعارات لحظية (Push Notifications)</li>
+          <li>SEO + SSR + Open Graph</li>
+          <li>دعم كامل للعربية RTL</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <div class="pricing-grid fade-in">
     <div class="pricing-card">
       <div class="pricing-name">🏠 Freemium</div>
@@ -2004,13 +1709,12 @@ hotel-management/
         <li><i class="fas fa-check"></i> حتى 3 فنادق</li>
         <li><i class="fas fa-check"></i> 10 غرف لكل فندق</li>
         <li><i class="fas fa-check"></i> حجوزات أساسية</li>
-        <li><i class="fas fa-check"></i> نظام Folio (يدوي)</li>
+        <li><i class="fas fa-check"></i> نظام Folio</li>
+        <li><i class="fas fa-check"></i> Wallet + خدمات</li>
         <li><i class="fas fa-xmark"></i> موقع عام للحجوزات</li>
-        <li><i class="fas fa-xmark"></i> دفع إلكتروني</li>
-        <li><i class="fas fa-xmark"></i> Housekeeping</li>
-        <li><i class="fas fa-xmark"></i> Rate Plans متقدمة</li>
-        <li><i class="fas fa-xmark"></i> Channel Manager</li>
-        <li><i class="fas fa-xmark"></i> مزامنة سحابية</li>
+        <li><i class="fas fa-xmark"></i> دفع إلكتروني (كاش فقط)</li>
+        <li><i class="fas fa-xmark"></i> Partner API</li>
+        <li><i class="fas fa-xmark"></i> دعم فني</li>
       </ul>
     </div>
     <div class="pricing-card featured">
@@ -2021,468 +1725,206 @@ hotel-management/
       <ul class="pricing-features">
         <li><i class="fas fa-check"></i> فنادق غير محدودة</li>
         <li><i class="fas fa-check"></i> غرف غير محدودة</li>
-        <li><i class="fas fa-check"></i> موقع عام + SEO + بحث متقدم</li>
-        <li><i class="fas fa-check"></i> حجوزات فورية + دفع إلكتروني</li>
-        <li><i class="fas fa-check"></i> Folio Billing + PDF</li>
-        <li><i class="fas fa-check"></i> Housekeeping + صيانة</li>
-        <li><i class="fas fa-check"></i> Rate Plans + خصومات</li>
-        <li><i class="fas fa-check"></i> تقارير وإحصائيات</li>
-        <li><i class="fas fa-check"></i> Channel Manager (Airbnb)</li>
+        <li><i class="fas fa-check"></i> موقع عام + SEO + PWA</li>
+        <li><i class="fas fa-check"></i> حجوزات فورية + دفع إلكتروني (7 بوابات)</li>
+        <li><i class="fas fa-check"></i> Folio + PDF + Wallet</li>
+        <li><i class="fas fa-check"></i> جميع الوحدات: مطعم، خزائن، مفقودات، صيانة</li>
+        <li><i class="fas fa-check"></i> تقارير متقدمة (ADR, RevPAR, GOPPAR)</li>
+        <li><i class="fas fa-check"></i> Partner API + Channel Manager</li>
         <li><i class="fas fa-check"></i> دعم فني + تحديثات تلقائية</li>
       </ul>
     </div>
     <div class="pricing-card">
       <div class="pricing-name">🖥️ On-Prem Pro</div>
       <div class="pricing-price">299 <span>د.ل/سنة</span></div>
-      <div class="pricing-desc">محلي — مزامنة اختيارية مع السحابة</div>
+      <div class="pricing-desc">محلي — بياناتك عندك</div>
       <ul class="pricing-features">
         <li><i class="fas fa-check"></i> جميع ميزات Pro</li>
         <li><i class="fas fa-check"></i> يعمل بدون إنترنت</li>
         <li><i class="fas fa-check"></i> مزامنة اختيارية مع SaaS</li>
-        <li><i class="fas fa-check"></i> بياناتك على خادمك</li>
-        <li><i class="fas fa-check"></i> Docker Compose</li>
+        <li><i class="fas fa-check"></i> Docker + PostgreSQL + Redis</li>
+        <li><i class="fas fa-check"></i> CI/CD pipeline</li>
         <li><i class="fas fa-check"></i> تحديثات ربع سنوية</li>
-        <li><i class="fas fa-xmark"></i> موقع عام (لوحة تحكم فقط)</li>
+        <li><i class="fas fa-xmark"></i> موقع عام</li>
         <li><i class="fas fa-xmark"></i> Channel Manager مباشر</li>
-        <li><i class="fas fa-xmark"></i> دعم فني فوري</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in" style="margin-top:20px;">
+    <div class="card">
+      <h3><i class="fab fa-docker"></i> Docker Compose</h3>
+      <div class="code-block" style="font-size:.75rem;max-height:200px;overflow-y:auto;">
+<span class="keyword">services</span>:
+  postgres:
+    <span class="field">image</span>: <span class="string">postgres:16-alpine</span>
+    <span class="field">volumes</span>: [<span class="string">pgdata:/var/lib/postgresql/data</span>]
+  redis:
+    <span class="field">image</span>: <span class="string">redis:7-alpine</span>
+  app:
+    <span class="field">build</span>: <span class="string">.</span>
+    <span class="field">depends_on</span>: [postgres, redis]
+      </div>
+    </div>
+    <div class="card">
+      <h3><i class="fab fa-github"></i> CI/CD Pipeline</h3>
+      <ul class="arrow-list">
+        <li>GitHub Actions: Lint + Typecheck + Test ← Build + Deploy</li>
+        <li>اختبارات وحدة (Vitest) + تكامل + E2E (Playwright)</li>
+        <li>نشر تلقائي عند push إلى main</li>
+        <li>Daily Backup + Pre-deployment Backup</li>
+        <li>Sentry + Logtail للمراقبة</li>
+        <li>S3/Cloudflare R2 للفواتير والصور</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- ===== DEPLOYMENT ===== -->
-<section class="section" id="deployment">
-  <div class="section-header fade-in">
-    <div class="section-number">10</div>
-    <h2>🚀 النشر و CI/CD</h2>
-    <p>استراتيجية نشر متكاملة مع Docker، نسخ احتياطي تلقائي، ومراقبة الأداء.</p>
-  </div>
-
-  <div class="grid-2 fade-in">
-    <div class="card">
-      <h3><i class="fab fa-docker"></i> Docker Compose</h3>
-      <div class="code-block" style="font-size:.75rem;max-height:280px;overflow-y:auto;">
-<span class="keyword">services</span>:
-  postgres:
-    <span class="field">image</span>: <span class="string">postgres:16-alpine</span>
-    <span class="field">volumes</span>: [<span class="string">pgdata:/var/lib/postgresql/data</span>]
-    <span class="field">healthcheck</span>:
-      <span class="field">test</span>: [<span class="string">"CMD-SHELL"</span>, <span class="string">"pg_isready -U hotel"</span>]
-
-  redis:
-    <span class="field">image</span>: <span class="string">redis:7-alpine</span>
-    <span class="field">command</span>: <span class="string">redis-server --requirepass ${REDIS_PASSWORD}</span>
-
-  app:
-    <span class="field">build</span>: <span class="string">.</span>
-    <span class="field">ports</span>: [<span class="string">"3000:3000"</span>]
-    <span class="field">depends_on</span>:
-      postgres: { <span class="field">condition</span>: service_healthy }
-      redis: { <span class="field">condition</span>: service_started }
-    <span class="field">env_file</span>: .env
-
-  pgadmin:
-    <span class="field">image</span>: <span class="string">dpage/pgadmin4</span>
-    <span class="field">profiles</span>: [dev]
-      </div>
-    </div>
-    <div class="card">
-      <h3><i class="fab fa-github"></i> GitHub Actions CI/CD</h3>
-      <div class="code-block" style="font-size:.75rem;max-height:280px;overflow-y:auto;">
-<span class="comment"># .github/workflows/ci.yml</span>
-<span class="field">name</span>: CI
-<span class="field">on</span>: [push, pull_request]
-<span class="keyword">jobs</span>:
-  lint-and-typecheck:
-    <span class="field">runs-on</span>: ubuntu-latest
-    <span class="field">steps</span>:
-      - <span class="field">uses</span>: actions/checkout@v4
-      - <span class="field">run</span>: npm ci
-      - <span class="field">run</span>: npm run lint
-      - <span class="field">run</span>: npm run typecheck
-
-  test:
-    <span class="field">runs-on</span>: ubuntu-latest
-    <span class="field">services</span>:
-      postgres: { <span class="field">image</span>: postgres:16-alpine }
-      redis: { <span class="field">image</span>: redis:7-alpine }
-    <span class="field">steps</span>:
-      - <span class="field">uses</span>: actions/checkout@v4
-      - <span class="field">run</span>: npx prisma migrate deploy
-      - <span class="field">run</span>: npm test
-
-  deploy:
-    <span class="field">needs</span>: [lint-and-typecheck, test]
-    <span class="field">if</span>: github.ref == <span class="string">'refs/heads/main'</span>
-    <span class="field">steps</span>:
-      - <span class="field">run</span>: docker build -t hotel-app .
-      - <span class="field">run</span>: docker push ${{ secrets.REGISTRY }}/hotel-app:latest
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2 fade-in">
-    <div class="card">
-      <h3><i class="fas fa-database"></i> استراتيجية النسخ الاحتياطي</h3>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);">
-          <span style="font-size:1.2rem;">⏰</span>
-          <div><strong style="color:var(--text-primary);">Daily Backup</strong><br><span style="font-size:.8rem;color:var(--text-muted);">pg_dump ← ضغط ← رفع إلى S3. الاحتفاظ بـ 30 يوم</span></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);">
-          <span style="font-size:1.2rem;">📋</span>
-          <div><strong style="color:var(--text-primary);">Pre-Deployment Backup</strong><br><span style="font-size:.8rem;color:var(--text-muted);">نسخة تلقائية قبل كل تحديث</span></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);">
-          <span style="font-size:1.2rem;">🔄</span>
-          <div><strong style="color:var(--text-primary);">Backup Testing</strong><br><span style="font-size:.8rem;color:var(--text-muted);">اختبار استعادة النسخة شهرياً</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <h3><i class="fas fa-microchip"></i> البنية التحتية المقترحة</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>المكون</th><th>الخيار المقترح</th></tr></thead>
-          <tbody>
-            <tr><td>Cloud Provider</td><td>AWS / Azure / Railway / DigitalOcean</td></tr>
-            <tr><td>Container</td><td>Docker + Docker Compose</td></tr>
-            <tr><td>Monitoring</td><td>Sentry + Logtail</td></tr>
-            <tr><td>CI/CD</td><td>GitHub Actions</td></tr>
-            <tr><td>Object Storage</td><td>S3 / Cloudflare R2 (للفواتير والصور)</td></tr>
-            <tr><td>Email</td><td>Resend / SendGrid</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== ROADMAP ===== -->
 <section class="section" id="roadmap">
   <div class="section-header fade-in">
-    <div class="section-number">11</div>
-    <h2>🗺️ خريطة التنفيذ — MVP إلى الإطلاق</h2>
-    <p>خطة تنفيذ على 3 مراحل، من MVP الأساسي إلى الإطلاق الكامل مع جميع الميزات.</p>
+    <div class="section-number">13</div>
+    <h2>🗺️ خريطة التنفيذ — من الأساس إلى الإطلاق</h2>
+    <p>3 مراحل تنفيذ: MVP الأساسي ← Beta ← الإطلاق الكامل مع جميع الميزات.</p>
   </div>
 
   <div class="grid-2 fade-in" style="grid-template-columns:1.4fr 1fr;">
-    <!-- Phase 1: MVP Core -->
     <div class="card" style="border-right:3px solid var(--gold);">
-      <h3><span class="tag tag-gold" style="margin-left:8px;">المرحلة 1</span> MVP Core — 12 أسبوع <span style="font-size:.7rem;color:var(--text-muted);font-weight:400;">(أساسي للتشغيل)</span></h3>
+      <h3><span class="tag tag-gold" style="margin-left:8px;">المرحلة 1</span> MVP Core — 12 أسبوع</h3>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;">الأساسيات: لا غنى عنها للتشغيل</div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 1-2: Foundation + تصميم DB Schema</div>
-        <div style="font-size:.7rem;color:var(--gold);margin-bottom:6px;">التسليمات: قالب المشروع + Prisma Schema الكامل + CI</div>
-        <ul>
-          <li>إنشاء Next.js + Turborepo + Tailwind + shadcn/ui + RTL</li>
-          <li>إعداد Docker (PostgreSQL 16 + Redis 7)</li>
-          <li><strong style="color:var(--gold);">إنشاء Core Prisma Schema</strong> — Hotel, User, RoomType, Room, Booking, BookingRoom, Folio, FolioTransaction, ScheduledCharge, RoomCharge, Payment, Refund مع العلاقات والمؤشرات</li>
-          <li>GitHub Actions CI (lint, typecheck, test على كل PR)</li>
-          <li>نشر البيئة الأولى (رابط تجريبي)</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--gold);">الأسبوع 1-2: Foundation</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• Next.js + Turborepo + Tailwind + shadcn/ui + RTL</li>
+          <li>• Docker Compose (PostgreSQL 16 + Redis 7)</li>
+          <li>• Prisma Schema الكامل مع Enums/Decimal/Json</li>
+          <li>• CI: Lint + Typecheck على كل PR</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 3-4: المصادقة والأمان</div>
-        <div style="font-size:.7rem;color:var(--gold);margin-bottom:6px;">التسليمات: JWT + RBAC + تسجيل دخول</div>
-        <ul>
-          <li>نظام JWT (Access 15min + Refresh 7days مع Rotation)</li>
-          <li>الأدوار (Admin, Manager, Reception) مع RBAC + CSRF + Rate Limiting</li>
-          <li>صفحة تسجيل الدخول بالعربية RTL</li>
-          <li>إدارة المستخدمين (إضافة/تعديل/تعطيل موظفين)</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--gold);">الأسبوع 3-5: Auth + الأمان</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• JWT (Access 15min + Refresh 7days) مع Rotation</li>
+          <li>• 7 أدوار + RBAC + CSRF + Rate Limiting</li>
+          <li>• 2FA (TOTP) + Account Lockout</li>
+          <li>• Audit Log + Middleware</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 5-7: الغرف والحجوزات</div>
-        <div style="font-size:.7rem;color:var(--gold);margin-bottom:6px;">التسليمات: CRUD غرف + حجز أساسي + تقويم</div>
-        <ul>
-          <li>CRUD أنواع الغرف + الغرف الفردية + المرافق والصور</li>
-          <li>نظام الحجوزات الأساسي (غرفة واحدة لكل حجز)</li>
-          <li>تقويم شهري ملون (متاح/مشغول/صيانة/قيد التنظيف)</li>
-          <li>سير عمل Check-in / Check-out مع تحديث حالة الغرفة</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--gold);">الأسبوع 6-8: الغرف + الحجوزات + الأسعار</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• CRUD غرف + أنواع + مرافق + أسرّة إضافية</li>
+          <li>• Rate Plans + Cancellation Policies + حجوزات متعددة الغرف</li>
+          <li>• تقويم شهري + Check-in/Check-out</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 8-10: Folio + فواتير</div>
-        <div style="font-size:.7rem;color:var(--gold);margin-bottom:6px;">التسليمات: نظام فوترة + إيصال PDF</div>
-        <ul>
-          <li>نظام Folio + FolioTransaction + ScheduledCharge (إيجار ليلي)</li>
-          <li>إضافة الخدمات للحجز (أثناء الحجز أو أثناء الإقامة)</li>
-          <li>دمج دفع Stripe الأساسي (بطاقة ائتمان)</li>
-          <li>تسوية الفاتورة عند الخروج + طباعة إيصال PDF</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--gold);">الأسبوع 9-10: Folio + الدفع الأساسي</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• Folio + FolioTransaction + ScheduledCharge + RoomCharge</li>
+          <li>• Stripe Gateway + 3D Secure + Idempotency</li>
+          <li>• فواتير PDF</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 11-12: اختبارات MVP + Fixes</div>
-        <div style="font-size:.7rem;color:var(--gold);margin-bottom:6px;">التسليمات: MVP مستقر للتجربة الداخلية</div>
-        <ul>
-          <li>اختبارات API (Supertest) لكل endpoints</li>
-          <li>اختبارات وحدة للخدمات (BookingService, FolioService)</li>
-          <li>إصلاح bugs + تحسين الأداء + فهرسة قاعدة البيانات</li>
-          <li>تغطية 80%+ من السيناريوهات الحرجة</li>
+      <div style="padding:8px 0;">
+        <div style="font-size:.78rem;color:var(--gold);">الأسبوع 11-12: اختبارات MVP</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• Unit + Integration + E2E tests</li>
+          <li>• Fixes + تحسين الأداء</li>
         </ul>
       </div>
 
       <div style="margin-top:8px;text-align:center;padding:6px;background:var(--green-bg);border-radius:8px;font-size:.8rem;color:var(--green);">
-        <i class="fas fa-flag-checkered"></i> ✅ نهاية MVP — نظام مستقر جاهز للتشغيل التجريبي الداخلي
+        ✅ MVP مستقر — جاهز للتشغيل التجريبي الداخلي
       </div>
     </div>
 
-    <!-- Phase 2: Beta Enhancement -->
     <div class="card" style="border-right:3px solid var(--blue);">
-      <h3><span class="tag tag-blue" style="margin-left:8px;">المرحلة 2</span> Beta — 8 أسابيع <span style="font-size:.7rem;color:var(--text-muted);font-weight:400;">(ميزات متقدمة)</span></h3>
+      <h3><span class="tag tag-blue" style="margin-left:8px;">المرحلة 2</span> Beta — 8 أسابيع</h3>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;">ميزات متقدمة وتوسع</div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 13-14: Rate Plans + سياسات الإلغاء</div>
-        <div style="font-size:.7rem;color:var(--blue);margin-bottom:6px;">التسليمات: <strong style="color:var(--gold);">إضافة جداول</strong> RatePlan + CancellationPolicy</div>
-        <ul>
-          <li><strong style="color:var(--gold);">Prisma: إضافة</strong> RatePlan, CancellationPolicy, SeasonalPricing</li>
-          <li>الأسعار الموسمية مع minStay وربط بسياسة الإلغاء</li>
-          <li>3 مستويات للإلغاء (مرنة/معتدلة/صارمة)</li>
-          <li>حجوزات متعددة الغرف (BookingRoom) — غرفتين فأكثر</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--blue);">الأسبوع 13-14: Wallet + محفظة</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• Wallet + WalletTransaction + إيصال PDF</li>
+          <li>• تسوية تلقائية مع Folio</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 15-16: Housekeeping + الصيانة</div>
-        <div style="font-size:.7rem;color:var(--blue);margin-bottom:6px;">التسليمات: <strong style="color:var(--gold);">إضافة جداول</strong> HousekeepingTask + MaintenanceTicket</div>
-        <ul>
-          <li><strong style="color:var(--gold);">Prisma: إضافة</strong> HousekeepingTask, HousekeepingAssignment, MaintenanceTicket</li>
-          <li>جدولة تنظيف الغرف + تعيين موظفين + حالات الغرفة</li>
-          <li>نظام تذاكر الصيانة مع أولوية وصور</li>
-          <li>لوحة Housekeeping (عرض المهام + تحديث الحالة)</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--blue);">الأسبوع 15-16: مطعم + صندوق أمانات</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• MenuCategory + MenuItem + Orders</li>
+          <li>• SafeDepositBox + Items + توقيع</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 17-18: إشعارات + تقارير</div>
-        <div style="font-size:.7rem;color:var(--blue);margin-bottom:6px;">التسليمات: <strong style="color:var(--gold);">إضافة</strong> Notification + AuditLog</div>
-        <ul>
-          <li><strong style="color:var(--gold);">Prisma: إضافة</strong> Notification, AuditLog</li>
-          <li>نظام الإشعارات (Bull + Redis) — إيميلات تأكيد + تذكير + فاتورة</li>
-          <li>التقارير الأساسية (Occupancy Rate, ADR, RevPAR, Revenue)</li>
-          <li>سجل التدقيق — تتبع كل عملية حساسة</li>
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--blue);">الأسبوع 17-18: Housekeeping + صيانة + مفقودات</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• TaskType + HousekeepingTask + Maintenance</li>
+          <li>• LostItem + صور + استلام</li>
         </ul>
       </div>
 
-      <div class="phase" style="border-right:none;padding-right:0;">
-        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 19-20: QA + إطلاق Beta</div>
-        <div style="font-size:.7rem;color:var(--blue);margin-bottom:6px;">التسليمات: إطلاق Beta لمستخدمين حقيقيين</div>
-        <ul>
-          <li>اختبارات تكامل شاملة + تحمّل (Load Test)</li>
-          <li>إصلاح bugs + تحسينات UX</li>
-          <li>نشر Beta على نطاق فرعي (beta.example.com)</li>
-          <li>دعوة مستخدمين حقيقيين + جمع تغذية راجعة</li>
+      <div style="padding:8px 0;">
+        <div style="font-size:.78rem;color:var(--blue);">الأسبوع 19-20: إشعارات + Queue + QA</div>
+        <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+          <li>• Bull + Redis: Email + SMS</li>
+          <li>• اختبارات تكامل + تحمّل</li>
+          <li>• إطلاق Beta لمستخدمين حقيقيين</li>
         </ul>
       </div>
 
       <div style="margin-top:8px;text-align:center;padding:6px;background:rgba(52,152,219,0.12);border-radius:8px;font-size:.8rem;color:var(--blue);">
-        <i class="fas fa-rocket" style="margin-left:4px;"></i> ✅ إطلاق Beta — مستخدمين حقيقيين + تغذية راجعة
+        ✅ Beta — مستخدمين حقيقيين + تغذية راجعة
       </div>
     </div>
 
-    <!-- Phase 3: Production Launch - full width -->
     <div class="card" style="border-right:3px solid var(--green); grid-column: 1 / -1;">
-      <h3><span class="tag tag-green" style="margin-left:8px;">المرحلة 3</span> الإطلاق الكامل — 8 أسابيع <span style="font-size:.7rem;color:var(--text-muted);font-weight:400;">(Production)</span></h3>
+      <h3><span class="tag tag-green" style="margin-left:8px;">المرحلة 3</span> الإطلاق الكامل — 10 أسابيع</h3>
       <div class="grid-3" style="gap:16px;">
-        <div class="phase" style="border-right:none;padding-right:0;">
-          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 21-22: Partner API + Loyalty</div>
-          <div style="font-size:.7rem;color:var(--green);margin-bottom:6px;"><strong style="color:var(--gold);">إضافة جداول</strong> ApiPartner + Loyalty</div>
-          <ul>
-            <li><strong style="color:var(--gold);">Prisma: إضافة</strong> ApiPartner, PartnerMapping, LoyaltyPoints, LoyaltyTier</li>
-            <li>Channel Manager API (Booking.com، Expedia)</li>
-            <li>برنامج الولاء (نقاط لكل حجز، خصومات للعملاء المتكررين)</li>
+        <div style="padding:8px 0;">
+          <div style="font-size:.78rem;color:var(--green);">الأسبوع 21-23: بوابات + 2FA + خصومات</div>
+          <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+            <li>• PayPal + MobiCash + Idfa3ly + YaserPay + OnePay</li>
+            <li>• SMS Gateway</li>
+            <li>• FolioDiscount + TaxRule متقدمة</li>
+            <li>• تحسين أمان + 2FA</li>
           </ul>
         </div>
-        <div class="phase" style="border-right:none;padding-right:0;">
-          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 23-24: أمان متقدم + بوابات</div>
-          <ul>
-            <li>2FA (Google Authenticator TOTP) للمستخدمين</li>
-            <li>PayPal Gateway + بوابات ليبية (موبي كاش، إدفع لي، يسر باي، ون باي)</li>
-            <li>الخصومات (نسبة / مبلغ ثابت) + فواتير PDF</li>
-            <li>3D Secure + Pre-authorization</li>
+        <div style="padding:8px 0;">
+          <div style="font-size:.78rem;color:var(--green);">الأسبوع 24-26: Partner API + موقع عام</div>
+          <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+            <li>• Partner API + OpenAPI 3.0 + Webhooks</li>
+            <li>• Channel Manager (Booking.com, Expedia)</li>
+            <li>• موقع عام كامل + PWA + SEO</li>
           </ul>
         </div>
-        <div class="phase" style="border-right:none;padding-right:0;">
-          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 25-26: Multi-Property + نطاق عام</div>
-          <ul>
-            <li>دعم عدة فنادق (Multi-Property) للسلسلة الفندقية</li>
-            <li>الموقع العام مع نطاق مخصص + SSL</li>
-            <li>تحسين SEO + Open Graph + خرائط</li>
-            <li>تكامل Google Calendar / iCal Sync</li>
-          </ul>
-        </div>
-        <div class="phase" style="border-right:none;padding-right:0;">
-          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;"><i class="far fa-calendar-alt"></i> الأسبوع 27-28: اختبارات شاملة + Staging + Go Live</div>
-          <ul>
-            <li>اختبارات أمان (Penetration Test)</li>
-            <li>اختبار تحمّل (1000+ حجز متزامن)</li>
-            <li>Staging Environment + UAT مع فريق الفندق</li>
-            <li>تدريب فريق الاستخدام + توثيق المستخدم</li>
+        <div style="padding:8px 0;">
+          <div style="font-size:.78rem;color:var(--green);">الأسبوع 27-30: CI/CD + Multi-Property + Go Live</div>
+          <ul style="font-size:.78rem;color:var(--text-secondary);list-style:none;padding-right:16px;">
+            <li>• CI/CD pipeline كامل</li>
+            <li>• Multi-Property + Loyalty</li>
+            <li>• Penetration Test + Load Test</li>
+            <li>• تدريب الفريق + توثيق</li>
             <li><strong style="color:var(--green);">🚀 Go Live — الإطلاق الرسمي</strong></li>
           </ul>
         </div>
       </div>
       <div style="margin-top:8px;text-align:center;padding:8px;background:var(--green-bg);border-radius:8px;font-size:.9rem;color:var(--green);font-weight:700;">
-        <i class="fas fa-rocket"></i> ✅🚀 الإطلاق الرسمي — Go Live!
+        🚀 الإطلاق الرسمي — Go Live!
       </div>
     </div>
   </div>
 </section>
-
-<!-- ===== COMPARISON ===== -->
-<section class="section" id="comparison">
-  <div class="section-header fade-in">
-    <div class="section-number">12</div>
-    <h2>📊 مقارنة قبل وبعد التعديل</h2>
-    <p>تحسين ملحوظ في جميع المحاور — الأمان والأداء والمرونة.</p>
-  </div>
-
-  <div class="card fade-in">
-    <div class="table-wrap">
-      <table class="comparison-table">
-        <thead><tr><th>المحور</th><th>قبل ⬅️</th><th>بعد ➡️</th><th>التحسن</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>🏗️ العمارة</td>
-            <td class="before">Service Layer فقط</td>
-            <td class="after">Repository + Service + Queue + Gateway</td>
-            <td><span class="tag tag-green">7/10 ← 9/10</span></td>
-          </tr>
-          <tr>
-            <td>🗄️ قاعدة البيانات</td>
-            <td class="before">12 نموذج</td>
-            <td class="after">25+ نموذج (RatePlan, AuditLog, RoomCharge, ...)</td>
-            <td><span class="tag tag-green">6/10 ← 9/10</span></td>
-          </tr>
-          <tr>
-            <td>💳 الفوترة</td>
-            <td class="before">Folio + Transaction فقط</td>
-            <td class="after">+ RoomCharge, ScheduledCharge, Discount, Partial Tax</td>
-            <td><span class="tag tag-green">8/10 ← 10/10</span></td>
-          </tr>
-          <tr>
-            <td>💵 الدفع</td>
-            <td class="before">Stripe + PayPal فقط</td>
-            <td class="after">+ 3DS, Pre-auth, Idempotency, Refund, Gateway Abstraction<br><span style="font-size:.75rem;color:var(--text-muted);">🇱🇾 موبي كاش، إدفع لي، يسر باي، ون باي</span></td>
-            <td><span class="tag tag-green">6/10 ← 9/10</span></td>
-          </tr>
-          <tr>
-            <td>🔐 الأمان</td>
-            <td class="before">JWT + RBAC</td>
-            <td class="after">+ CSRF, Rate Limiting, Lockout, 2FA, Audit Log, Refresh Rotation</td>
-            <td><span class="tag tag-green">5/10 ← 9/10</span></td>
-          </tr>
-          <tr>
-            <td>⭐ الميزات</td>
-            <td class="before">6 ميزات أساسية</td>
-            <td class="after">15+ ميزة (إلغاء، إشعارات، تدبير منزلي، تقارير، خصومات)</td>
-            <td><span class="tag tag-green">7/10 ← 9/10</span></td>
-          </tr>
-          <tr>
-            <td>🚀 النشر</td>
-            <td class="before">Docker Compose فقط</td>
-            <td class="after">+ CI/CD, Backup, Monitoring, GitHub Actions</td>
-            <td><span class="tag tag-green">3/10 ← 8/10</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="grid-3 fade-in">
-    <div class="card score-card">
-      <div class="score" style="color:var(--red);">5.8</div>
-      <div class="score-label">متوسط التقييم قبل</div>
-      <div class="progress-wrap" style="margin-top:12px;">
-        <div class="progress-bar"><div class="progress-fill" style="width:58%;background:var(--red);"></div></div>
-      </div>
-    </div>
-    <div class="card score-card">
-      <div class="score" style="color:var(--gold);">9.0</div>
-      <div class="score-label">متوسط التقييم بعد</div>
-      <div class="progress-wrap" style="margin-top:12px;">
-        <div class="progress-bar"><div class="progress-fill" style="width:90%;background:var(--gold);"></div></div>
-      </div>
-    </div>
-    <div class="card score-card">
-      <div class="score" style="color:var(--green);">+55%</div>
-      <div class="score-label">نسبة التحسن</div>
-      <div class="progress-wrap" style="margin-top:12px;">
-        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green);"></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== CHECKLIST ===== -->
-<section class="section" id="checklist" style="border-bottom:1px solid var(--border);">
-  <div class="section-header fade-in">
-    <div class="section-number">13</div>
-    <h2>✅ قائمة التحقق النهائية</h2>
-    <p>جميع متطلبات المشروع — تم تغطيتها في الخطة.</p>
-  </div>
-
-  <div class="grid-2 fade-in">
-    <div class="card">
-      <h3><i class="fas fa-check-circle icon-green"></i> تم التغطية بالكامل</h3>
-      <ul class="check-list">
-        <li><i class="fas fa-check-circle"></i> العمارة: Next.js + API Routes + Repository + Queue</li>
-        <li><i class="fas fa-check-circle"></i> قاعدة البيانات: Prisma + PostgreSQL + 25+ نموذج + فهارس</li>
-        <li><i class="fas fa-check-circle"></i> الفوترة: Folio + FolioTransaction + RoomCharge + ScheduledCharge + Discount + Tax</li>
-        <li><i class="fas fa-check-circle"></i> الدفع: Gateway Interface + Stripe + PayPal + 3DS + Pre-auth + Idempotency + Refund + 🇱🇾 موبي كاش، إدفع لي، يسر باي، ون باي</li>
-        <li><i class="fas fa-check-circle"></i> الأمان: JWT + Refresh Rotation + CSRF + Rate Limiting + Lockout + 2FA + Audit Log + Helmet</li>
-        <li><i class="fas fa-check-circle"></i> الإشعارات: Queue-based (Bull + Redis) + Email</li>
-        <li><i class="fas fa-check-circle"></i> الأسعار: Rate Plans + موسمية + Min Stay + ربط بسياسات الإلغاء</li>
-        <li><i class="fas fa-check-circle"></i> الإلغاء: سياسات متعددة + استرداد (كامل/جزئي)</li>
-        <li><i class="fas fa-check-circle"></i> الحجوزات: متعددة الغرف (BookingRoom)</li>
-        <li><i class="fas fa-check-circle"></i> الشركاء: API Keys + HMAC + IP Whitelist + Webhooks + Rate Limit + Swagger</li>
-        <li><i class="fas fa-check-circle"></i> التدبير المنزلي: جدولة + تعيين + حالة الغرفة</li>
-        <li><i class="fas fa-check-circle"></i> التقارير: Occupancy, ADR, RevPAR, Revenue</li>
-        <li><i class="fas fa-check-circle"></i> النشر: Docker + GitHub Actions CI/CD + Daily Backup</li>
-        <li><i class="fas fa-check-circle"></i> التدقيق: Audit Log كامل (user, action, entity, oldValue, newValue, ip)</li>
-        <li><i class="fas fa-check-circle"></i> RTL: عربي + إنجليزي + next-intl + دعم كامل للاتجاه</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h3><i class="fas fa-clock icon-yellow"></i> مؤجل للمرحلة الثانية/الثالثة</h3>
-      <ul class="check-list">
-        <li><i class="far fa-circle" style="color:var(--text-muted);"></i> Channel Manager الكامل (Booking.com, Expedia)</li>
-        <li><i class="far fa-circle" style="color:var(--text-muted);"></i> برنامج الولاء (نقاط، خصومات، عروض)</li>
-        <li><i class="far fa-circle" style="color:var(--text-muted);"></i> دعم عدة فنادق (Multi-Property)</li>
-        <li><i class="far fa-circle" style="color:var(--text-muted);"></i> التقارير المتقدمة (GOPPAR, Forecast, Pickup)</li>
-      </ul>
-      <div style="margin-top:20px;background:rgba(201,168,76,0.08);border-radius:10px;padding:16px;text-align:center;">
-        <div style="font-size:2rem;font-weight:800;color:var(--gold);">9 / 10</div>
-        <div style="font-size:.85rem;color:var(--text-secondary);">التقييم النهائي للخطة</div>
-        <div class="progress-wrap" style="margin-top:8px;">
-          <div class="progress-bar"><div class="progress-fill" style="width:90%;background:var(--gold);"></div></div>
-        </div>
-        <p style="font-size:.78rem;color:var(--text-muted);margin-top:8px;">الخطة متكاملة وجاهزة للتنفيذ 🚀</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Footer -->
-<div style="padding:30px 60px;text-align:center;border-top:1px solid var(--border);">
-  <div style="font-size:.8rem;color:var(--text-muted);">
-    <i class="fas fa-hotel"></i> خطة مشروع إدارة الفنادق v2.0
-    <span style="margin:0 10px;">|</span>
-    <i class="far fa-calendar-alt"></i> 2026
-    <span style="margin:0 10px;">|</span>
-    <i class="fas fa-language"></i> واجهة عربية (RTL)
-  </div>
-</div>
 
 </main>
-
 <script>
-// Sidebar
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.querySelector('.sidebar-overlay').classList.toggle('show');
@@ -2493,8 +1935,6 @@ function closeSidebar() {
     document.querySelector('.sidebar-overlay').classList.remove('show');
   }
 }
-
-// Active nav link on scroll
 const sections = document.querySelectorAll('.section, .hero');
 const navLinks = document.querySelectorAll('.sidebar-nav a');
 const observer = new IntersectionObserver((entries) => {
@@ -2510,8 +1950,6 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { rootMargin: '-30% 0px -60% 0px' });
 sections.forEach(s => observer.observe(s));
-
-// Fade-in on scroll
 const fadeEls = document.querySelectorAll('.fade-in:not(.visible)');
 const fadeObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
@@ -2522,15 +1960,11 @@ const fadeObserver = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 fadeEls.forEach(el => fadeObserver.observe(el));
-
-// Toggle Details
 function toggleDetails(el) {
   el.classList.toggle('open');
   const content = el.nextElementSibling;
   content.classList.toggle('open');
 }
-
-// Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const tabGroup = btn.closest('.tabs');
@@ -2544,8 +1978,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (target) target.classList.add('active');
   });
 });
-
-// Smooth scroll for nav links (already handled by CSS + IDs)
 </script>
 </body>
 </html>

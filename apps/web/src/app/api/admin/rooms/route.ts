@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
-import { withAuth } from '@/middleware/auth';
+import { withAuth } from '@/middlewares/auth';
+import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 async function handler(request: NextRequest) {
@@ -24,7 +25,7 @@ async function handler(request: NextRequest) {
           },
           include: {
             booking: {
-              select: { id: true, guestName: true, checkIn: true, checkOut: true } as any,
+              select: { id: true, guestName: true, bookingNo: true },
             },
           },
         },
@@ -34,13 +35,13 @@ async function handler(request: NextRequest) {
 
     return successResponse(rooms);
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل جلب الغرف');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„ط؛ط±ظپ');
   }
 }
 
-export const GET = withAuth(handler);
+export const GET = withAuth(handler, ['ADMIN', 'MANAGER', 'RECEPTION']);
 
-// POST — إنشاء غرفة جديدة
+// POST â€” ط¥ظ†ط´ط§ط، ط؛ط±ظپط© ط¬ط¯ظٹط¯ط©
 async function postHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
@@ -60,10 +61,10 @@ async function postHandler(request: NextRequest) {
     return NextResponse.json({ success: true, data: room }, { status: 201 });
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return errorResponse('رقم الغرفة موجود مسبقاً', 409);
+      return errorResponse('ط±ظ‚ظ… ط§ظ„ط؛ط±ظپط© ظ…ظˆط¬ظˆط¯ ظ…ط³ط¨ظ‚ط§ظ‹', 409);
     }
-    return errorResponse(error.message || 'فشل إنشاء الغرفة');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط؛ط±ظپط©');
   }
 }
 
-export const POST = withAuth(postHandler);
+export const POST = withAuth(withCsrf(postHandler), ['ADMIN', 'MANAGER', 'RECEPTION']);

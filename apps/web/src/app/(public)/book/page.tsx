@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/ui';
 
@@ -11,7 +11,7 @@ interface RoomType {
   baseRate: number;
 }
 
-export default function BookPage() {
+function BookPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -85,5 +85,13 @@ export default function BookPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function BookPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto px-4 py-8 text-center text-[var(--text-secondary)]">جاري التحميل...</div>}>
+      <BookPageContent />
+    </Suspense>
   );
 }

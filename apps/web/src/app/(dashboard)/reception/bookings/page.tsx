@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Badge, Input, Select, Modal, Table, Card, EmptyState } from '@/components/ui';
+import { apiGet } from '@/lib/utils/api-client';
 
 interface Booking {
   id: string;
@@ -36,11 +37,8 @@ export default function BookingsPage() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
-      const res = await fetch(`/api/admin/bookings?${params}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
-      const data = await res.json();
-      if (data.success) setBookings(data.data);
+      const res = await apiGet(`/api/admin/bookings?${params}`);
+      if (res.success) setBookings(res.data);
     } finally {
       setLoading(false);
     }
@@ -139,7 +137,7 @@ export default function BookingsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-[var(--text-muted)]">الضيف:</span>
+                <span className="text-[var(--text-muted)]">النزيل:</span>
                 <span className="mr-2">{selectedBooking.guestName || selectedBooking.guest?.name || 'غير محدد'}</span>
               </div>
               <div>
@@ -147,7 +145,7 @@ export default function BookingsPage() {
                 <span className="mr-2">{selectedBooking.rooms?.map(r => r.room.roomNumber).join('، ') || '—'}</span>
               </div>
               {selectedBooking.folio && (
-                <div>
+    <div data-component="ReceptionBookingsPage">
                   <span className="text-[var(--text-muted)]">الرصيد:</span>
                   <span className="mr-2 font-bold">{selectedBooking.folio.balance} د.ل</span>
                 </div>

@@ -1,28 +1,29 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================================
 //  الفندق — الإعدادات الأساسية
 // ============================================================
 model Hotel {
-  id             String   @id @default(uuid())
-  name           String
-  nameAr         String?
-  address        String?
-  phone          String?
-  email          String?
-  currency       String   @default("LYD")
-  checkInTime    String   @default("14:00")
-  checkOutTime   String   @default("12:00")
-  timezone       String   @default("Asia/Tripoli")
-  settings       String?
-  createdAt      DateTime @default(now())
+  id           String   @id @default(uuid())
+  name         String
+  nameAr       String?
+  address      String?
+  phone        String?
+  email        String?
+  currency     String   @default("LYD")
+  checkInTime  String   @default("14:00")
+  checkOutTime String   @default("12:00")
+  timezone     String   @default("Asia/Tripoli")
+  settings     String?
+  createdAt    DateTime @default(now())
 
   rooms                Room[]
   roomTypes            RoomType[]
@@ -35,8 +36,17 @@ model Hotel {
   apiPartners          ApiPartner[]
   taxRules             TaxRule[]
   housekeepingTasks    HousekeepingTask[]
+  taskTypes            TaskType[]
   notifications        Notification[]
   auditLogs            AuditLog[]
+  menuCategories       MenuCategory[]
+  menuItems            MenuItem[]
+  restaurantOrders     RestaurantOrder[]
+  safeDepositBoxes     SafeDepositBox[]
+  safeboxPackages      SafeBoxPackage[]
+  externalClients      ExternalClient[]
+  lostItems            LostItem[]
+  reportSetting        ReportSetting?
 }
 
 // ============================================================
@@ -46,28 +56,37 @@ enum Role {
   ADMIN
   RECEPTION
   MANAGER
+  HOUSEKEEPING
+  MAINTENANCE
+  RESTAURANT
+  ACCOUNTANT
 }
 
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
+  id                  String         @id @default(uuid())
+  email               String         @unique
   password            String
   name                String
   phone               String?
-  role                String    @default("RECEPTION")
+  role                Role           @default(RECEPTION)
   hotelId             String?
-  hotel               Hotel?    @relation(fields: [hotelId], references: [id])
-  isActive            Boolean   @default(true)
+  hotel               Hotel?         @relation(fields: [hotelId], references: [id])
+  isActive            Boolean        @default(true)
   twoFactorSecret     String?
-  twoFactorEnabled    Boolean   @default(false)
+  twoFactorEnabled    Boolean        @default(false)
   lastLoginAt         DateTime?
-  failedLoginAttempts Int       @default(0)
+  failedLoginAttempts Int            @default(0)
   lockedUntil         DateTime?
   refreshTokens       RefreshToken[]
-  createdAt           DateTime  @default(now())
+  createdAt           DateTime       @default(now())
 
-  createdTransactions FolioTransaction[] @relation("TransactionCreatedBy")
-  settledFolios       Folio[]            @relation("FolioSettledBy")
+  createdTransactions FolioTransaction[]   @relation("TransactionCreatedBy")
+  settledFolios       Folio[]              @relation("FolioSettledBy")
+  openedSafeDeposits  SafeDepositBox[]     @relation("SafeDepositOpenedBy")
+  closedSafeDeposits  SafeDepositBox[]     @relation("SafeDepositClosedBy")
+  foundLostItems      LostItem[]           @relation("LostItemFoundBy")
+  safeBoxTransactions SafeBoxTransaction[]
+  walletTransactions  WalletTransaction[]
 }
 
 model RefreshToken {
@@ -85,23 +104,90 @@ model RefreshToken {
   @@index([token])
 }
 
+enum PaymentMethod {
+  STRIPE
+  PAYPAL
+  MOBICASH
+  IDFA3LY
+  YASERPAY
+  ONEPAY
+  CASH
+  POS
+  WALLET
+}
+
+enum WalletTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
 // ============================================================
 //  الضيوف
 // ============================================================
 model Guest {
-  id          String   @id @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  address     String?
-  nationality String?
-  idNumber    String?
-  emailVerified Boolean @default(false)
-  loyaltyPoints Int     @default(0)
-  notes       String?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  name          String
+  email         String?  @unique
+  phone         String?  @unique
+  address       String?
+  nationality   String?
+  idNumber      String?  @unique
+  emailVerified Boolean  @default(false)
+  loyaltyPoints Int      @default(0)
+  allowCredit   Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
 
   bookings Booking[]
+  wallets  Wallet[]
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  guestId   String
+  hotelId   String
+  guest     Guest    @relation(fields: [guestId], references: [id])
+  balance   Decimal  @default(0)
+  isFrozen  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions WalletTransaction[]
+
+  @@unique([guestId, hotelId])
+  @@index([hotelId])
+}
+
+model WalletTransaction {
+  id             String                @id @default(uuid())
+  walletId       String
+  wallet         Wallet                @relation(fields: [walletId], references: [id])
+  type           WalletTransactionType
+  amount         Decimal
+  balanceBefore  Decimal
+  balanceAfter   Decimal
+  description    String?
+  referenceId    String?
+  idempotencyKey String?               @unique
+  method         PaymentMethod?
+  status         TransactionStatus     @default(COMPLETED)
+  createdById    String?
+  createdBy      User?                 @relation(fields: [createdById], references: [id])
+  createdAt      DateTime              @default(now())
+
+  @@index([walletId])
+  @@index([createdAt])
 }
 
 // ============================================================
@@ -116,29 +202,69 @@ model RoomType {
   description String?
   baseRate    Float
   capacity    Int      @default(2)
-  amenities   String?
   images      String?
   createdAt   DateTime @default(now())
 
-  rooms     Room[]
-  ratePlans RatePlan[]
+  rooms           Room[]
+  ratePlans       RatePlan[]
+  extraBeds       RoomTypeExtraBed[]
+  defaultServices RoomTypeDefaultService[]
+  amenityServices RoomTypeAmenity[]
+}
+
+model RoomTypeExtraBed {
+  id         String   @id @default(uuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  bedType    String
+  label      String
+  labelAr    String?
+  price      Float
+  maxCount   Int      @default(1)
+
+  @@index([roomTypeId])
+}
+
+model RoomTypeDefaultService {
+  id         String   @id @default(uuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  isFree     Boolean  @default(true)
+
+  @@unique([roomTypeId, serviceId])
+  @@index([roomTypeId])
+}
+
+model RoomTypeAmenity {
+  id         String   @id @default(uuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+
+  @@unique([roomTypeId, serviceId])
+  @@index([roomTypeId])
 }
 
 model Room {
-  id                  String             @id @default(uuid())
-  hotelId             String
-  hotel               Hotel              @relation(fields: [hotelId], references: [id])
-  roomNumber          String
-  floor               Int?
-  roomTypeId          String
-  roomType            RoomType           @relation(fields: [roomTypeId], references: [id])
-  status              String             @default("AVAILABLE")
-  housekeepingStatus  String             @default("CLEAN")
-  notes               String?
-  createdAt           DateTime           @default(now())
+  id                 String   @id @default(uuid())
+  hotelId            String
+  hotel              Hotel    @relation(fields: [hotelId], references: [id])
+  roomNumber         String
+  floor              Int?
+  roomTypeId         String
+  roomType           RoomType @relation(fields: [roomTypeId], references: [id])
+  status             String   @default("AVAILABLE")
+  housekeepingStatus String   @default("CLEAN")
+  notes              String?
+  createdAt          DateTime @default(now())
 
-  bookingRooms       BookingRoom[]
-  housekeepingTasks  HousekeepingTask[]
+  bookingRooms      BookingRoom[]
+  housekeepingTasks HousekeepingTask[]
+  safeDepositBoxes  SafeDepositBox[]
+  lostItems         LostItem[]
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, status])
@@ -148,22 +274,25 @@ model Room {
 //  الأسعار الموسمية (Rate Plans)
 // ============================================================
 model RatePlan {
-  id              String   @id @default(uuid())
-  hotelId         String
-  hotel           Hotel    @relation(fields: [hotelId], references: [id])
-  roomTypeId      String
-  roomType        RoomType @relation(fields: [roomTypeId], references: [id])
-  name            String
-  nameAr          String?
-  nightlyRate     Float
-  startDate       DateTime
-  endDate         DateTime
-  minStay         Int      @default(1)
-  applyDays       String?
+  id                   String              @id @default(uuid())
+  hotelId              String
+  hotel                Hotel               @relation(fields: [hotelId], references: [id])
+  roomTypeId           String
+  roomType             RoomType            @relation(fields: [roomTypeId], references: [id])
+  name                 String
+  nameAr               String?
+  nightlyRate          Float
+  startDate            DateTime
+  endDate              DateTime
+  minStay              Int                 @default(1)
+  maxAdults            Int                 @default(2)
+  maxChildren          Int                 @default(0)
+  extraBedPrice        Float?
+  applyDays            String?
   cancellationPolicyId String?
   cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now())
 
   bookingRooms BookingRoom[]
 
@@ -190,42 +319,44 @@ model CancellationPolicy {
 //  الحجوزات
 // ============================================================
 model Booking {
-  id             String   @id @default(uuid())
-  bookingNo      String   @unique
-  hotelId        String
-  hotel          Hotel    @relation(fields: [hotelId], references: [id])
-  guestId        String?
-  guest          Guest?   @relation(fields: [guestId], references: [id])
-  guestName      String?
-  guestEmail     String?
-  guestPhone     String?
-  status         String   @default("PENDING")
-  source         String   @default("WEBSITE")
-  adults         Int      @default(1)
-  children       Int      @default(0)
+  id                   String              @id @default(uuid())
+  bookingNo            String              @unique
+  hotelId              String
+  hotel                Hotel               @relation(fields: [hotelId], references: [id])
+  guestId              String?
+  guest                Guest?              @relation(fields: [guestId], references: [id])
+  guestName            String?
+  guestEmail           String?
+  guestPhone           String?
+  status               String              @default("PENDING")
+  source               String              @default("WEBSITE")
+  adults               Int                 @default(1)
+  children             Int                 @default(0)
   cancellationPolicyId String?
   cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
-  cancelledAt    DateTime?
-  cancellationReason String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  cancelledAt          DateTime?
+  cancellationReason   String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
-  rooms           BookingRoom[]
-  folio           Folio?
-  bookingServices BookingService[]
-  payments        Payment[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
+  rooms            BookingRoom[]
+  folio            Folio?
+  bookingServices  BookingService[]
+  payments         Payment[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  restaurantOrders RestaurantOrder[]
+  safeDepositBoxes SafeDepositBox[]
 
   @@index([hotelId, status, createdAt])
 }
 
 model BookingRoom {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   bookingId   String
-  booking     Booking  @relation(fields: [bookingId], references: [id])
+  booking     Booking   @relation(fields: [bookingId], references: [id])
   roomId      String
-  room        Room     @relation(fields: [roomId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
   ratePlanId  String?
   ratePlan    RatePlan? @relation(fields: [ratePlanId], references: [id])
   nightlyRate Float
@@ -257,21 +388,23 @@ model ServiceCategory {
 }
 
 model Service {
-  id         String   @id @default(uuid())
-  hotelId    String
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
-  categoryId String
-  category   ServiceCategory @relation(fields: [categoryId], references: [id])
-  name       String
-  nameAr     String?
+  id          String          @id @default(uuid())
+  hotelId     String
+  hotel       Hotel           @relation(fields: [hotelId], references: [id])
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  name        String
+  nameAr      String?
   description String?
-  price      Float
-  taxRuleId  String?
-  taxRule    TaxRule? @relation(fields: [taxRuleId], references: [id])
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  price       Float
+  taxRuleId   String?
+  taxRule     TaxRule?        @relation(fields: [taxRuleId], references: [id])
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
 
-  bookingServices BookingService[]
+  bookingServices   BookingService[]
+  roomTypeDefaults  RoomTypeDefaultService[]
+  roomTypeAmenities RoomTypeAmenity[]
 
   @@index([hotelId, categoryId])
 }
@@ -293,18 +426,18 @@ model BookingService {
 //  نظام الفوترة (Folio Billing)
 // ============================================================
 model Folio {
-  id           String   @id @default(uuid())
-  bookingId    String   @unique
-  booking      Booking  @relation(fields: [bookingId], references: [id])
-  status       String   @default("ACTIVE")
-  totalCharges Float    @default(0)
-  totalPaid    Float    @default(0)
-  balance      Float    @default(0)
+  id           String    @id @default(uuid())
+  bookingId    String    @unique
+  booking      Booking   @relation(fields: [bookingId], references: [id])
+  status       String    @default("ACTIVE")
+  totalCharges Float     @default(0)
+  totalPaid    Float     @default(0)
+  balance      Float     @default(0)
   settledAt    DateTime?
   settledById  String?
-  settledBy    User?    @relation("FolioSettledBy", fields: [settledById], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  settledBy    User?     @relation("FolioSettledBy", fields: [settledById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   transactions     FolioTransaction[]
   payments         Payment[]
@@ -317,26 +450,26 @@ model Folio {
 }
 
 model ScheduledCharge {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   folioId     String
-  folio       Folio    @relation(fields: [folioId], references: [id])
+  folio       Folio     @relation(fields: [folioId], references: [id])
   description String
   amount      Float
   chargeDate  DateTime
-  processed   Boolean  @default(false)
+  processed   Boolean   @default(false)
   processedAt DateTime?
 
   @@index([folioId, chargeDate])
 }
 
 model RoomCharge {
-  id            String   @id @default(uuid())
-  bookingRoomId String
-  bookingRoom   BookingRoom @relation(fields: [bookingRoomId], references: [id])
-  date          DateTime
-  amount        Float
-  taxAmount     Float    @default(0)
-  status        String   @default("PENDING")
+  id              String      @id @default(uuid())
+  bookingRoomId   String
+  bookingRoom     BookingRoom @relation(fields: [bookingRoomId], references: [id])
+  date            DateTime
+  amount          Float
+  taxAmount       Float       @default(0)
+  status          String      @default("PENDING")
   postedToFolioAt DateTime?
 
   folioTransaction FolioTransaction?
@@ -345,37 +478,37 @@ model RoomCharge {
 }
 
 model FolioTransaction {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   folioId       String
-  folio         Folio    @relation(fields: [folioId], references: [id])
+  folio         Folio       @relation(fields: [folioId], references: [id])
   type          String
   category      String
   description   String
   amount        Float
-  taxAmount     Float    @default(0)
-  taxableAmount Float    @default(0)
-  isPartial     Boolean  @default(false)
+  taxAmount     Float       @default(0)
+  taxableAmount Float       @default(0)
+  isPartial     Boolean     @default(false)
   referenceId   String?
-  roomChargeId  String?       @unique
-  roomCharge    RoomCharge?   @relation(fields: [roomChargeId], references: [id])
+  roomChargeId  String?     @unique
+  roomCharge    RoomCharge? @relation(fields: [roomChargeId], references: [id])
   createdById   String?
-  createdBy     User?    @relation("TransactionCreatedBy", fields: [createdById], references: [id])
-  createdAt     DateTime @default(now())
+  createdBy     User?       @relation("TransactionCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
 
   @@index([folioId])
   @@index([createdAt])
 }
 
 model FolioDiscount {
-  id        String   @id @default(uuid())
-  folioId   String
-  folio     Folio    @relation(fields: [folioId], references: [id])
-  type      String
-  value     Float
-  amount    Float
-  reason    String?
+  id          String   @id @default(uuid())
+  folioId     String
+  folio       Folio    @relation(fields: [folioId], references: [id])
+  type        String
+  value       Float
+  amount      Float
+  reason      String?
   createdById String?
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@index([folioId])
 }
@@ -425,14 +558,18 @@ model Refund {
 //  الفواتير والضرائب
 // ============================================================
 model Invoice {
-  id         String   @id @default(uuid())
-  folioId    String
-  folio      Folio    @relation(fields: [folioId], references: [id])
-  invoiceNo  String   @unique
-  pdfUrl     String?
-  createdAt  DateTime @default(now())
+  id               String          @id @default(uuid())
+  folioId          String?
+  folio            Folio?          @relation(fields: [folioId], references: [id])
+  externalClientId String?
+  externalClient   ExternalClient? @relation(fields: [externalClientId], references: [id])
+  invoiceNo        String          @unique
+  total            Float           @default(0)
+  pdfUrl           String?
+  createdAt        DateTime        @default(now())
 
   @@index([folioId])
+  @@index([externalClientId])
 }
 
 model TaxRule {
@@ -453,19 +590,19 @@ model TaxRule {
 //  الإشعارات والتدقيق
 // ============================================================
 model Notification {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   hotelId   String
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  hotel     Hotel     @relation(fields: [hotelId], references: [id])
   bookingId String?
-  booking   Booking? @relation(fields: [bookingId], references: [id])
+  booking   Booking?  @relation(fields: [bookingId], references: [id])
   type      String
   event     String
   recipient String
   subject   String?
   body      String?
-  status    String   @default("PENDING")
+  status    String    @default("PENDING")
   sentAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([hotelId, status])
   @@index([bookingId])
@@ -492,21 +629,114 @@ model AuditLog {
 }
 
 // ============================================================
-//  التدبير المنزلي
+//  نظام المطعم (Restaurant POS)
 // ============================================================
-model HousekeepingTask {
+model MenuCategory {
+  id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  name      String
+  nameAr    String?
+  icon      String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  menuItems MenuItem[]
+
+  @@index([hotelId])
+}
+
+model MenuItem {
+  id          String       @id @default(uuid())
+  hotelId     String
+  hotel       Hotel        @relation(fields: [hotelId], references: [id])
+  categoryId  String
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  name        String
+  nameAr      String?
+  description String?
+  price       Float
+  image       String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+
+  orderItems RestaurantOrderItem[]
+
+  @@index([hotelId, categoryId])
+}
+
+model RestaurantOrder {
   id          String   @id @default(uuid())
   hotelId     String
   hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  bookingId   String?
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+  orderNo     String   @unique
+  orderType   String   @default("DINE_IN")
+  tableNo     String?
+  roomNo      String?
+  guestName   String?
+  status      String   @default("PENDING")
+  notes       String?
+  totalAmount Float    @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items RestaurantOrderItem[]
+
+  @@index([hotelId, status, createdAt])
+  @@index([bookingId])
+}
+
+model RestaurantOrderItem {
+  id         String          @id @default(uuid())
+  orderId    String
+  order      RestaurantOrder @relation(fields: [orderId], references: [id])
+  menuItemId String
+  menuItem   MenuItem        @relation(fields: [menuItemId], references: [id])
+  quantity   Int             @default(1)
+  price      Float
+  notes      String?
+  createdAt  DateTime        @default(now())
+
+  @@index([orderId])
+}
+
+// Hotel model needs RestaurantOrder + MenuItemCategory + MenuItem
+// Already has all relationships via the models above
+// ============================================================
+//  التدبير المنزلي
+// ============================================================
+model TaskType {
+  id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  name      String
+  nameAr    String?
+  icon      String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([hotelId, name])
+  @@index([hotelId])
+}
+
+model HousekeepingTask {
+  id          String    @id @default(uuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
   roomId      String
-  room        Room     @relation(fields: [roomId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
   taskType    String
-  priority    String   @default("NORMAL")
+  priority    String    @default("NORMAL")
   assignedTo  String?
   notes       String?
-  status      String   @default("PENDING")
+  status      String    @default("PENDING")
   completedAt DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([hotelId, status])
   @@index([roomId])
@@ -516,18 +746,18 @@ model HousekeepingTask {
 //  الشركاء الخارجيون (API)
 // ============================================================
 model ApiPartner {
-  id          String   @id @default(uuid())
-  hotelId     String
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  name        String
-  apiKey      String   @unique
-  apiSecret   String
-  allowedIPs  String?
-  rateLimit   Int      @default(100)
-  dailyLimit  Int      @default(10000)
-  isActive    Boolean  @default(true)
-  lastUsedAt  DateTime?
-  createdAt   DateTime @default(now())
+  id         String    @id @default(uuid())
+  hotelId    String
+  hotel      Hotel     @relation(fields: [hotelId], references: [id])
+  name       String
+  apiKey     String    @unique
+  apiSecret  String
+  allowedIPs String?
+  rateLimit  Int       @default(100)
+  dailyLimit Int       @default(10000)
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   webhookEndpoints WebhookEndpoint[]
 
@@ -535,15 +765,167 @@ model ApiPartner {
 }
 
 model WebhookEndpoint {
-  id         String   @id @default(uuid())
-  partnerId  String
-  partner    ApiPartner @relation(fields: [partnerId], references: [id])
-  url        String
-  events     String
-  retryCount Int      @default(3)
-  retryInterval Int   @default(60)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id            String     @id @default(uuid())
+  partnerId     String
+  partner       ApiPartner @relation(fields: [partnerId], references: [id])
+  url           String
+  events        String
+  retryCount    Int        @default(3)
+  retryInterval Int        @default(60)
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
 
   @@index([partnerId])
+}
+
+// ============================================================
+//  صناديق الأمانات (Safe Deposit Box) — Hybrid Operation Mode
+// ============================================================
+// Polymorphic ownership: links to a Booking (hotel guest) OR
+// an ExternalClient (standalone). Exactly one is set at app level.
+enum SafeBoxTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+// --- Standalone clients (non-hotel guests) ---
+model ExternalClient {
+  id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  name      String
+  phone     String?
+  email     String?
+  idNumber  String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  safeDepositBoxes SafeDepositBox[]
+  invoices         Invoice[]
+
+  @@index([hotelId])
+}
+
+// --- Pricing packages ---
+model SafeBoxPackage {
+  id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  name      String
+  dailyPrice   Decimal
+  weeklyPrice  Decimal
+  monthlyPrice Decimal
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  safeDepositBoxes SafeDepositBox[]
+
+  @@index([hotelId])
+}
+
+model SafeDepositBox {
+  id               String          @id @default(uuid())
+  serialNumber     Int             @unique @default(autoincrement())
+  hotelId          String
+  hotel            Hotel           @relation(fields: [hotelId], references: [id])
+  roomId           String?
+  room             Room?           @relation(fields: [roomId], references: [id])
+  bookingId        String?
+  booking          Booking?        @relation(fields: [bookingId], references: [id])
+  externalClientId String?
+  externalClient   ExternalClient? @relation(fields: [externalClientId], references: [id])
+  packageId        String?
+  package          SafeBoxPackage? @relation(fields: [packageId], references: [id])
+  rentalFee        Decimal?
+  rentalDuration   String?
+  expectedEndDate  DateTime?
+  status           String          @default("ACTIVE")
+  openedAt         DateTime        @default(now())
+  closedAt         DateTime?
+  openedById       String
+  openedBy         User            @relation("SafeDepositOpenedBy", fields: [openedById], references: [id])
+  closedById       String?
+  closedBy         User?           @relation("SafeDepositClosedBy", fields: [closedById], references: [id])
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  items        SafeDepositBoxItem[]
+  transactions SafeBoxTransaction[]
+
+  @@index([hotelId, status])
+  @@index([roomId])
+  @@index([externalClientId])
+  @@index([packageId])
+}
+
+model SafeDepositBoxItem {
+  id               String         @id @default(uuid())
+  safeDepositBoxId String
+  safeDepositBox   SafeDepositBox @relation(fields: [safeDepositBoxId], references: [id])
+  description      String
+  quantity         Int            @default(1)
+  notes            String?
+  createdAt        DateTime       @default(now())
+
+  @@index([safeDepositBoxId])
+}
+
+// --- Audit trail for cash/valuables movement ---
+model SafeBoxTransaction {
+  id               String                 @id @default(uuid())
+  safeDepositBoxId String
+  safeDepositBox   SafeDepositBox         @relation(fields: [safeDepositBoxId], references: [id])
+  type             SafeBoxTransactionType
+  amount           Int?
+  description      String?
+  staffId          String
+  staff            User                   @relation(fields: [staffId], references: [id])
+  createdAt        DateTime               @default(now())
+
+  @@index([safeDepositBoxId])
+  @@index([createdAt])
+}
+
+// ============================================================
+//  المفقودات والمعثورات (Lost & Found)
+// ============================================================
+model LostItem {
+  id                String    @id @default(uuid())
+  hotelId           String
+  hotel             Hotel     @relation(fields: [hotelId], references: [id])
+  roomId            String?
+  room              Room?     @relation(fields: [roomId], references: [id])
+  description       String
+  locationFound     String
+  foundById         String
+  foundBy           User      @relation("LostItemFoundBy", fields: [foundById], references: [id])
+  status            String    @default("PENDING")
+  imageUrl          String?
+  claimedByName     String?
+  claimedByIdNumber String?
+  claimedAt         DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([hotelId, status])
+  @@index([roomId])
+}
+
+// ============================================================
+//  إعدادات التقارير (Report Settings)
+// ============================================================
+model ReportSetting {
+  id         String   @id @default(uuid())
+  hotelId    String   @unique
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+  logoUrl    String?
+  headerText String?
+  footerText String?
+  taxNumber  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
