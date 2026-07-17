@@ -63,3 +63,13 @@ To prevent "multiple matches" errors during file modifications:
 
 ## 12. Project Management & Documentation
 * **RULE: VERSIONED TODO FILES.** Never overwrite a generic `todos.md` file. For every new major phase or feature set, you MUST create a sequentially numbered file (e.g., `todo_v4.md`, `todo_v5.md`). This preserves the project's historical roadmap and changelog.
+
+## 13. LIVING DOCUMENTATION (CRITICAL)
+* **RULE: SYNC-README-ON-CHANGE.** Whenever the agent completes any of the following, it MUST immediately update `README.md` to reflect the change:
+  1. A major feature or module (new page, new API route group, new component collection)
+  2. A schema change (new model, new field, new relation)
+  3. A significant business-logic alteration (e.g., checkout validation, cancellation engine, folio settlement rules)
+  4. A new phase completion or roadmap milestone
+* The `README.md` MUST always serve as an accurate, up-to-date, single-source-of-truth document for the system's current feature set, architecture, API surface, and roadmap.
+* Do NOT treat `README.md` as a one-time setup document. It is a living file that grows with the project.
+* When updating, focus on: feature description (what), architecture (how), and API reference (where). Keep the changelog and roadmap accurate.

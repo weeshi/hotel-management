@@ -9,6 +9,8 @@ import { CheckinModal } from '@/components/checkin/CheckinModal';
 import { CheckoutModal } from '@/components/checkin/CheckoutModal';
 import { CancelModal } from '@/components/checkin/CancelModal';
 import { EditBookingModal } from '@/components/checkin/EditBookingModal';
+import { MoveRoomModal } from '@/components/checkin/MoveRoomModal';
+import { ExtendStayModal } from '@/components/checkin/ExtendStayModal';
 import type { Booking, FolioData } from '@/components/checkin/types';
 
 export default function CheckInOutPage() {
@@ -23,6 +25,8 @@ export default function CheckInOutPage() {
   const [actionBooking, setActionBooking] = useState<Booking | null>(null);
   const [actionType, setActionType] = useState<'checkin' | 'checkout' | 'cancel' | null>(null);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [moveBooking, setMoveBooking] = useState<Booking | null>(null);
+  const [extendBooking, setExtendBooking] = useState<Booking | null>(null);
   const [folioData, setFolioData] = useState<FolioData | null>(null);
 
   async function fetchBookings() {
@@ -108,12 +112,13 @@ export default function CheckInOutPage() {
     } catch {}
   }
 
-  async function handleCancel(bookingId: string) {
+  async function handleCancel(bookingId: string, options?: { reason?: string; waivePenalty?: boolean; noShow?: boolean }) {
     await getCsrfToken();
     try {
       const res = await fetch(`/api/admin/bookings/${bookingId}/cancel`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
+        body: JSON.stringify(options || {}),
       });
       const data = await res.json();
       if (data.success) { closeAction(); fetchBookings(); }
@@ -182,7 +187,8 @@ export default function CheckInOutPage() {
         <div className="space-y-3">
           {filtered.map((booking) => (
             <BookingCard key={booking.id} booking={booking} tab={tab} highlight={booking.id === highlightBookingId}
-              onCheckin={openCheckin} onCheckout={openCheckout} onCancel={openCancel} onEdit={setEditBooking} />
+              onCheckin={openCheckin} onCheckout={openCheckout} onCancel={openCancel} onEdit={setEditBooking}
+              onMoveRoom={(b) => setMoveBooking(b)} onExtendStay={(b) => setExtendBooking(b)} />
           ))}
         </div>
       )}
@@ -192,6 +198,8 @@ export default function CheckInOutPage() {
         onConfirm={handleCheckout} onClose={closeAction} onFetchWallet={fetchWalletBalance} />
       <CancelModal open={actionType === 'cancel'} booking={actionBooking} onConfirm={handleCancel} onClose={closeAction} />
       <EditBookingModal open={!!editBooking} booking={editBooking} onClose={() => setEditBooking(null)} onSaved={fetchBookings} />
+      <MoveRoomModal open={!!moveBooking} booking={moveBooking} onClose={() => setMoveBooking(null)} onSaved={fetchBookings} />
+      <ExtendStayModal open={!!extendBooking} booking={extendBooking} onClose={() => setExtendBooking(null)} onSaved={fetchBookings} />
     </div>
   );
 }

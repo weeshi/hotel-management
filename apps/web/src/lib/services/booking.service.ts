@@ -1,4 +1,5 @@
 ﻿import { prisma } from '@/lib/utils/prisma';
+import { Prisma } from '@prisma/client';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { BookingRepository } from '@/lib/repositories/booking.repository';
 import { FolioRepository } from '@/lib/repositories/folio.repository';
@@ -304,30 +305,335 @@ export class BookingService {
       throw new ValidationError('النزيل ليس في إقامة نشطة');
     }
 
-    if (booking.folio) {
-      await folioRepo.settleFolio(booking.folio.id, settledById);
+    const balance = booking.folio ? Number(booking.folio.balance) : 0;
+    if (balance > 0) {
+      throw new ValidationError(
+        `لا يمكن تسجيل الخروج. يوجد مبلغ متبقي بقيمة ${balance.toFixed(2)} د.ل. يجب سداد الفاتورة أولاً.`
+      );
     }
 
-    for (const room of booking.rooms) {
-      await prisma.room.update({
-        where: { id: room.roomId },
-        data: { status: 'AVAILABLE', housekeepingStatus: 'DIRTY' },
+    return prisma.$transaction(async (tx) => {
+      if (booking.folio) {
+        await tx.folio.update({
+          where: { id: booking.folio.id },
+          data: {
+            status: 'SETTLED',
+            settledAt: new Date(),
+            settledById,
+          },
+        });
+      }
+
+      for (const room of booking.rooms) {
+        await tx.room.update({
+          where: { id: room.roomId },
+          data: { status: 'AVAILABLE', housekeepingStatus: 'DIRTY' },
+        });
+
+        await tx.housekeepingTask.create({
+          data: {
+            hotelId: booking.hotelId,
+            roomId: room.roomId,
+            taskType: 'CLEANING',
+            priority: 'NORMAL',
+            status: 'PENDING',
+          },
+        });
+      }
+
+      return tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'CHECKED_OUT' },
+      });
+    });
+  }
+
+  async moveRoom(bookingId: string, targetRoomId: string, userId?: string, reason?: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        rooms: { include: { room: true } },
+        folio: true,
+      },
+    });
+
+    if (!booking) throw new NotFoundError('الحجز غير موجود');
+    if (booking.status !== 'CHECKED_IN') throw new ValidationError('يمكن نقل الغرفة فقط للنزلاء المقيمين');
+
+    const targetRoom = await prisma.room.findUnique({
+      where: { id: targetRoomId },
+      include: { roomType: true },
+    });
+    if (!targetRoom) throw new NotFoundError('الغرفة المستهدفة غير موجودة');
+    if (targetRoom.status === 'OCCUPIED' || targetRoom.status === 'MAINTENANCE') {
+      throw new ValidationError(`الغرفة ${targetRoom.roomNumber} غير متاحة`);
+    }
+
+    const moveDate = new Date();
+
+    return prisma.$transaction(async (tx) => {
+      const updatedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'CHECKED_IN' },
       });
 
-      await prisma.housekeepingTask.create({
+      for (const room of booking.rooms) {
+        const totalNights = Math.ceil(
+          (room.checkOut.getTime() - room.checkIn.getTime()) / 86400000,
+        );
+        const usedNights = Math.max(
+          0,
+          Math.ceil((moveDate.getTime() - room.checkIn.getTime()) / 86400000),
+        );
+        const remainingNights = totalNights - usedNights;
+
+        if (remainingNights > 0) {
+          const oldRate = Number(room.nightlyRate);
+          const creditAmount = oldRate * remainingNights;
+          const roomIsOld = room.roomId !== targetRoomId;
+
+          if (roomIsOld && booking.folio) {
+            // Credit back remaining nights for old room
+            await tx.folioTransaction.create({
+              data: {
+                folioId: booking.folio.id,
+                type: 'REFUND',
+                category: 'ROOM_CHARGE',
+                description: `إلغاء إيجار ${room.room.roomNumber} - ${remainingNights} ليالٍ متبقية (نقل غرفة)`,
+                amount: -creditAmount,
+                createdById: userId,
+              },
+            });
+
+            // Charge remaining nights at new room rate
+            const newRate = Number(targetRoom.roomType.baseRate);
+            const newCharge = newRate * remainingNights;
+
+            await tx.folioTransaction.create({
+              data: {
+                folioId: booking.folio.id,
+                type: 'CHARGE',
+                category: 'ROOM_CHARGE',
+                description: `إيجار ${targetRoom.roomNumber} - ${remainingNights} ليلة (نقل غرفة)`,
+                amount: newCharge,
+                createdById: userId,
+              },
+            });
+
+            // Update folio totals
+            await tx.folio.update({
+              where: { id: booking.folio.id },
+              data: {
+                totalCharges: { increment: newCharge - creditAmount },
+                balance: { increment: newCharge - creditAmount },
+              },
+            });
+
+            // If folio was settled, reactivate
+            if (booking.folio.status === 'SETTLED') {
+              await tx.folio.update({
+                where: { id: booking.folio.id },
+                data: { status: 'ACTIVE', settledAt: null, settledById: null },
+              });
+            }
+          }
+        }
+
+        // Set old room to DIRTY
+        await tx.room.update({
+          where: { id: room.roomId },
+          data: { status: 'DIRTY', housekeepingStatus: 'DIRTY' },
+        });
+
+        // Create housekeeping task for old room
+        await tx.housekeepingTask.create({
+          data: {
+            hotelId: booking.hotelId,
+            roomId: room.roomId,
+            taskType: 'CLEANING',
+            priority: 'NORMAL',
+            status: 'PENDING',
+          },
+        });
+      }
+
+      // Remove old BookingRooms and create new one for target room
+      await tx.bookingRoom.deleteMany({
+        where: { bookingId },
+      });
+
+      const newBookingRoom = await tx.bookingRoom.create({
         data: {
-          hotelId: booking.hotelId,
-          roomId: room.roomId,
-          taskType: 'CLEANING',
-          priority: 'NORMAL',
-          status: 'PENDING',
+          bookingId,
+          roomId: targetRoomId,
+          nightlyRate: Number(targetRoom.roomType.baseRate),
+          checkIn: booking.rooms[0].checkIn,
+          checkOut: booking.rooms[0].checkOut,
         },
       });
+
+      // Set target room to OCCUPIED
+      await tx.room.update({
+        where: { id: targetRoomId },
+        data: { status: 'OCCUPIED' },
+      });
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          hotelId: booking.hotelId,
+          userId,
+          action: 'MOVE_ROOM',
+          entity: 'BOOKING',
+          entityId: bookingId,
+          oldValue: JSON.stringify({ rooms: booking.rooms.map((r) => ({ id: r.roomId, number: r.room.roomNumber })) }),
+          newValue: JSON.stringify({ rooms: [{ id: targetRoomId, number: targetRoom.roomNumber }], reason }),
+        },
+      });
+
+      return tx.booking.findUnique({
+        where: { id: bookingId },
+        include: { rooms: { include: { room: true } }, folio: true },
+      });
+    });
+  }
+
+  async extendStay(bookingId: string, newCheckOut: Date, userId?: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        rooms: {
+          include: { room: { include: { roomType: true } } },
+        },
+        folio: { include: { transactions: true } },
+      },
+    });
+
+    if (!booking) throw new NotFoundError('الحجز غير موجود');
+    if (booking.status !== 'CONFIRMED' && booking.status !== 'CHECKED_IN') {
+      throw new ValidationError('يمكن تمديد الإقامة فقط للحجوزات المؤكدة أو المقيمة');
     }
 
-    return prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: 'CHECKED_OUT' },
+    const currentCheckOut = booking.rooms[0].checkOut;
+    if (newCheckOut <= currentCheckOut) {
+      throw new ValidationError('تاريخ المغادرة الجديد يجب أن يكون بعد التاريخ الحالي');
+    }
+
+    // Verify availability for extension period (all rooms)
+    for (const room of booking.rooms) {
+      const overlap = await prisma.bookingRoom.findFirst({
+        where: {
+          roomId: room.roomId,
+          bookingId: { not: bookingId },
+          checkIn: { lt: newCheckOut },
+          checkOut: { gt: currentCheckOut },
+          booking: { status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
+        },
+      });
+      if (overlap) {
+        throw new ValidationError(`الغرفة ${room.room.roomNumber} غير متاحة لفترة التمديد`);
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const oldCheckOut = booking.rooms[0].checkOut;
+      const originalCheckIn = booking.rooms[0].checkIn;
+      const totalOldNights = Math.ceil(
+        (oldCheckOut.getTime() - originalCheckIn.getTime()) / 86400000,
+      );
+      const totalNewNights = Math.ceil(
+        (newCheckOut.getTime() - originalCheckIn.getTime()) / 86400000,
+      );
+      const extraNights = totalNewNights - totalOldNights;
+
+      // Delete old ROOM_CHARGE transactions from folio
+      if (booking.folio) {
+        const oldCharges = booking.folio.transactions.filter(
+          (t) => t.category === 'ROOM_CHARGE',
+        );
+        let totalOldChargeAmount = 0;
+        for (const charge of oldCharges) {
+          totalOldChargeAmount += Number(charge.amount);
+          await tx.folioTransaction.delete({ where: { id: charge.id } });
+        }
+
+        // Calculate new total charge
+        const roomsWithRates = await Promise.all(
+          booking.rooms.map(async (r) => ({
+            roomNumber: r.room.roomNumber,
+            nightlyRate: Number(r.nightlyRate || r.room.roomType.baseRate),
+          })),
+        );
+
+        const newTotalRoomCharge = roomsWithRates.reduce(
+          (sum, r) => sum + r.nightlyRate * totalNewNights,
+          0,
+        );
+
+        // Add new ROOM_CHARGE transactions
+        for (const r of roomsWithRates) {
+          await tx.folioTransaction.create({
+            data: {
+              folioId: booking.folio.id,
+              type: 'CHARGE',
+              category: 'ROOM_CHARGE',
+              description: `إيجار ${r.roomNumber} - ${totalNewNights} ليلة (تمديد)`,
+              amount: r.nightlyRate * totalNewNights,
+              createdById: userId,
+            },
+          });
+        }
+
+        const delta = newTotalRoomCharge - totalOldChargeAmount;
+        await tx.folio.update({
+          where: { id: booking.folio.id },
+          data: {
+            totalCharges: { increment: delta },
+            balance: { increment: delta },
+            ...(delta > 0 && booking.folio.status === 'SETTLED'
+              ? { status: 'ACTIVE', settledAt: null, settledById: null }
+              : {}),
+          },
+        });
+      }
+
+      // Update booking checkOut
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { updatedAt: new Date() },
+      });
+
+      // Update all BookingRoom checkOut dates
+      for (const room of booking.rooms) {
+        await tx.bookingRoom.update({
+          where: { id: room.id },
+          data: { checkOut: newCheckOut },
+        });
+      }
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          hotelId: booking.hotelId,
+          userId,
+          action: 'EXTEND_STAY',
+          entity: 'BOOKING',
+          entityId: bookingId,
+          oldValue: JSON.stringify({
+            checkOut: oldCheckOut.toISOString(),
+            nights: totalOldNights,
+          }),
+          newValue: JSON.stringify({
+            checkOut: newCheckOut.toISOString(),
+            nights: totalNewNights,
+          }),
+        },
+      });
+
+      return tx.booking.findUnique({
+        where: { id: bookingId },
+        include: { rooms: { include: { room: true } }, folio: true },
+      });
     });
   }
 
@@ -377,26 +683,280 @@ export class BookingService {
     return updated;
   }
 
-  async calculateRefund(bookingId: string, cancelledAt: Date = new Date()) {
+  async getCancellationPolicy(bookingId: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        rooms: { include: { ratePlan: true } },
+        cancellationPolicy: true,
+      },
+    });
+    if (!booking) throw new NotFoundError('الحجز غير موجود');
+
+    // Hierarchy: RatePlan policy → Booking policy → Default hotel policy
+    let policy = booking.cancellationPolicy;
+
+    if (!policy) {
+      const ratePlanPolicies = booking.rooms
+        .map((r) => r.ratePlan?.cancellationPolicyId)
+        .filter(Boolean);
+      if (ratePlanPolicies.length > 0) {
+        policy = await prisma.cancellationPolicy.findUnique({
+          where: { id: ratePlanPolicies[0]! },
+        });
+      }
+    }
+
+    if (!policy) {
+      policy = await prisma.cancellationPolicy.findFirst({
+        where: { hotelId: booking.hotelId, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    return policy;
+  }
+
+  async getCancellationQuote(bookingId: string, cancelledAt: Date = new Date()) {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         rooms: true,
-        cancellationPolicy: true,
-        folio: true,
+        folio: { include: { payments: true, transactions: true } },
       },
     });
     if (!booking) throw new NotFoundError('الحجز غير موجود');
-    if (!booking.cancellationPolicy) return { refundAmount: 0, refundPercentage: 0, canRefund: false };
+
+    const policy = await this.getCancellationPolicy(bookingId);
+    if (!policy) {
+      return {
+        totalPaid: 0,
+        totalCharges: 0,
+        penaltyAmount: 0,
+        refundAmount: 0,
+        refundPercentage: 0,
+        canRefund: false,
+        policyName: null,
+        hasPolicy: false,
+      };
+    }
 
     const checkInDate = booking.rooms[0]?.checkIn || new Date();
     const hoursBeforeCheckIn = (checkInDate.getTime() - cancelledAt.getTime()) / 3600000;
-    const totalAmount = booking.folio ? Number(booking.folio.totalCharges) : 0;
+    const totalCharges = booking.folio ? Number(booking.folio.totalCharges) : 0;
+    const totalPaid = booking.folio ? Number(booking.folio.totalPaid) : 0;
 
-    return pricingService.calculateCancellationRefund(
-      booking.cancellationPolicy.rules,
-      totalAmount,
+    const { refundAmount, refundPercentage } = pricingService.calculateCancellationRefund(
+      policy.rules,
+      totalCharges,
       Math.max(0, hoursBeforeCheckIn),
     );
+
+    const penaltyAmount = totalCharges - refundAmount;
+
+    return {
+      totalPaid,
+      totalCharges,
+      penaltyAmount,
+      refundAmount: Math.min(refundAmount, totalPaid),
+      refundPercentage,
+      canRefund: refundAmount > 0 && totalPaid > 0,
+      policyName: policy.nameAr || policy.name,
+      hasPolicy: true,
+      policyId: policy.id,
+    };
+  }
+
+  async cancelWithRefund(bookingId: string, userId?: string, options?: {
+    reason?: string;
+    waivePenalty?: boolean;
+    noShow?: boolean;
+  }) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        rooms: { include: { room: true } },
+        folio: { include: { payments: { where: { status: 'SUCCEEDED' } }, transactions: true } },
+        guest: true,
+      },
+    });
+    if (!booking) throw new NotFoundError('الحجز غير موجود');
+    if (booking.status === 'CANCELLED' || booking.status === 'CHECKED_OUT') {
+      throw new ValidationError('الحجز ملغي أو منتهٍ بالفعل');
+    }
+
+    const wasCheckedIn = booking.status === 'CHECKED_IN';
+    const cancelledAt = new Date();
+
+    const quote = await this.getCancellationQuote(bookingId, cancelledAt);
+    const penaltyAmount = options?.waivePenalty ? 0 : quote.penaltyAmount;
+    const refundAmount = options?.waivePenalty ? quote.totalPaid : quote.refundAmount;
+
+    // Determine new status
+    const newStatus = options?.noShow ? 'NO_SHOW' : 'CANCELLED';
+
+    return prisma.$transaction(async (tx) => {
+      // 1. Update booking status
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: newStatus,
+          cancelledAt,
+          cancellationReason: options?.reason,
+        },
+      });
+
+      // 2. Handle folio financials
+      if (booking.folio) {
+        // 2a. Apply penalty charge if any
+        if (penaltyAmount > 0) {
+          await tx.folioTransaction.create({
+            data: {
+              folioId: booking.folio.id,
+              type: 'CHARGE',
+              category: 'ROOM_CHARGE',
+              description: `غرامة إلغاء - ${quote.policyName || 'سياسة الإلغاء'}`,
+              amount: penaltyAmount,
+              createdById: userId,
+            },
+          });
+
+          await tx.folio.update({
+            where: { id: booking.folio.id },
+            data: {
+              totalCharges: { increment: penaltyAmount },
+              balance: { increment: penaltyAmount },
+            },
+          });
+        }
+
+        // 2b. Process refund to wallet if guest has wallet and refund is due
+        if (refundAmount > 0 && booking.guestId) {
+          const wallet = await tx.wallet.findUnique({
+            where: { guestId_hotelId: { guestId: booking.guestId, hotelId: booking.hotelId } },
+          });
+
+          if (wallet) {
+            const refundDecimal = new Prisma.Decimal(refundAmount);
+            const newBalance = wallet.balance.add(refundDecimal);
+
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: { balance: newBalance },
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                type: 'REFUND',
+                amount: refundDecimal,
+                balanceBefore: wallet.balance,
+                balanceAfter: newBalance,
+                description: `استرداد حجز #${booking.bookingNo}`,
+                referenceId: booking.id,
+                method: 'CASH',
+                status: 'COMPLETED',
+                createdById: userId,
+              },
+            });
+
+            // Add folio transaction for the refund
+            await tx.folioTransaction.create({
+              data: {
+                folioId: booking.folio.id,
+                type: 'REFUND',
+                category: 'REFUND',
+                description: `استرداد مبلغ ${refundAmount} د.ل إلى المحفظة`,
+                amount: -refundAmount,
+                createdById: userId,
+              },
+            });
+
+            await tx.folio.update({
+              where: { id: booking.folio.id },
+              data: {
+                totalPaid: { decrement: refundAmount },
+                balance: { decrement: refundAmount },
+              },
+            });
+          }
+        }
+
+        // 2c. Mark existing payments as refunded if we processed refund
+        if (refundAmount > 0) {
+          for (const payment of booking.folio.payments) {
+            await tx.payment.update({
+              where: { id: payment.id },
+              data: {
+                refundedAmount: { increment: refundAmount },
+                status: refundAmount >= Number(payment.amount) ? 'REFUNDED' : 'SUCCEEDED',
+              },
+            });
+
+            await tx.refund.create({
+              data: {
+                paymentId: payment.id,
+                amount: Math.min(refundAmount, Number(payment.amount)),
+                reason: `إلغاء حجز #${booking.bookingNo}: ${options?.reason || ''}`,
+                status: 'PROCESSED',
+              },
+            });
+          }
+        }
+      }
+
+      // 3. Release rooms
+      for (const room of booking.rooms) {
+        if (wasCheckedIn) {
+          await tx.room.update({
+            where: { id: room.roomId },
+            data: { status: 'AVAILABLE', housekeepingStatus: 'DIRTY' },
+          });
+
+          await tx.housekeepingTask.create({
+            data: {
+              hotelId: booking.hotelId,
+              roomId: room.roomId,
+              taskType: 'CLEANING',
+              priority: 'NORMAL',
+              status: 'PENDING',
+            },
+          });
+        } else {
+          await tx.room.update({
+            where: { id: room.roomId },
+            data: { status: 'AVAILABLE' },
+          });
+        }
+      }
+
+      // 4. Audit log
+      await tx.auditLog.create({
+        data: {
+          hotelId: booking.hotelId,
+          userId,
+          action: options?.noShow ? 'NO_SHOW' : 'CANCEL',
+          entity: 'BOOKING',
+          entityId: bookingId,
+          oldValue: JSON.stringify({
+            status: booking.status,
+            totalCharges: booking.folio ? Number(booking.folio.totalCharges) : 0,
+            totalPaid: booking.folio ? Number(booking.folio.totalPaid) : 0,
+          }),
+          newValue: JSON.stringify({
+            status: newStatus,
+            penaltyAmount,
+            refundAmount,
+            waivePenalty: options?.waivePenalty,
+            reason: options?.reason,
+          }),
+        },
+      });
+
+      return tx.booking.findUnique({
+        where: { id: bookingId },
+        include: { rooms: { include: { room: true } }, folio: true },
+      });
+    });
   }
 }

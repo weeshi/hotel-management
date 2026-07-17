@@ -11,6 +11,8 @@ interface Props {
   onCheckout: (booking: Booking) => void;
   onCancel: (booking: Booking) => void;
   onEdit?: (booking: Booking) => void;
+  onMoveRoom?: (booking: Booking) => void;
+  onExtendStay?: (booking: Booking) => void;
 }
 
 function formatDate(d: string | Date | undefined): string {
@@ -19,7 +21,7 @@ function formatDate(d: string | Date | undefined): string {
   return date.toLocaleDateString('ar-LY', { day: 'numeric', month: 'short' });
 }
 
-export function BookingCard({ booking, tab, highlight, onCheckin, onCheckout, onCancel, onEdit }: Props) {
+export function BookingCard({ booking, tab, highlight, onCheckin, onCheckout, onCancel, onEdit, onMoveRoom, onExtendStay }: Props) {
   const guestName = booking.guestName || booking.guest?.name || 'غير محدد';
   const firstRoom = booking.rooms?.[0];
   const checkIn = firstRoom?.checkIn || booking.checkIn;
@@ -54,7 +56,11 @@ export function BookingCard({ booking, tab, highlight, onCheckin, onCheckout, on
             </>
           )}
           {tab === 'checkout' && (
-            <Button size="sm" onClick={() => onCheckout(booking)}>🧾 تسجيل خروج</Button>
+            <>
+              {onMoveRoom && <Button size="sm" variant="secondary" onClick={() => onMoveRoom(booking)}>🚚 نقل غرفة</Button>}
+              {onExtendStay && <Button size="sm" variant="secondary" onClick={() => onExtendStay(booking)}>📅 تمديد</Button>}
+              <Button size="sm" onClick={() => onCheckout(booking)}>🧾 تسجيل خروج</Button>
+            </>
           )}
         </div>
       </div>

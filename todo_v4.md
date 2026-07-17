@@ -246,6 +246,89 @@ model GroupBooking {
 
 ---
 
+---
+---
+
+## Phase 5: Staging & Deployment Infrastructure
+
+### 5.1 Staging Environment Setup
+- **Target:** Deploy the current `fix/qa-round-1` branch to a staging server
+- **Hosting options (TBD):** Vercel (easiest for Next.js), Railway, or self-hosted VPS
+- **Requirements:**
+  - PostgreSQL instance for staging database
+  - Environment variables configured (DATABASE_URL, JWT_SECRET, etc.)
+  - CI/CD pipeline (GitHub Actions) for auto-deploy on push to staging branch
+- **Deliverables:**
+  - `vercel.json` or Dockerfile for deployment
+  - GitHub Actions workflow `.github/workflows/deploy-staging.yml`
+  - Staging environment config template
+
+### 5.2 Database Migration Strategy
+- Run `prisma migrate deploy` on staging (not `db push`)
+- Maintain a `prisma/migrations/` history — never reset on staging
+- Backup/restore procedure for staging DB snapshots
+
+### 5.3 Smoke Tests & Health Checks
+- **Health endpoint:** `GET /api/health` returning `{ status: "ok", db: "connected" }`
+- **Smoke test suite:** A lightweight suite that verifies:
+  - Guest creation + Booking creation
+  - Folio charge + payment
+  - Wallet deposit + withdrawal
+  - Room status transitions
+- **Post-deploy script:** Automatically run smoke tests after staging deploy
+
+### 5.4 Monitoring & Alerting
+- Basic error tracking (Sentry or similar)
+- Uptime monitoring (pingdom, uptimerobot, or similar)
+- Slack/Discord webhook for deploy notifications
+
+---
+
+---
+---
+
+## Phase 6: Smart Hotel & Security Compliance (Future)
+
+### 6.1 QR Code Integration (Inspired by EFQRCode)
+- **Web-based QR generation:** Generate QR codes server-side for:
+  - **Fast Check-in:** Guest scans QR at reception kiosk → pre-filled registration form
+  - **Restaurant POS:** Table-side QR links to digital menu + guest folio for payment
+  - **Digital Wallet:** Guest scans QR to top up wallet or view balance
+- **Architecture:**
+  - Use `qrcode` npm package (server-side) or native Web QR API (`QRCode` from `html5-qrcode`)
+  - QR payload: encrypted token + booking/table reference
+  - No native/hardware dependency — fully web-based
+- **UI Components:**
+  - `QRCodeGenerator.tsx` — renders QR in modals / print receipts
+  - `QRScanner.tsx` — camera-based scanner using browser `getUserMedia` for check-in kiosk
+- **Security:** QR tokens must be single-use, time-limited (5 min), signed with HMAC
+
+### 6.2 Live ID/Passport Document Scanner
+- **Hardware Integration:** Camera-based document scanner using WebRTC (`getUserMedia`)
+- **Processing:**
+  - Capture image frame from camera stream
+  - (Future) Integrate with OCR service (e.g., Tesseract.js or cloud API) to extract MRZ lines
+  - Store captured image as secure attachment linked to Guest profile
+- **Storage:**
+  - Images stored in `Guest.documents` relation (new model `GuestDocument`)
+  - Encrypted at rest, access-logged via AuditLog
+  - Retention policy: auto-delete after guest checkout + 30 days
+- **Prisma Schema Addition:**
+  ```prisma
+  model GuestDocument {
+    id        String   @id @default(uuid())
+    guestId   String
+    guest     Guest    @relation(fields: [guestId], references: [id])
+    type      String   // PASSPORT, ID, VISA
+    imageUrl  String   // encrypted path
+    mrzData   String?  // extracted MRZ text
+    uploadedAt DateTime @default(now())
+    expiresAt DateTime?
+  }
+  ```
+
+---
+
 ## Summary of All Prisma Schema Changes Needed
 
 | Model | Change | Phase |
@@ -255,6 +338,7 @@ model GroupBooking {
 | `Booking` | Add `groupBookingId`, `cancellationReason`, `noShow` | P2, P3 |
 | `GroupBooking` | Create new model | P3 |
 | `FolioRoutingRule` | Create new model | P3 |
+| `GuestDocument` | Create new model for scanned IDs/passports | P6 |
 
 ## Summary of All New API Routes
 
@@ -268,6 +352,8 @@ model GroupBooking {
 | `POST` | `/api/admin/group-bookings/[id]/assign` | P3 |
 | `PUT` | `/api/admin/group-bookings/[id]/routing` | P3 |
 | `GET` | `/api/admin/tape-chart` | P4 |
+| `POST` | `/api/admin/bookings/[id]/move-room` (enhance with drag) | P4 |
+| `PATCH` | `/api/admin/bookings/[id]/extend` (enhance with drag) | P4 |
 
 ## Summary of All New UI Components
 
@@ -278,3 +364,6 @@ model GroupBooking {
 | `GroupBookingPanel.tsx` | P3 | Group management with routing rules |
 | `TapeChart.tsx` | P4 | Interactive drag-and-drop calendar |
 | `useTapeChartDrag.ts` | P4 | Drag-and-drop hook |
+| `QRCodeGenerator.tsx` | P6 | QR code renderer for receipts/kiosk |
+| `QRScanner.tsx` | P6 | Camera-based QR scanner for fast check-in |
+| `DocumentScanner.tsx` | P6 | Live ID/passport camera capture |

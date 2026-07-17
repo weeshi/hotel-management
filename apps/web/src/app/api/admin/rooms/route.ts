@@ -8,10 +8,17 @@ async function handler(request: NextRequest) {
   try {
     const user = (request as any).user;
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || undefined;
+    const statusParam = searchParams.get('status') || undefined;
 
     const where: any = { hotelId: user.hotelId };
-    if (status) where.status = status;
+    if (statusParam) {
+      const statuses = statusParam.split(',').map((s) => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        where.status = statuses[0];
+      } else if (statuses.length > 1) {
+        where.status = { in: statuses };
+      }
+    }
 
     const rooms = await prisma.room.findMany({
       where,

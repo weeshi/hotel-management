@@ -145,6 +145,8 @@ export class FolioService {
 
     return {
       folioId: folio.id,
+      folioNo: `FOL-${folio.id.slice(0, 8).toUpperCase()}`,
+      bookingNo: folio.booking.bookingNo,
       status: folio.status,
       totalCharges: Number(folio.totalCharges),
       totalPaid: Number(folio.totalPaid),

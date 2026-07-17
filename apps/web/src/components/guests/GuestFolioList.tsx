@@ -44,8 +44,8 @@ export function GuestFolioList({ folios, basePath, onViewFolio }: Props) {
                   {new Date(entry.checkIn).toLocaleDateString('ar-LY')} → {new Date(entry.checkOut).toLocaleDateString('ar-LY')}
                 </div>
               </div>
-              <Badge variant={f.status === 'ACTIVE' ? 'gold' : 'green'}>
-                {f.status === 'ACTIVE' ? 'مفتوحة' : 'مسددة'}
+              <Badge variant={f.balance > 0 ? 'red' : 'green'}>
+                {f.balance > 0 ? 'غير مسددة' : 'مسددة'}
               </Badge>
             </div>
             <div className="grid grid-cols-3 gap-4 text-sm mb-3">

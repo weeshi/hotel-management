@@ -17,6 +17,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/admin/guests', label: '👤 النزلاء' },
       { href: '/reception/folio', label: '💰 الفواتير' },
       { href: '/reception/payments', label: '💳 المدفوعات' },
+      { href: '/reception/tape-chart', label: '📊 المخطط الزمني' },
     ]},
     { section: '🏗️ إدارة المنشأة', items: [
       { href: '/admin/rooms', label: '🚪 إدارة الغرف' },
@@ -74,10 +75,12 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/reception/folio', label: '💰 الفواتير' },
       { href: '/reception/payments', label: '💳 المدفوعات' },
       { href: '/reception/guests', label: '👤 النزلاء' },
+      { href: '/reception/group-bookings', label: '👥 الحجوزات الجماعية' },
     ]},
     { section: '🚪 الغرف', items: [
       { href: '/reception/rooms', label: '🚪 الغرف' },
       { href: '/reception/calendar', label: '📅 التقويم' },
+      { href: '/reception/tape-chart', label: '📊 المخطط الزمني' },
     ]},
     { section: '🧹 التدبير المنزلي', items: [
       { href: '/reception/housekeeping', label: '🧹 مهام التنظيف' },

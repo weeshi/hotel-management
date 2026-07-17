@@ -47,6 +47,7 @@ model Hotel {
   externalClients      ExternalClient[]
   lostItems            LostItem[]
   reportSetting        ReportSetting?
+  groupBookings        GroupBooking[]
 }
 
 // ============================================================
@@ -336,6 +337,8 @@ model Booking {
   cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
   cancelledAt          DateTime?
   cancellationReason   String?
+  groupBookingId       String?
+  groupBooking         GroupBooking?       @relation(fields: [groupBookingId], references: [id])
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -349,6 +352,7 @@ model Booking {
   safeDepositBoxes SafeDepositBox[]
 
   @@index([hotelId, status, createdAt])
+  @@index([groupBookingId])
 }
 
 model BookingRoom {
@@ -423,6 +427,38 @@ model BookingService {
 }
 
 // ============================================================
+//  الحجوزات الجماعية والمجموعات
+// ============================================================
+model GroupBooking {
+  id            String   @id @default(uuid())
+  name          String
+  hotelId       String
+  hotel         Hotel    @relation(fields: [hotelId], references: [id])
+  masterFolioId String?   @unique
+  masterFolio   Folio?    @relation("MasterFolio", fields: [masterFolioId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bookings     Booking[]
+  routingRules FolioRoutingRule[]
+
+  @@index([hotelId])
+}
+
+model FolioRoutingRule {
+  id             String       @id @default(uuid())
+  groupBookingId String
+  groupBooking   GroupBooking @relation(fields: [groupBookingId], references: [id])
+  chargeType     String
+  targetFolioId  String
+  targetFolio    Folio        @relation(fields: [targetFolioId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([groupBookingId, chargeType])
+  @@index([groupBookingId])
+}
+
+// ============================================================
 //  نظام الفوترة (Folio Billing)
 // ============================================================
 model Folio {
@@ -444,6 +480,8 @@ model Folio {
   invoices         Invoice[]
   discounts        FolioDiscount[]
   scheduledCharges ScheduledCharge[]
+  groupBookingMaster  GroupBooking?      @relation("MasterFolio")
+  routingRuleTargets  FolioRoutingRule[]
 
   @@index([bookingId])
   @@index([status])

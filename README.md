@@ -1,6 +1,6 @@
-# 🏨 نظام إدارة الفنادق v3.0 — Hotel Management System
+# 🏨 نظام إدارة الفنادق v3.1 — Hotel Management System
 
-منصة متكاملة لإدارة الفنادق مع حجوزات، محفظة نقدية (Wallet)، فوترة فندقية (Folio Billing)، بوابات دفع إلكترونية، صندوق أمانات (Safe Deposit)، مطعم (POS)، تدبير منزلي (Housekeeping)، مكتب مفقودات (Lost & Found)، و API للربط مع المنظومات العالمية.
+منصة متكاملة لإدارة الفنادق مع حجوزات، محفظة نقدية (Wallet)، فوترة فندقية (Folio Billing)، بوابات دفع إلكترونية، صندوق أمانات (Safe Deposit)، مطعم (POS)، تدبير منزلي (Housekeeping)، مكتب مفقودات (Lost & Found)، حجوزات مجموعات (Group Bookings)، Tape Chart تفاعلي، محرك مالي متكامل، و API للربط مع المنظومات العالمية.
 
 > **الفرع الحالي:** `fix/qa-round-1`
 > **البوابة:** `http://localhost:3001`
@@ -64,47 +64,49 @@ npm run dev
 hotel-management/
 ├── apps/web/                    ← Next.js (Frontend + API Routes)
 │   ├── prisma/
-│   │   ├── schema.prisma        ← 20+ نموذج بيانات
-│   │   ├── migrations/          ← 4 ترحيلات
+│   │   ├── schema.prisma        ← 45+ نموذج بيانات
+│   │   ├── migrations/          ← ترحيلات
 │   │   └── seed.ts
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── (public)/        ← موقع العملاء (حجز عام)
 │   │   │   ├── (dashboard)/
-│   │   │   │   ├── admin/       ← 14 صفحة إدارة
+│   │   │   │   ├── admin/       ← 21 صفحة إدارة
 │   │   │   │   ├── manager/     ← لوحة المدير
-│   │   │   │   ├── reception/   ← 12 صفحة استقبال
+│   │   │   │   ├── reception/   ← 18 صفحة استقبال
 │   │   │   │   ├── housekeeping/← لوحة التدبير المنزلي
 │   │   │   │   └── maintenance/ ← لوحة الصيانة
 │   │   │   ├── access-denied/
-│   │   │   └── api/             ← 50+ API Route
+│   │   │   └── api/             ← 88+ API Route
 │   │   ├── components/
 │   │   │   ├── bookings/        ← حجوزات (5 مكوّنات)
-│   │   │   ├── checkin/         ← تسجيل الوصول/المغادرة (6)
-│   │   │   ├── folio/           ← الفوترة (12)
-│   │   │   ├── guests/          ← النزلاء (11)
+│   │   │   ├── checkin/         ← تسجيل الوصول/المغادرة (7)
+│   │   │   ├── folio/           ← الفوترة (11)
+│   │   │   ├── group-bookings/  ← حجوزات المجموعات (3)
+│   │   │   ├── guests/          ← النزلاء (10)
 │   │   │   ├── housekeeping/    ← التدبير المنزلي (4)
 │   │   │   ├── lost-found/      ← المفقودات (5)
 │   │   │   ├── pos/             ← نقاط البيع (5)
 │   │   │   ├── reports/         ← التقارير (6)
 │   │   │   ├── room-types/      ← أنواع الغرف (1)
 │   │   │   ├── safe-deposit/    ← صندوق الأمانات (5)
-│   │   │   ├── safeboxes/       ← الخزن (3)
+│   │   │   ├── safeboxes/       ← الخزن (2)
+│   │   │   ├── tape-chart/      ← Tape Chart تفاعلي (1)
 │   │   │   ├── wallet/          ← المحفظة (3)
 │   │   │   ├── worker/          ← العامل (1)
-│   │   │   └── ui/              ← مكوّنات عامة (toast)
+│   │   │   └── ui/              ← مكوّنات عامة (11)
 │   │   ├── contexts/            ← React Contexts (Auth)
 │   │   ├── hooks/               ← Custom Hooks
 │   │   ├── lib/
 │   │   │   ├── gateways/        ← بوابات الدفع (Stripe, MobiCash, Email)
 │   │   │   ├── queue/           ← طابور المهام
-│   │   │   ├── repositories/    ← طبقة الوصول للبيانات (6)
+│   │   │   ├── repositories/    ← طبقة الوصول للبيانات (3)
 │   │   │   ├── services/        ← منطق الأعمال (12)
 │   │   │   └── utils/           ← أدوات مساعدة (CSRF, Toast, API Client)
 │   │   ├── middlewares/         ← Auth, CSRF, Rate Limit, Validate
 │   │   └── middleware.ts        ← Next.js Edge Middleware
 │   └── tests/
-│       ├── unit/                ← 5 ملفات اختبار وحدة
+│       ├── unit/                ← 4 ملفات اختبار وحدة
 │       └── integration/         ← 4 ملفات اختبار تكامل
 ├── packages/shared/             ← أنواع مشتركة + Zod schemas + Enums + Permissions
 ├── docker-compose.yml           ← PostgreSQL + Redis
@@ -132,6 +134,7 @@ PostgreSQL + Redis (تخزين مؤقت)
 - **Separation of Concerns:** فصل تام بين UI ومنطق الأعمال وقاعدة البيانات
 - **Atomicity:** كل عملية تعدّل جداول متعددة ملفوفة في `prisma.$transaction`
 - **State Machines:** تحديث الحالات عبر مصفوفة انتقالية صارمة (لا تقبل String عشوائي)
+- **Financial Ledger:** نظام Folio كدفتر أستاذ مالي مع تتبع كل معاملة
 
 ---
 
@@ -142,9 +145,23 @@ PostgreSQL + Redis (تخزين مؤقت)
 - تسجيل الوصول/المغادرة مع حالات (PENDING → CONFIRMED → CHECKED_IN → CHECKED_OUT)
 - تعديل الحجز (PATCH) مع إعادة حساب الفوترة عند تغيير التواريخ/الغرف
 - منع تسجيل الوصول المبكر (قبل تاريخ checkIn)
-- إلغاء الحجز مع سياسات الإلغاء
-- تمديد الإقامة وإعادة حساب الرسوم (📍 المرحلة 4)
-- نقل الغرفة مع تحويل الفوترة (📍 المرحلة 4)
+- إلغاء الحجز مع سياسات الإلغاء والاسترداد
+- نقل الغرفة (Room Move) — تحويل الفوترة + تغيير حالة الغرف + إنشاء مهام تدبير
+- تمديد الإقامة (Stay Extension) — إعادة حساب الرسوم + التحقق من التوفر عبر كل الغرف
+
+### 👥 حجوزات المجموعات (Group Bookings)
+- Master Folio موحّد للمجموعة مع Sub-Folios فردية
+- قواعد توجيه (Routing Rules) حسب نوع المصروف (غرفة، خدمة، مطعم، ضريبة، خصم)
+- نظام تلقائي لتوجيه الرسوم: قاعدة صريحة → Master Folio → Folio الحجز الفردي
+- دمج كامل مع نظام الفوترة والمحفظة والمدفوعات
+
+### 📊 Tape Chart تفاعلي
+- تقويم بصري تفاعلي بالسحب والإفلات لعرض إشغال الغرف
+- سحب لنقل الحجز إلى غرفة أخرى
+- سحب الحافة اليمنى لتمديد الإقامة
+- ترميز لوني حسب حالة الحجز (CHECKED_IN / CONFIRMED / PENDING)
+- تجميع حسب الطوابق
+- تمييز اليوم الحالي وعطلات نهاية الأسبوع
 
 ### 💰 المحفظة النقدية (Wallet)
 - لكل نزيل محفظة إلكترونية بعملة LYD
@@ -161,8 +178,16 @@ PostgreSQL + Redis (تخزين مؤقت)
 - دفع (Stripe, MobiCash, Wallet, Cash)
 - تسوية (Settle) / إعادة فتح تلقائي عند إضافة رسوم جديدة
 - فاتورة PDF
-- إلغاء معاملة (Void)
-- Routing Rules للمجموعات (📍 المرحلة 4)
+- إلغاء معاملة (Void) عبر إدخال قيد عكسي
+- معالجة الرسوم الليلية (Scheduled Charges)
+
+### 🏦 المحرك المالي (Financial Engine)
+- **Folio** كدفتر أستاذ مالي مع حقول denormalized (`totalCharges`, `totalPaid`, `balance`)
+- **قسائم يومية (Room Charges):** لكل غرفة لكل ليلة مع تتبع ضريبي
+- **تسوية صارمة عند المغادرة:** حظر cut-off إذا كان الرصيد > 0 — لا يمكن المغادرة قبل التسديد
+- **ترحيل الديون:** ADMIN/MANAGER يمكنهم ترحيل الرصيد غير المدفوع إلى محفظة النزيل
+- **سياسات الإلغاء:** نظام هرمي (RatePlan → الحجز → Policy افتراضي للفندق) مع قواعد استرداد متدرجة
+- **حجوزات المجموعات:** Master Folio مع توجيه الرسوم حسب القواعد
 
 ### 👥 إدارة النزلاء (Guests)
 - ملف نزيل كامل مع تاريخ الحجوزات
@@ -178,7 +203,7 @@ PostgreSQL + Redis (تخزين مؤقت)
 - تقارير Housekeeping
 
 ### 🔐 صندوق الأمانات (Safe Deposit)
-- صناديق أمانات مرتبطة بالغرف
+- صناديق أمانات مرتبطة بالغرف أو عملاء خارجيين
 - إيداع/سحب عناصر مع توقيع
 - إغلاق الصندوق
 - لوحتي Admin و Reception
@@ -220,7 +245,7 @@ PostgreSQL + Redis (تخزين مؤقت)
 
 1. **النقل**: HTTPS + Helmet.js
 2. **المصادقة**: JWT + Refresh Token Rotation
-3. **الصلاحيات**: RBAC (Admin, Manager, Reception, Housekeeping, Maintenance)
+3. **الصلاحيات**: RBAC (Admin, Manager, Reception, Housekeeping, Maintenance, Restaurant, Accountant)
 4. **الحماية**: CSRF Token + Rate Limiting + Zod Validation
 5. **المراقبة**: Audit Log (تتبع كل عملية)
 6. **الشركاء**: API Key + HMAC + IP Whitelist
@@ -266,12 +291,33 @@ PostgreSQL + Redis (تخزين مؤقت)
 - [x] تصحيح ترحيل hybrid_safe_deposit_box
 - [x] TypeScript 0 أخطاء
 
-### المرحلة 4 — الكمال التشغيلي (Core Operational Perfection) 📅
-- [ ] **نقل الغرفة (Room Move):** تحويل الفوترة + تغيير حالة الغرف
-- [ ] **تمديد الإقامة (Stay Extension):** إعادة حساب الرسوم + التحقق من التوفر
-- [ ] **سياسات الإلغاء مع عقوبات:** حساب غرامات الإلغاء والاسترداد
-- [ ] **حجوزات المجموعات (Group Bookings):** Master Folio + Sub-Folios + Routing Rules
-- [ ] **Tape Chart:** تقويم تفاعلي بالسحب والإفلات
+### المرحلة 4 — الكمال التشغيلي (Core Operational Perfection) ✅
+- [x] **نقل الغرفة (Room Move):** تحويل الفوترة + تغيير حالة الغرف + إنشاء مهمة تدبير
+- [x] **تمديد الإقامة (Stay Extension):** إعادة حساب الرسوم + التحقق من التوفر عبر كل الغرف + Folio delta
+- [x] **سياسات الإلغاء مع عقوبات:** نظام هرمي (RatePlan → حجز → افتراضي) + استرداد متدرج + إلغاء مع استرداد + Waiver
+- [x] **حجوزات المجموعات (Group Bookings):** Master Folio + Sub-Folios + Routing Rules (ROOM_CHARGE, SERVICE, TAX, DISCOUNT, RESTAURANT, SAFE_DEPOSIT)
+- [x] **Tape Chart:** تقويم تفاعلي بالسحب والإفلات — نقل غرفة، تمديد إقامة، ترميز لوني، تجميع طوابق
+
+### المرحلة 5 — التشغيل المتقدم (Operations Pro) 📅
+- [ ] تحسينات Tape Chart: تصفية، بحث، طباعة
+- [ ] تقارير المجموعات: تقارير موحّدة لكل Group Booking
+- [ ] أتمتة الفوترة الشهرية للشركات (Corporate Billing)
+- [ ] لوحة القيادة (Dashboard) متقدمة مع مؤشرات الأداء
+- [ ] نظام التنبيهات والإشعارات المتقدمة
+- [ ] دعم المزيد من بوابات الدفع (PayPal, إدفع لي, يسر باي, ون باي)
+
+### المرحلة 6 — التكامل الخارجي (External Integration) 📅
+- [ ] Channel Manager API (توزيع الغرف على OTAs)
+- [ ] تكامل محاسبي (Integration with accounting systems)
+- [ ] PMS API للربط مع الأنظمة العالمية
+- [ ] نظام الحجوزات الجماعية (Wholesale / Travel Agents)
+- [ ] تطبيق موبايل (React Native)
+
+### المرحلة 7 — الذكاء والإحصائيات (Analytics & AI) 📅
+- [ ] لوحة تحليلات متقدمة (Power BI / Metabase)
+- [ ] تنبؤ بالإشغال (Occupancy Forecasting)
+- [ ] تسعير ديناميكي (Dynamic Pricing Engine)
+- [ ] تقارير ذكية مع توصيات
 
 ---
 
@@ -294,10 +340,33 @@ PostgreSQL + Redis (تخزين مؤقت)
 | PATCH | /api/admin/bookings/[id] | تعديل الحجز |
 | POST | /api/admin/bookings/[id]/checkin | تسجيل وصول |
 | POST | /api/admin/bookings/[id]/checkout | تسجيل مغادرة (مع ترحيل ديون) |
-| POST | /api/admin/bookings/[id]/cancel | إلغاء الحجز |
+| POST | /api/admin/bookings/[id]/cancel | إلغاء الحجز (مع استرداد / quote) |
 | POST | /api/admin/bookings/[id]/charge-service | إضافة خدمة |
+| POST | /api/admin/bookings/[id]/extend | تمديد الإقامة |
+| POST | /api/admin/bookings/[id]/move-room | نقل الغرفة |
 | GET | /api/public/bookings | حجوزات عامة |
 | POST | /api/public/bookings | إنشاء حجز عام |
+
+### حجوزات المجموعات (Group Bookings)
+| الطريقة | المسار | الوصف |
+|--------|--------|-------|
+| GET | /api/admin/group-bookings | قائمة المجموعات |
+| POST | /api/admin/group-bookings | إنشاء مجموعة جديدة |
+| GET | /api/admin/group-bookings/[id] | تفاصيل المجموعة |
+| POST | /api/admin/group-bookings/[id]/assign | إضافة حجوزات للمجموعة |
+| POST | /api/admin/group-bookings/[id]/routing | ضبط قواعد التوجيه |
+
+### سياسات الإلغاء (Cancellation Policies)
+| الطريقة | المسار | الوصف |
+|--------|--------|-------|
+| GET | /api/admin/cancellation-policies | قائمة السياسات |
+| POST | /api/admin/cancellation-policies | إنشاء سياسة |
+| GET | /api/admin/cancellation-policies/[id] | تفاصيل سياسة |
+
+### Tape Chart
+| الطريقة | المسار | الوصف |
+|--------|--------|-------|
+| GET | /api/admin/tape-chart | بيانات الإشغال (نطاق تاريخ) |
 
 ### الغرف (Rooms)
 | الطريقة | المسار | الوصف |
@@ -409,7 +478,6 @@ PostgreSQL + Redis (تخزين مؤقت)
 | GET/POST | /api/admin/services | الخدمات |
 | GET/POST | /api/admin/service-categories | فئات الخدمات |
 | GET/POST | /api/admin/task-types | أنواع المهام |
-| GET/POST | /api/admin/cancellation-policies | سياسات الإلغاء |
 | GET/POST | /api/admin/rate-plans | خطط الأسعار |
 | GET | /api/admin/audit-logs | سجل التدقيق |
 | GET | /api/admin/external-clients | العملاء الخارجيون |
@@ -426,7 +494,7 @@ PostgreSQL + Redis (تخزين مؤقت)
 ## 🧪 الاختبارات
 
 ```bash
-# اختبارات الوحدة (19 اختبار — ✅)
+# اختبارات الوحدة + التكامل (8 ملفات — ✅)
 npm test
 
 # التحقق من الأنواع
@@ -443,8 +511,7 @@ tests/
 │   ├── booking-number.test.ts
 │   ├── errors.test.ts
 │   ├── shared-schemas.test.ts
-│   ├── password.test.ts
-│   └── ...
+│   └── password.test.ts
 ├── integration/
 │   ├── auth.service.test.ts
 │   ├── booking.service.test.ts
@@ -461,6 +528,7 @@ tests/
 
 | التاريخ | الإصدار | أبرز التغييرات |
 |---------|---------|----------------|
+| 2026-07-17 | v3.1 | المرحلة 4: نقل غرفة، تمديد إقامة، سياسات إلغاء، حجوزات مجموعات، Tape Chart + محرك مالي + checkout strictness |
 | 2026-07-17 | v3.0 | QA Round 1: 7 إصلاحات + توثيق شامل + نشر GitHub |
 | 2026-07-16 | v2.5 | إضافة Guest, Wallet, POS, Safe Deposit, Lost & Found, Reports |
 | 2026-07-15 | v2.0 | إدارة الحجوزات الكاملة، Folio Billing، Check-in/Check-out |
@@ -473,7 +541,7 @@ tests/
 | الملف | الوصف |
 |-------|-------|
 | `todos.md` | ملاحظات عامة (لا يُستخدم للمراحل الرئيسية) |
-| `todo_v4.md` | المرحلة 4: الكمال التشغيلي — نقل غرفة، تمديد، إلغاء، مجموعات، Tape Chart |
+| `todo_v4.md` | المرحلة 4: الكمال التشغيلي — نقل غرفة، تمديد، إلغاء، مجموعات، Tape Chart (مكتمل ✅) |
 
 ---
 
