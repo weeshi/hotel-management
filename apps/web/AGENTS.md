@@ -60,3 +60,6 @@ To prevent "multiple matches" errors during file modifications:
 * **Strict API Gatekeeping:** Every API route must explicitly define the `allowedRoles` array. Ensure strictly scoped data fetching (e.g., fetching only `taskType=CLEANING` for Housekeeping).
 * **Role-Driven UI:** UI components must respect the physical constraints of the user's role. Operational staff (Housekeeping, Maintenance) require Mobile-First, touch-friendly UI (Cards), while Reception/Admin roles require high-density data views (Tables).
 * **No UI Spoofing:** Never rely solely on hiding UI elements as a security measure. The backend must always validate the role independently.
+
+## 12. Project Management & Documentation
+* **RULE: VERSIONED TODO FILES.** Never overwrite a generic `todos.md` file. For every new major phase or feature set, you MUST create a sequentially numbered file (e.g., `todo_v4.md`, `todo_v5.md`). This preserves the project's historical roadmap and changelog.
