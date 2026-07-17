@@ -13,3 +13,16 @@ dist/
 # SQLite database
 *.db
 *.db-journal
+
+# Project junk
+hotel-management.zip
+opencode.json
+todos.md
+TEST_CHECKLIST.md
+AGENTS_old_no_use.md
+prisma_old.txt
+*.exe
+hotel-management-plan*.html
+
+# Prisma test artifacts
+apps/web/prisma/test.db

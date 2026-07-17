@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { errorResponse } from '@/lib/utils/api-response';
 import { BookingService } from '@/lib/services/booking.service';
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const roomType = await prisma.roomType.findUnique({
       where: { id: body.roomTypeId },
     });
-    if (!roomType) return errorResponse('نوع الغرفة غير موجود', 404);
+    if (!roomType) return errorResponse('ظ†ظˆط¹ ط§ظ„ط؛ط±ظپط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯', 404);
 
     const availableRoom = await prisma.room.findFirst({
       where: {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         status: 'AVAILABLE',
       },
     });
-    if (!availableRoom) return errorResponse('لا توجد غرف متاحة من هذا النوع', 400);
+    if (!availableRoom) return errorResponse('ظ„ط§ طھظˆط¬ط¯ ط؛ط±ظپ ظ…طھط§ط­ط© ظ…ظ† ظ‡ط°ط§ ط§ظ„ظ†ظˆط¹', 400);
 
     const booking = await bookingService.create({
       hotelId: 'default-hotel',
@@ -41,6 +41,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: booking }, { status: 201 });
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل إنشاء الحجز', 400);
+    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط­ط¬ط²', 400);
   }
 }

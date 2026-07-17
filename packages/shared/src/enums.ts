@@ -2,6 +2,10 @@ export enum Role {
   ADMIN = 'ADMIN',
   RECEPTION = 'RECEPTION',
   MANAGER = 'MANAGER',
+  HOUSEKEEPING = 'HOUSEKEEPING',
+  MAINTENANCE = 'MAINTENANCE',
+  RESTAURANT = 'RESTAURANT',
+  ACCOUNTANT = 'ACCOUNTANT',
 }
 
 export enum BookingStatus {
@@ -50,6 +54,7 @@ export enum PaymentMethod {
   ONEPAY = 'ONEPAY',
   CASH = 'CASH',
   CARD = 'CARD',
+  WALLET = 'WALLET',
 }
 
 export enum PaymentStatus {

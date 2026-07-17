@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { hashPassword } from '@/lib/utils/password';
-import { withAuth } from '@/middleware/auth';
+import { withAuth } from '@/middlewares/auth';
+import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
+import { createAuditLog } from '@/lib/services';
 
 async function getHandler(request: NextRequest) {
   try {
@@ -22,7 +24,7 @@ async function getHandler(request: NextRequest) {
     });
     return successResponse(users);
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل جلب المستخدمين');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„ظ…ط³طھط®ط¯ظ…ظٹظ†');
   }
 }
 
@@ -35,7 +37,7 @@ async function postHandler(request: NextRequest) {
       where: { email: body.email },
     });
     if (existing) {
-      return errorResponse('البريد الإلكتروني مستخدم مسبقاً', 409);
+      return errorResponse('ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³طھط®ط¯ظ… ظ…ط³ط¨ظ‚ط§ظ‹', 409);
     }
 
     const hashedPassword = await hashPassword(body.password);
@@ -58,11 +60,20 @@ async function postHandler(request: NextRequest) {
       },
     });
 
+    createAuditLog({
+      hotelId: user.hotelId,
+      userId: user.userId,
+      action: 'CREATE',
+      entity: 'USER',
+      entityId: newUser.id,
+      newValue: JSON.stringify({ email: newUser.email, name: newUser.name, role: newUser.role }),
+    });
+
     return NextResponse.json({ success: true, data: newUser }, { status: 201 });
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل إنشاء المستخدم');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ظ…ط³طھط®ط¯ظ…');
   }
 }
 
 export const GET = withAuth(getHandler, ['ADMIN']);
-export const POST = withAuth(postHandler, ['ADMIN']);
+export const POST = withAuth(withCsrf(postHandler), ['ADMIN']);

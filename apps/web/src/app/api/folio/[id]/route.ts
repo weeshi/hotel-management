@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { FolioService } from '@/lib/services/folio.service';
-import { withAuth } from '@/middleware/auth';
+import { withAuth } from '@/middlewares/auth';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 const folioService = new FolioService();
@@ -14,4 +14,4 @@ async function getHandler(_request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export const GET = withAuth(getHandler);
+export const GET = withAuth(getHandler, ['ADMIN', 'MANAGER', 'RECEPTION', 'ACCOUNTANT']);

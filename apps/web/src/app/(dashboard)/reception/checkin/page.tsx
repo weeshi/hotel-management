@@ -1,29 +1,35 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, Card, Input, Select, Badge, Modal, EmptyState } from '@/components/ui';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button, Card, Input, EmptyState } from '@/components/ui';
+import { getCsrfToken, csrfHeaders } from '@/lib/utils/csrf';
+import { BookingCard } from '@/components/checkin/BookingCard';
+import { CheckinModal } from '@/components/checkin/CheckinModal';
+import { CheckoutModal } from '@/components/checkin/CheckoutModal';
+import { CancelModal } from '@/components/checkin/CancelModal';
+import { EditBookingModal } from '@/components/checkin/EditBookingModal';
+import type { Booking, FolioData } from '@/components/checkin/types';
 
-interface Booking {
-  id: string;
-  bookingNo: string;
-  guestName?: string;
-  guest?: { name: string; phone?: string };
-  status: string;
-  rooms: { id: string; room: { roomNumber: string } }[];
-}
-
-export default function CheckInPage() {
+export default function CheckInOutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialBookingId = searchParams.get('bookingId');
+  const [tab, setTab] = useState<'checkin' | 'checkout'>('checkin');
+  const [highlightBookingId, setHighlightBookingId] = useState(initialBookingId || '');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [actionModal, setActionModal] = useState<{ booking: Booking; action: 'checkin' | 'checkout' | 'cancel' } | null>(null);
+  const [actionBooking, setActionBooking] = useState<Booking | null>(null);
+  const [actionType, setActionType] = useState<'checkin' | 'checkout' | 'cancel' | null>(null);
+  const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [folioData, setFolioData] = useState<FolioData | null>(null);
 
   async function fetchBookings() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/bookings?status=CONFIRMED', {
+      const status = tab === 'checkin' ? 'CONFIRMED' : 'CHECKED_IN';
+      const res = await fetch(`/api/admin/bookings?status=${status}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
       const data = await res.json();
@@ -33,45 +39,133 @@ export default function CheckInPage() {
     }
   }
 
-  useEffect(() => { fetchBookings(); }, []);
+  useEffect(() => { fetchBookings(); }, [tab]);
+
+  async function fetchFolio(bookingId: string) {
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data.folio) {
+        const folioRes = await fetch(`/api/folio/${data.data.folio.id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        });
+        const folioData = await folioRes.json();
+        if (folioData.success) setFolioData(folioData.data);
+      }
+    } catch {}
+  }
+
+  async function fetchWalletBalance(guestId: string): Promise<number | null> {
+    try {
+      const res = await fetch(`/api/admin/wallet?guestId=${guestId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      const data = await res.json();
+      if (data.success) return data.data.balance;
+    } catch {}
+    return null;
+  }
 
   const filtered = search
-    ? bookings.filter(b =>
-        (b.guestName || '').includes(search) ||
-        b.bookingNo.includes(search) ||
-        b.rooms?.some(r => r.room.roomNumber.includes(search))
-      )
+    ? bookings.filter(b => (b.guestName || '').includes(search) || b.bookingNo.includes(search) || b.rooms?.some(r => r.room.roomNumber.includes(search)))
     : bookings;
 
-  async function handleAction(bookingId: string, action: string) {
+  async function handleCheckin(bookingId: string) {
+    await getCsrfToken();
     try {
-      const res = await fetch(`/api/admin/bookings/${bookingId}/${action}`, {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/checkin`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
       });
       const data = await res.json();
       if (data.success) {
-        setActionModal(null);
+        closeAction();
         fetchBookings();
+        router.push(`/reception/folio?bookingId=${bookingId}`);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
+  }
+
+  async function handleCheckout(bookingId: string, payment?: { method: string; amount: number }, action?: string) {
+    await getCsrfToken();
+    try {
+      const body: any = {};
+      if (payment) body.payment = payment;
+      if (action) body.action = action;
+      const res = await fetch(`/api/admin/bookings/${bookingId}/checkout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeAction();
+        fetchBookings();
+        router.push(`/reception/folio?bookingId=${bookingId}`);
+      }
+    } catch {}
+  }
+
+  async function handleCancel(bookingId: string) {
+    await getCsrfToken();
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
+      });
+      const data = await res.json();
+      if (data.success) { closeAction(); fetchBookings(); }
+    } catch {}
+  }
+
+  function closeAction() {
+    setActionBooking(null);
+    setActionType(null);
+    setFolioData(null);
+  }
+
+  function openCheckin(booking: Booking) {
+    setActionBooking(booking);
+    setActionType('checkin');
+  }
+
+  function openCheckout(booking: Booking) {
+    setActionBooking(booking);
+    setActionType('checkout');
+    setFolioData(null);
+    fetchFolio(booking.id);
+  }
+
+  function openCancel(booking: Booking) {
+    setActionBooking(booking);
+    setActionType('cancel');
   }
 
   return (
-    <div>
+    <div data-component="CheckInOutPage">
       <h1 className="text-2xl font-bold mb-6">🔑 تسجيل الدخول / الخروج</h1>
 
+      {initialBookingId && (
+        <div className="bg-[rgba(46,204,113,0.1)] border border-[var(--green)] text-[var(--green)] text-sm p-3 rounded-lg mb-6">
+          ✅ تم إنشاء الحجز بنجاح، يمكنك الآن تسجيل دخول النزيل
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-6">
+        <button onClick={() => setTab('checkin')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'checkin' ? 'bg-[var(--gold)] text-black' : 'bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>
+          🔑 تسجيل دخول
+        </button>
+        <button onClick={() => setTab('checkout')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'checkout' ? 'bg-[var(--gold)] text-black' : 'bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)]'}`}>
+          🧾 تسجيل خروج
+        </button>
+      </div>
+
       <Card className="mb-6">
-        <Input
-          placeholder="🔍 بحث برقم الحجز أو اسم الضيف أو رقم الغرفة..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input placeholder="🔍 بحث برقم الحجز أو اسم النزيل أو رقم الغرفة..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </Card>
 
       {loading ? (
@@ -82,68 +176,22 @@ export default function CheckInPage() {
           </svg>
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon="🔑" title="لا توجد حجوزات مؤكدة" description="جميع الحجوزات المؤكدة ستظهر هنا" />
+        <EmptyState icon={tab === 'checkin' ? '🔑' : '🧾'} title={tab === 'checkin' ? 'لا توجد حجوزات مؤكدة' : 'لا يوجد نزلاء مقيمون'}
+          description={tab === 'checkin' ? 'الحجوزات المؤكدة ستظهر هنا' : 'النزلاء المقيمون حالياً سيظهرون هنا'} />
       ) : (
         <div className="space-y-3">
-          {filtered.map((booking) => {
-            const guestName = booking.guestName || booking.guest?.name || 'غير محدد';
-            return (
-              <div key={booking.id} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-[var(--gold)]">#{booking.bookingNo}</span>
-                      <Badge variant="green">مؤكد</Badge>
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-semibold">{guestName}</span>
-                      <span className="text-[var(--text-muted)] mr-3">
-                        {booking.rooms?.map(r => r.room.roomNumber).join('، ')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => setActionModal({ booking, action: 'checkin' })}>
-                      🔑 تسجيل دخول
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => setActionModal({ booking, action: 'cancel' })}>
-                      ❌ إلغاء
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filtered.map((booking) => (
+            <BookingCard key={booking.id} booking={booking} tab={tab} highlight={booking.id === highlightBookingId}
+              onCheckin={openCheckin} onCheckout={openCheckout} onCancel={openCancel} onEdit={setEditBooking} />
+          ))}
         </div>
       )}
 
-      <Modal open={!!actionModal} onClose={() => setActionModal(null)} title="تأكيد العملية">
-        {actionModal && (
-          <div className="space-y-4">
-            <p className="text-sm text-[var(--text-secondary)]">
-              {actionModal.action === 'checkin'
-                ? 'هل أنت متأكد من تسجيل دخول هذا الضيف؟'
-                : actionModal.action === 'checkout'
-                ? 'هل أنت متأكد من تسجيل خروج هذا الضيف؟'
-                : 'هل أنت متأكد من إلغاء هذا الحجز؟'}
-            </p>
-            <div className="text-sm bg-[var(--bg-primary)] p-3 rounded-lg">
-              <div><strong>الحجز:</strong> #{actionModal.booking.bookingNo}</div>
-              <div><strong>الضيف:</strong> {actionModal.booking.guestName || actionModal.booking.guest?.name || 'غير محدد'}</div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setActionModal(null)}>إلغاء</Button>
-              <Button
-                variant={actionModal.action === 'cancel' ? 'danger' : 'primary'}
-                onClick={() => handleAction(actionModal.booking.id, actionModal.action)}
-              >
-                {actionModal.action === 'checkin' ? '🔑 تأكيد الدخول' :
-                 actionModal.action === 'checkout' ? '🧾 تأكيد الخروج' : '❌ تأكيد الإلغاء'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <CheckinModal open={actionType === 'checkin'} booking={actionBooking} onConfirm={handleCheckin} onClose={closeAction} />
+      <CheckoutModal open={actionType === 'checkout'} booking={actionBooking} folioData={folioData}
+        onConfirm={handleCheckout} onClose={closeAction} onFetchWallet={fetchWalletBalance} />
+      <CancelModal open={actionType === 'cancel'} booking={actionBooking} onConfirm={handleCancel} onClose={closeAction} />
+      <EditBookingModal open={!!editBooking} booking={editBooking} onClose={() => setEditBooking(null)} onSaved={fetchBookings} />
     </div>
   );
 }

@@ -1,3 +1,9 @@
 export { AuthService } from './auth.service';
 export { BookingService } from './booking.service';
 export { FolioService } from './folio.service';
+export { GuestService } from './guest.service';
+export { PricingService } from './pricing.service';
+export { WalletService } from './wallet.service';
+export { RestaurantOrderService } from './restaurant-order.service';
+export { createAuditLog } from './audit.service';
+export { createNotification } from './notification.service';

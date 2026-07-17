@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Button, Badge, Modal, Input, Select, Card, EmptyState } from '@/components/ui';
+import { getCsrfToken, csrfHeaders } from '@/lib/utils/csrf';
+import { addToast } from '@/lib/utils/toast';
 
 interface RoomType {
   id: string;
   name: string;
+  nameAr?: string;
   baseRate: number;
   capacity: number;
 }
@@ -20,20 +23,38 @@ interface Room {
 
 export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [showCreateType, setShowCreateType] = useState(false);
   const [newRoom, setNewRoom] = useState({ roomNumber: '', floor: '', roomTypeId: '', notes: '' });
-  const [newType, setNewType] = useState({ name: '', nameAr: '', baseRate: '', capacity: '2', description: '' });
+  const [showCreateType, setShowCreateType] = useState(false);
+  const [newType, setNewType] = useState({ name: '', nameAr: '', baseRate: '', capacity: '2', description: '', images: [] as string[] });
+  const [uploading, setUploading] = useState(false);
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = URL.createObjectURL(file);
+      setNewType(prev => ({ ...prev, images: [...prev.images, url] }));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   async function fetchRooms() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/rooms', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-      });
-      const data = await res.json();
-      if (data.success) setRooms(data.data);
+      const [roomsRes, typesRes] = await Promise.all([
+        fetch('/api/admin/rooms', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        }),
+        fetch('/api/admin/room-types', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        }),
+      ]);
+      const roomsData = await roomsRes.json();
+      const typesData = await typesRes.json();
+      if (roomsData.success) setRooms(roomsData.data);
+      if (typesData.success) setRoomTypes(typesData.data);
     } finally {
       setLoading(false);
     }
@@ -43,38 +64,45 @@ export default function AdminRoomsPage() {
 
   async function createRoom(e: React.FormEvent) {
     e.preventDefault();
+    await getCsrfToken();
     try {
-      await fetch('/api/admin/rooms', {
+      const res = await fetch('/api/admin/rooms', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
           'Content-Type': 'application/json',
+          ...csrfHeaders(),
         },
         body: JSON.stringify({
           ...newRoom,
           floor: parseInt(newRoom.floor) || undefined,
         }),
       });
-      setShowCreate(false);
-      setNewRoom({ roomNumber: '', floor: '', roomTypeId: '', notes: '' });
-      fetchRooms();
-    } catch {}
+      const data = await res.json();
+      if (data.success) {
+        addToast('success', '✅ تم إضافة الغرفة بنجاح');
+        setShowCreate(false);
+        setNewRoom({ roomNumber: '', floor: '', roomTypeId: '', notes: '' });
+        fetchRooms();
+      } else {
+        addToast('error', data.error?.message || 'فشل إضافة الغرفة');
+      }
+    } catch {
+      addToast('error', 'حدث خطأ في الاتصال بالخادم');
+    }
   }
 
   const statusLabels: Record<string, string> = {
     AVAILABLE: 'متاحة', OCCUPIED: 'مشغولة', MAINTENANCE: 'صيانة', DIRTY: 'تحت التنظيف',
   };
 
-  const roomTypes = [...new Map(rooms.map(r => [r.roomType.id, r.roomType])).values()];
+  const availableRoomTypes = roomTypes;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">🚪 إدارة الغرف</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setShowCreateType(true)}>
-            + نوع غرفة
-          </Button>
           <Button size="sm" onClick={() => setShowCreate(true)}>
             + غرفة جديدة
           </Button>
@@ -140,7 +168,7 @@ export default function AdminRoomsPage() {
             label="نوع الغرفة"
             value={newRoom.roomTypeId}
             onChange={(e) => setNewRoom({ ...newRoom, roomTypeId: e.target.value })}
-            options={roomTypes.map(rt => ({ value: rt.id, label: `${rt.name} (${rt.baseRate} د.ل)` }))}
+            options={availableRoomTypes.map(rt => ({ value: rt.id, label: `${rt.name || rt.nameAr} (${rt.baseRate} د.ل)` }))}
             placeholder="اختر النوع"
           />
           <div className="flex gap-2 justify-end pt-2">
@@ -153,12 +181,14 @@ export default function AdminRoomsPage() {
       <Modal open={showCreateType} onClose={() => setShowCreateType(false)} title="إضافة نوع غرفة جديد">
         <form onSubmit={async (e) => {
           e.preventDefault();
+          await getCsrfToken();
           try {
             await fetch('/api/admin/room-types', {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
                 'Content-Type': 'application/json',
+                ...csrfHeaders(),
               },
               body: JSON.stringify({
                 name: newType.name,
@@ -166,16 +196,43 @@ export default function AdminRoomsPage() {
                 baseRate: parseFloat(newType.baseRate),
                 capacity: parseInt(newType.capacity),
                 description: newType.description,
+                images: newType.images,
               }),
             });
             setShowCreateType(false);
-            setNewType({ name: '', nameAr: '', baseRate: '', capacity: '2', description: '' });
+            setNewType({ name: '', nameAr: '', baseRate: '', capacity: '2', description: '', images: [] });
           } catch {}
         }} className="space-y-4">
           <Input label="الاسم (عربي)" value={newType.nameAr} onChange={(e) => setNewType({ ...newType, nameAr: e.target.value })} required />
           <Input label="الاسم (إنجليزي)" value={newType.name} onChange={(e) => setNewType({ ...newType, name: e.target.value })} />
           <Input label="السعر الأساسي (د.ل)" type="number" value={newType.baseRate} onChange={(e) => setNewType({ ...newType, baseRate: e.target.value })} required />
           <Input label="السعة" type="number" value={newType.capacity} onChange={(e) => setNewType({ ...newType, capacity: e.target.value })} />
+    <div data-component="AdminRoomsPage">
+            <label className="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]">صور الغرفة</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }}
+                className="w-full text-sm text-[var(--text-secondary)] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-[var(--border)] file:bg-[var(--bg-card)] file:text-[var(--text-primary)] file:cursor-pointer file:text-xs"
+              />
+              {uploading && <span className="text-xs text-[var(--gold)]">جاري الرفع...</span>}
+            </div>
+            {newType.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {newType.images.map((url, i) => (
+                  <div key={i} className="relative">
+                    <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover border border-[var(--border)]" />
+                    <button
+                      type="button"
+                      onClick={() => setNewType({ ...newType, images: newType.images.filter((_, j) => j !== i) })}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--red)] text-white text-xs flex items-center justify-center"
+                    >&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowCreateType(false)}>إلغاء</Button>
             <Button type="submit">إضافة</Button>

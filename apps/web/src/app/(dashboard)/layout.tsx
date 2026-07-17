@@ -1,44 +1,113 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { ToastContainer } from '@/components/ui/toast';
+import { apiGet } from '@/lib/utils/api-client';
+import { AuthProvider } from '@/contexts/auth-context';
 
 const roleNavItems: Record<string, { section: string; items: { href: string; label: string }[] }[]> = {
   ADMIN: [
-    { section: 'الرئيسية', items: [
+    { section: '🔝 تشغيل يومي', items: [
       { href: '/admin', label: '⚙️ لوحة الإدارة' },
+      { href: '/reception/bookings', label: '📋 الحجوزات' },
+      { href: '/reception/bookings/new', label: '🆕 حجز جديد' },
+      { href: '/reception/checkin', label: '🔑 تسجيل الدخول / الخروج' },
+      { href: '/admin/guests', label: '👤 النزلاء' },
+      { href: '/reception/folio', label: '💰 الفواتير' },
+      { href: '/reception/payments', label: '💳 المدفوعات' },
     ]},
-    { section: 'الغرف', items: [
+    { section: '🏗️ إدارة المنشأة', items: [
       { href: '/admin/rooms', label: '🚪 إدارة الغرف' },
+      { href: '/admin/room-types', label: '🏗️ فئات الغرف' },
+      { href: '/admin/services', label: '🛎️ الخدمات' },
+      { href: '/admin/restaurant', label: '🍽️ المطعم' },
     ]},
-    { section: 'المستخدمين', items: [
+    { section: '🧹 التدبير المنزلي', items: [
+      { href: '/admin/housekeeping', label: '🧹 مهام التنظيف' },
+      { href: '/admin/maintenance', label: '🔧 مهام الصيانة' },
+      { href: '/admin/task-types', label: '📋 أنواع المهام' },
+    ]},
+    { section: '➕ خدمات إضافية', items: [
+      { href: '/admin/safeboxes', label: '🔐 صناديق الأمانات' },
+      { href: '/admin/lost-found', label: '📦 المفقودات' },
+    ]},
+    { section: '🏷️ الأسعار', items: [
+      { href: '/admin/rate-plans', label: '🏷️ خطط الأسعار' },
+      { href: '/admin/cancellation-policies', label: '❌ سياسات الإلغاء' },
+    ]},
+    { section: '👥 المستخدمين', items: [
       { href: '/admin/users', label: '👥 المستخدمين' },
     ]},
-    { section: 'الإعدادات', items: [
+    { section: '📊 إدارة عليا', items: [
+      { href: '/admin/wallet', label: '💰 إدارة المحافظ' },
+      { href: '/admin/reports', label: '📊 التقارير' },
+      { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
+      { href: '/admin/notifications', label: '🔔 الإشعارات' },
       { href: '/admin/settings', label: '⚙️ إعدادات الفندق' },
     ]},
   ],
   MANAGER: [
-    { section: 'الرئيسية', items: [
+    { section: '📊 التقارير', items: [
       { href: '/manager', label: '📊 التقارير' },
+      { href: '/admin/reports', label: '📈 التقارير المتقدمة' },
+    ]},
+    { section: '👤 النزلاء', items: [
+      { href: '/admin/guests', label: '👤 النزلاء' },
+    ]},
+    { section: '➕ خدمات إضافية', items: [
+      { href: '/admin/safeboxes', label: '🔐 صناديق الأمانات' },
+      { href: '/admin/lost-found', label: '📦 المفقودات' },
+    ]},
+    { section: '🔔 النظام', items: [
+      { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
+      { href: '/admin/notifications', label: '🔔 الإشعارات' },
     ]},
   ],
   RECEPTION: [
-    { section: 'الرئيسية', items: [
+    { section: '🔝 تشغيل يومي', items: [
       { href: '/reception', label: '🏠 لوحة التحكم' },
-    ]},
-    { section: 'الحجوزات', items: [
       { href: '/reception/bookings', label: '📋 الحجوزات' },
-      { href: '/reception/checkin', label: '🔑 تسجيل الدخول' },
+      { href: '/reception/bookings/new', label: '🆕 حجز جديد' },
+      { href: '/reception/checkin', label: '🔑 تسجيل الدخول / الخروج' },
+      { href: '/reception/folio', label: '💰 الفواتير' },
+      { href: '/reception/payments', label: '💳 المدفوعات' },
+      { href: '/reception/guests', label: '👤 النزلاء' },
     ]},
-    { section: 'الغرف', items: [
+    { section: '🚪 الغرف', items: [
       { href: '/reception/rooms', label: '🚪 الغرف' },
       { href: '/reception/calendar', label: '📅 التقويم' },
     ]},
-    { section: 'الفوترة', items: [
-      { href: '/reception/folio', label: '💰 الفواتير' },
-      { href: '/reception/payments', label: '💳 المدفوعات' },
+    { section: '🧹 التدبير المنزلي', items: [
+      { href: '/reception/housekeeping', label: '🧹 مهام التنظيف' },
+      { href: '/reception/maintenance', label: '🔧 مهام الصيانة' },
+    ]},
+    { section: '🍽️ المطعم', items: [
+      { href: '/reception/pos', label: '🍽️ المطعم (نقاط البيع)' },
+    ]},
+    { section: '➕ خدمات إضافية', items: [
+      { href: '/admin/safeboxes', label: '🔐 صناديق الأمانات' },
+      { href: '/reception/lost-found', label: '📦 المفقودات' },
+    ]},
+    { section: '🔔 النظام', items: [
+      { href: '/reception/notifications', label: '🔔 الإشعارات' },
+    ]},
+  ],
+  HOUSEKEEPING: [
+    { section: '🧹 مهامي', items: [
+      { href: '/housekeeping', label: '🧹 مهام التنظيف' },
+    ]},
+    { section: '🔔 النظام', items: [
+      { href: '/reception/notifications', label: '🔔 الإشعارات' },
+    ]},
+  ],
+  MAINTENANCE: [
+    { section: '🔧 مهامي', items: [
+      { href: '/maintenance', label: '🔧 مهام الصيانة' },
+    ]},
+    { section: '🔔 النظام', items: [
+      { href: '/reception/notifications', label: '🔔 الإشعارات' },
     ]},
   ],
 };
@@ -50,8 +119,21 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifDropdown, setNotifDropdown] = useState(false);
+  const [recentNotifs, setRecentNotifs] = useState<any[]>([]);
   const router = useRouter();
   const pathname = usePathname();
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res = await apiGet('/api/admin/notifications?status=PENDING&limit=5');
+      if (res.success) {
+        setUnreadCount(res.pagination?.total || res.data?.length || 0);
+        setRecentNotifs(res.data?.slice(0, 5) || []);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -61,6 +143,14 @@ export default function DashboardLayout({
     }
     setUser(JSON.parse(stored));
   }, [router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnread();
+      const interval = setInterval(fetchUnread, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchUnread]);
 
   if (!user) {
     return (
@@ -127,23 +217,65 @@ export default function DashboardLayout({
             ☰
           </button>
 
-          <div className="text-sm text-[var(--text-secondary)]">
-            مرحباً، <span className="text-[var(--text-primary)] font-semibold">{user.name}</span>
-          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => setNotifDropdown(!notifDropdown)}
+                className="relative text-xl text-[var(--text-secondary)] hover:text-[var(--gold)] transition-colors"
+              >
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--red)] text-white text-[10px] flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
 
-          <button
-            onClick={() => {
-              localStorage.clear();
-              router.push('/auth/login');
-            }}
-            className="text-sm text-[var(--text-muted)] hover:text-[var(--red)] transition-colors"
-          >
-            🚪 تسجيل خروج
-          </button>
+              {notifDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-xl z-50">
+                    <div className="p-3 border-b border-[var(--border)]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold">الإشعارات</span>
+                        <Link href={user.role === 'ADMIN' ? '/admin/notifications' : '/reception/notifications'} className="text-xs text-[var(--gold)]" onClick={() => setNotifDropdown(false)}>عرض الكل</Link>
+                      </div>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {recentNotifs.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-[var(--text-muted)]">لا توجد إشعارات جديدة</div>
+                      ) : recentNotifs.map((n: any) => (
+                        <div key={n.id} className="p-3 border-b border-[var(--border)] hover:bg-[var(--bg-card)] text-sm">
+                          <div className="font-semibold text-[var(--text-primary)]">{n.subject || n.type}</div>
+                          {n.body && <div className="text-xs text-[var(--text-secondary)] mt-0.5">{n.body}</div>}
+                          <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(n.createdAt).toLocaleString('ar-LY')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="text-sm text-[var(--text-secondary)]">
+              مرحباً، <span className="text-[var(--text-primary)] font-semibold">{user.name}</span>
+            </div>
+
+            <button
+              onClick={() => {
+                localStorage.clear();
+                router.push('/auth/login');
+              }}
+              className="text-sm text-[var(--text-muted)] hover:text-[var(--red)] transition-colors"
+            >
+              🚪 تسجيل خروج
+            </button>
+          </div>
         </header>
 
-        <div className="p-4 lg:p-6">{children}</div>
+        <div className="p-4 lg:p-6"><AuthProvider>{children}</AuthProvider></div>
       </main>
+      <ToastContainer />
     </div>
   );
 }

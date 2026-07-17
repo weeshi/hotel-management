@@ -29,7 +29,7 @@ export default function CalendarPage() {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div>
+    <div data-component="ReceptionCalendarPage">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">📅 التقويم</h1>
       </div>

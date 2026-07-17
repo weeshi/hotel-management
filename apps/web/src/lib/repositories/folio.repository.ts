@@ -33,6 +33,7 @@ export class FolioRepository extends BaseRepository<any> {
     createdById?: string;
     roomChargeId?: string;
   }) {
+    const isCharge = data.amount > 0;
     const [transaction] = await prisma.$transaction([
       prisma.folioTransaction.create({
         data: {
@@ -51,6 +52,7 @@ export class FolioRepository extends BaseRepository<any> {
         data: {
           totalCharges: { increment: data.amount + (data.taxAmount || 0) },
           balance: { increment: data.amount + (data.taxAmount || 0) },
+          ...(isCharge ? { status: 'ACTIVE', settledAt: null, settledById: null } : {}),
         },
       }),
     ]);
@@ -58,8 +60,8 @@ export class FolioRepository extends BaseRepository<any> {
     return transaction;
   }
 
-  async applyPayment(folioId: string, paymentId: string, amount: number) {
-    const [transaction] = await prisma.$transaction([
+  async applyPayment(folioId: string, paymentId: string, amount: number, settledById?: string) {
+    const [transaction, updatedFolio] = await prisma.$transaction([
       prisma.folioTransaction.create({
         data: {
           folioId,
@@ -77,6 +79,17 @@ export class FolioRepository extends BaseRepository<any> {
         },
       }),
     ]);
+
+    if (Number(updatedFolio.balance) <= 0 && updatedFolio.status !== 'SETTLED') {
+      await prisma.folio.update({
+        where: { id: folioId },
+        data: {
+          status: 'SETTLED',
+          settledAt: new Date(),
+          settledById,
+        },
+      });
+    }
 
     return transaction;
   }

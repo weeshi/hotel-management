@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/services/auth.service';
 import { errorResponse } from '@/lib/utils/api-response';
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       (await request.json())?.refreshToken;
 
     if (!refreshToken) {
-      return errorResponse('رمز التحديث مطلوب', 401);
+      return errorResponse('ط±ظ…ط² ط§ظ„طھط­ط¯ظٹط« ظ…ط·ظ„ظˆط¨', 401);
     }
 
     const result = await authService.refreshTokens(refreshToken);
@@ -31,6 +31,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل تحديث التوكن', error.statusCode || 401);
+    return errorResponse(error.message || 'ظپط´ظ„ طھط­ط¯ظٹط« ط§ظ„طھظˆظƒظ†', error.statusCode || 401);
   }
 }

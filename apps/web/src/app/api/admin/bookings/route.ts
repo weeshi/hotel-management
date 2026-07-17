@@ -1,16 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { BookingService } from '@/lib/services/booking.service';
 import { BookingRepository } from '@/lib/repositories/booking.repository';
-import { withAuth } from '@/middleware/auth';
-import { withValidation } from '@/middleware/validate';
-import { withRateLimit } from '@/middleware/rate-limit';
+import { withAuth } from '@/middlewares/auth';
+import { withValidation } from '@/middlewares/validate';
+import { withRateLimit } from '@/middlewares/rate-limit';
+import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse, paginatedResponse } from '@/lib/utils/api-response';
 import { createBookingSchema } from '@hotel/shared';
+import { createAuditLog, createNotification } from '@/lib/services';
 
 const bookingService = new BookingService();
 const bookingRepo = new BookingRepository();
 
-// GET /api/admin/bookings — قائمة الحجوزات
+// GET /api/admin/bookings â€” ظ‚ط§ط¦ظ…ط© ط§ظ„ط­ط¬ظˆط²ط§طھ
 async function getHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
@@ -32,11 +34,11 @@ async function getHandler(request: NextRequest) {
 
     return paginatedResponse(result.data, result.total, page, limit);
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل جلب الحجوزات');
+    return errorResponse(error.message || 'ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„ط­ط¬ظˆط²ط§طھ');
   }
 }
 
-// POST /api/admin/bookings — إنشاء حجز جديد
+// POST /api/admin/bookings â€” ط¥ظ†ط´ط§ط، ط­ط¬ط² ط¬ط¯ظٹط¯
 async function postHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
@@ -47,11 +49,42 @@ async function postHandler(request: NextRequest) {
       ...body,
     });
 
+    createAuditLog({
+      hotelId: user.hotelId,
+      userId: user.userId,
+      action: 'CREATE',
+      entity: 'BOOKING',
+      entityId: booking.id,
+      newValue: JSON.stringify({ status: booking.status, guestName: body.guestName }),
+    });
+
+    const { sendBookingNotification } = await import('@/lib/services/notification.service');
+    sendBookingNotification({
+      hotelId: user.hotelId,
+      bookingId: booking.id,
+      type: 'BOOKING_CONFIRMED',
+      guestEmail: body.guestEmail,
+      guestName: body.guestName,
+      bookingNo: booking.bookingNo,
+      checkIn: body.checkIn ? new Date(body.checkIn).toLocaleDateString('ar-LY') : undefined,
+      checkOut: body.checkOut ? new Date(body.checkOut).toLocaleDateString('ar-LY') : undefined,
+    });
+
+    createNotification({
+      hotelId: user.hotelId,
+      bookingId: booking.id,
+      type: 'BOOKING_CREATED',
+      event: 'booking.created',
+      recipient: 'RECEPTION',
+      subject: `ط­ط¬ط² ط¬ط¯ظٹط¯ #${booking.bookingNo}`,
+      body: `طھظ… ط¥ظ†ط´ط§ط، ط­ط¬ط² ط¬ط¯ظٹط¯ ط¨ظˆط§ط³ط·ط© ${user.userId.slice(0, 8)}`,
+    });
+
     return NextResponse.json({ success: true, data: booking }, { status: 201 });
   } catch (error: any) {
-    return errorResponse(error.message || 'فشل إنشاء الحجز', error.statusCode || 400);
+    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط­ط¬ط²', error.statusCode || 400);
   }
 }
 
-export const GET = withAuth(withRateLimit(getHandler));
-export const POST = withAuth(withValidation(createBookingSchema, withRateLimit(postHandler)));
+export const GET = withAuth(withRateLimit(getHandler), ['ADMIN', 'MANAGER', 'RECEPTION']);
+export const POST = withAuth(withCsrf(withValidation(createBookingSchema, withRateLimit(postHandler))), ['ADMIN', 'MANAGER', 'RECEPTION']);

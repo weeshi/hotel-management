@@ -1,3 +1,4 @@
 export { BaseRepository } from './base.repository';
 export { BookingRepository } from './booking.repository';
 export { FolioRepository } from './folio.repository';
+export { GuestRepository } from './guest.repository';

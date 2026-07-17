@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { hashPassword } from '@/lib/utils/password';
 import { registerSchema } from '@hotel/shared';
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       where: { email: validated.email },
     });
     if (existing) {
-      return errorResponse('البريد الإلكتروني مسجل مسبقاً', 409);
+      return errorResponse('ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³ط¬ظ„ ظ…ط³ط¨ظ‚ط§ظ‹', 409);
     }
 
     const hashedPassword = await hashPassword(validated.password);
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return errorResponse('بيانات غير صالحة', 422);
+      return errorResponse('ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©', 422);
     }
-    return errorResponse(error.message || 'فشل إنشاء الحساب', 400);
+    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨', 400);
   }
 }
