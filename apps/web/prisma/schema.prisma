@@ -56,6 +56,8 @@ model Hotel {
   integrationConfigs   IntegrationConfig[]
   gatewayWebhooks      GatewayWebhook[]
   apiKeys              ApiKey[]
+  channelMappings      ChannelMapping[]
+  channelPriceSnapshots ChannelPriceSnapshot[]
 }
 
 // ============================================================
@@ -295,6 +297,8 @@ model RoomType {
   defaultServices RoomTypeDefaultService[]
   amenityServices RoomTypeAmenity[]
   bookingRooms    BookingRoom[]
+  channelMappings ChannelMapping[]
+  priceSnapshots  ChannelPriceSnapshot[]
 }
 
 model RoomTypeExtraBed {
@@ -380,6 +384,7 @@ model RatePlan {
   createdAt            DateTime            @default(now())
 
   bookingRooms BookingRoom[]
+  channelMappings ChannelMapping[]
 
   @@index([hotelId, roomTypeId])
 }
@@ -732,6 +737,61 @@ model GatewayWebhook {
 
   @@unique([provider, hotelId, eventId])
   @@index([hotelId])
+}
+
+// ============================================================
+//  مدير القنوات (Channel Manager / OTA) — Sprint 1 addendum
+// ============================================================
+// Maps each OTA's room-type/rate-plan IDs to the hotel's local RoomType/RatePlan
+// so availability/rates can be pushed and bookings mapped inbound.
+enum ChannelProvider {
+  BOOKING_COM
+  EXPEDIA
+  AIRBNB
+  AGODA
+  TRIP
+  OTHER
+}
+
+model ChannelMapping {
+  id                  String          @id @default(uuid())
+  hotelId             String
+  hotel               Hotel           @relation(fields: [hotelId], references: [id])
+  provider            ChannelProvider
+  channelRoomTypeId   String          // OTA's room type ID
+  channelRatePlanId   String?         // OTA's rate plan ID
+  channelName         String?         // human label from OTA
+  roomTypeId          String
+  roomType            RoomType        @relation(fields: [roomTypeId], references: [id])
+  ratePlanId          String?
+  ratePlan            RatePlan?       @relation(fields: [ratePlanId], references: [id])
+  enabled             Boolean         @default(true)
+  lastPushedAt        DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([hotelId, roomTypeId, channelRoomTypeId])
+  @@index([hotelId, provider])
+  @@index([provider, channelRoomTypeId])
+}
+
+// Daily price/availability snapshot sent to (or received from) a channel.
+// Nativity: one row per roomType per date — a simple high-watermark stream the
+// job layer reads to diff and push to the OTA. Kept audit-grade.
+model ChannelPriceSnapshot {
+  id            String          @id @default(uuid())
+  hotelId       String
+  hotel         Hotel           @relation(fields: [hotelId], references: [id])
+  provider      ChannelProvider
+  roomTypeId    String
+  roomType      RoomType        @relation(fields: [roomTypeId], references: [id])
+  date          DateTime        @db.Date
+  available     Int             @default(0)
+  nightlyRate   Float
+  createdAt     DateTime        @default(now())
+
+  @@unique([hotelId, provider, roomTypeId, date])
+  @@index([hotelId, provider, date])
 }
 
 // ============================================================
