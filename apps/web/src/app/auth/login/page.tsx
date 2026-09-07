@@ -45,7 +45,12 @@ export default function LoginPage() {
       localStorage.setItem('accessToken', data.data.accessToken);
       localStorage.setItem('user', JSON.stringify(data.data.user));
 
-      router.push('/reception');
+      const role = data.data.user?.role;
+      if (role === 'SUPER_ADMIN') {
+        router.push('/superadmin');
+      } else {
+        router.push('/reception');
+      }
     } catch {
       showErrorModal('حدث خطأ في الاتصال');
     } finally {

@@ -270,6 +270,59 @@ describe('Tenant Domain — Host-locked login (strict per-hotel authentication)'
   });
 });
 
+describe('Tenant Domain — SUPER_ADMIN login across hotel hosts', () => {
+  const PASSWORD = 'super-secret-123';
+  let crossSuper: { id: string; email: string };
+
+  beforeEach(async () => {
+    const bcrypt = await import('bcryptjs');
+    const password = await bcrypt.hash(PASSWORD, 4);
+    crossSuper = await prisma.user.create({
+      data: {
+        email: 'cross-super@platform.com',
+        password,
+        name: 'Cross Super',
+        role: 'SUPER_ADMIN' as Role,
+      },
+    });
+  });
+
+  it('logs a SUPER_ADMIN (hotelId=null) in on a hotel customDomain host', async () => {
+    await createHotelWithUser(
+      { name: 'فندق الحاجز', customDomain: 'barrier.ly' },
+      { email: 'barrier@staff.ly', password: 'secret123' }
+    );
+    const res = await loginPOST(loginRequest('barrier.ly', { email: crossSuper.email, password: PASSWORD }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.user.role).toBe('SUPER_ADMIN');
+    // token carries no hotelId — SUPER_ADMIN is platform-wide
+    expect(body.data.user.id).toBeTruthy();
+  });
+
+  it('logs a SUPER_ADMIN in on the generic SaaS host (localhost)', async () => {
+    const res = await loginPOST(loginRequest('localhost', { email: crossSuper.email, password: PASSWORD }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.user.role).toBe('SUPER_ADMIN');
+  });
+
+  it('keeps regular hotel staff locked to their own host (isolation preserved)', async () => {
+    const { user } = await createHotelWithUser(
+      { name: 'فندق النخبة', customDomain: 'elite.ly' },
+      { email: 'elite@staff.ly', password: 'secret123' }
+    );
+    await createHotelWithUser(
+      { name: 'فندق آخر', customDomain: 'other.ly' },
+      { email: 'other@staff.ly', password: 'secret123' }
+    );
+    const res = await loginPOST(loginRequest('other.ly', { email: user.email, password: 'secret123' }));
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.message).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  });
+});
+
 describe('Tenant Domain — /api/auth/context branding', () => {
   beforeEach(async () => {
     await createHotelWithUser(
