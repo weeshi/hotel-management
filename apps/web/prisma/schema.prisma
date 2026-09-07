@@ -55,6 +55,7 @@ model Hotel {
   payments             Payment[]
   integrationConfigs   IntegrationConfig[]
   gatewayWebhooks      GatewayWebhook[]
+  apiKeys              ApiKey[]
 }
 
 // ============================================================
@@ -69,6 +70,18 @@ enum Role {
   MAINTENANCE
   RESTAURANT
   ACCOUNTANT
+}
+
+// --- Headless API consumers (PartnerType for ApiKey) ---
+// HOTEL_SITE: the hotel's own website booking engine
+// B2C_AGGREGATOR: a central booking platform/portal
+// B2B_AGENCY: a travel agency partner
+// CHANNEL_MANAGER: an OTA / channel manager (future OTA module)
+enum PartnerType {
+  HOTEL_SITE
+  B2C_AGGREGATOR
+  B2B_AGENCY
+  CHANNEL_MANAGER
 }
 
 model User {
@@ -96,8 +109,9 @@ model User {
   foundLostItems      LostItem[]           @relation("LostItemFoundBy")
   safeBoxTransactions SafeBoxTransaction[]
   walletTransactions  WalletTransaction[]
-  uploadedDocuments   GuestDocument[]       @relation("GuestDocumentUploadedBy")
-  createdInvitations  Invitation[]          @relation("InvitationCreatedBy")
+  uploadedDocuments   GuestDocument[]      @relation("GuestDocumentUploadedBy")
+  createdInvitations  Invitation[]         @relation("InvitationCreatedBy")
+  apiKeysCreated      ApiKey[]             @relation("ApiKeyCreatedBy")
 }
 
 model RefreshToken {
@@ -175,21 +189,21 @@ enum TransactionStatus {
 //  الضيوف
 // ============================================================
 model Guest {
-  id              String   @id @default(uuid())
-  hotelId         String
-  hotel           Hotel    @relation(fields: [hotelId], references: [id])
-  name            String
-  email           String?
-  phone           String?
-  address         String?
-  nationality     String?
-  idNumber        String?
-  idDocumentUrl   String?
-  emailVerified   Boolean  @default(false)
-  loyaltyPoints   Int      @default(0)
-  allowCredit     Boolean  @default(false)
-  notes           String?
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  hotelId       String
+  hotel         Hotel    @relation(fields: [hotelId], references: [id])
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  nationality   String?
+  idNumber      String?
+  idDocumentUrl String?
+  emailVerified Boolean  @default(false)
+  loyaltyPoints Int      @default(0)
+  allowCredit   Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
 
   bookings  Booking[]
   wallets   Wallet[]
@@ -261,19 +275,19 @@ model WalletTransaction {
 //  الغرف وأنواعها
 // ============================================================
 model RoomType {
-  id          String   @id @default(uuid())
-  hotelId     String
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  name        String
-  nameAr      String?
-  description String?
-  baseRate    Float
-  capacity    Int      @default(2)
-  images      String?
+  id           String   @id @default(uuid())
+  hotelId      String
+  hotel        Hotel    @relation(fields: [hotelId], references: [id])
+  name         String
+  nameAr       String?
+  description  String?
+  baseRate     Float
+  capacity     Int      @default(2)
+  images       String?
   isWebVisible Boolean  @default(true)
   webRoomLimit Int?
-  webPrice    Float?
-  createdAt   DateTime @default(now())
+  webPrice     Float?
+  createdAt    DateTime @default(now())
 
   rooms           Room[]
   ratePlans       RatePlan[]
@@ -435,9 +449,9 @@ model Booking {
   restaurantOrders RestaurantOrder[]
   safeDepositBoxes SafeDepositBox[]
 
+  @@unique([hotelId, externalRef])
   @@index([hotelId, status, createdAt])
   @@index([groupBookingId])
-  @@unique([hotelId, externalRef])
 }
 
 model BookingRoom {
@@ -523,8 +537,8 @@ model GroupBooking {
   name          String
   hotelId       String
   hotel         Hotel    @relation(fields: [hotelId], references: [id])
-  masterFolioId String?   @unique
-  masterFolio   Folio?    @relation("MasterFolio", fields: [masterFolioId], references: [id])
+  masterFolioId String?  @unique
+  masterFolio   Folio?   @relation("MasterFolio", fields: [masterFolioId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -564,13 +578,13 @@ model Folio {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  transactions     FolioTransaction[]
-  payments         Payment[]
-  invoices         Invoice[]
-  discounts        FolioDiscount[]
-  scheduledCharges ScheduledCharge[]
-  groupBookingMaster  GroupBooking?      @relation("MasterFolio")
-  routingRuleTargets  FolioRoutingRule[]
+  transactions       FolioTransaction[]
+  payments           Payment[]
+  invoices           Invoice[]
+  discounts          FolioDiscount[]
+  scheduledCharges   ScheduledCharge[]
+  groupBookingMaster GroupBooking?      @relation("MasterFolio")
+  routingRuleTargets FolioRoutingRule[]
 
   @@index([bookingId])
   @@index([status])
@@ -945,6 +959,40 @@ model WebhookEndpoint {
 }
 
 // ============================================================
+//  مفاتيح الـ API الخارجية (Headless API Ecosystem)
+// ============================================================
+// The ApiKey is the credential for the Headless Booking API.
+// - hotelId null  => platform-wide key (SUPER_ADMIN created keys).
+// - hotelId set   => scoped to a single hotel.
+// Only the SHA-256 hash is stored; the plaintext value is returned
+// exactly ONCE at creation/rotation time (hk_<prefix>_<secret>).
+model ApiKey {
+  id            String      @id @default(uuid())
+  label         String
+  hotelId       String?
+  hotel         Hotel?      @relation(fields: [hotelId], references: [id])
+  partnerType   PartnerType @default(B2B_AGENCY)
+  prefix        String
+  keyHash       String      @unique
+  scopes        String[]    @default(["bookings:write"])
+  rateLimit     Int         @default(100)
+  dailyLimit    Int         @default(10000)
+  allowedIPs    String?
+  isActive      Boolean     @default(true)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  lastRotatedAt DateTime?
+  createdById   String?
+  createdBy     User?       @relation("ApiKeyCreatedBy", fields: [createdById], references: [id])
+
+  @@index([hotelId])
+  @@index([prefix])
+  @@index([partnerType])
+}
+
+// ============================================================
 //  صناديق الأمانات (Safe Deposit Box) — Hybrid Operation Mode
 // ============================================================
 // Polymorphic ownership: links to a Booking (hotel guest) OR
@@ -975,16 +1023,16 @@ model ExternalClient {
 
 // --- Pricing packages ---
 model SafeBoxPackage {
-  id        String   @id @default(uuid())
-  hotelId   String
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
-  name      String
+  id           String   @id @default(uuid())
+  hotelId      String
+  hotel        Hotel    @relation(fields: [hotelId], references: [id])
+  name         String
   dailyPrice   Decimal
   weeklyPrice  Decimal
   monthlyPrice Decimal
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   safeDepositBoxes SafeDepositBox[]
 
@@ -1100,14 +1148,14 @@ model ReportSetting {
 //  إعدادات الحجز عبر الموقع
 // ============================================================
 model WebsiteSetting {
-  id                     String   @id @default(uuid())
-  hotelId                String   @unique
-  hotel                  Hotel    @relation(fields: [hotelId], references: [id])
-  isOnlineBookingEnabled Boolean  @default(false)
-  taxRate                Float    @default(0)
-  bookingFee             Float    @default(0)
-  discountPercent        Float    @default(0)
-  confirmationCutoffHours Int     @default(48)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                      String   @id @default(uuid())
+  hotelId                 String   @unique
+  hotel                   Hotel    @relation(fields: [hotelId], references: [id])
+  isOnlineBookingEnabled  Boolean  @default(false)
+  taxRate                 Float    @default(0)
+  bookingFee              Float    @default(0)
+  discountPercent         Float    @default(0)
+  confirmationCutoffHours Int      @default(48)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }

@@ -26,6 +26,7 @@ hotel-management-plan*.html
 
 # Prisma test artifacts
 apps/web/prisma/test.db
+apps/web/$log
 
 # Private document storage (NEVER commit sensitive guest documents)
 apps/web/storage/
