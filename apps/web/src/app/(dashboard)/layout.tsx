@@ -55,6 +55,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
       { href: '/admin/notifications', label: '🔔 الإشعارات' },
       { href: '/admin/integrations', label: '🔌 تكاملات الحجز' },
+      { href: '/admin/api-keys', label: '🔑 مفاتيح API' },
       { href: '/admin/website-settings', label: '🌐 إعدادات الموقع' },
       { href: '/admin/settings', label: '⚙️ إعدادات الفندق' },
     ]},
@@ -74,6 +75,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
     { section: '🔔 النظام', items: [
       { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
       { href: '/admin/notifications', label: '🔔 الإشعارات' },
+      { href: '/admin/api-keys', label: '🔑 مفاتيح API' },
     ]},
   ],
   RECEPTION: [
