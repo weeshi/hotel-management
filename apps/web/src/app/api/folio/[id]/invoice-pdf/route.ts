@@ -8,9 +8,10 @@ import { errorResponse } from '@/lib/utils/api-response';
 const folioService = new FolioService();
 const pdfService = new InvoicePdfService();
 
-async function getHandler(_request: NextRequest, { params }: { params: { id: string } }) {
+async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const summary = await folioService.getFolioSummary(params.id);
+    const user = (request as any).user;
+    const summary = await folioService.getFolioSummary(params.id, user.hotelId);
 
     const invoiceNo = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${params.id.slice(0, 6).toUpperCase()}`;
 

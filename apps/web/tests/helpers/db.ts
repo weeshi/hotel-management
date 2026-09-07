@@ -1,9 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
 import { execSync } from 'child_process';
+import path from 'path';
 
-const TEST_DB_URL = 'file:./test.db';
+const TEST_DB_URL = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
 
 let initialized = false;
 
@@ -11,12 +10,16 @@ function ensureTestDb() {
   if (initialized) return;
   initialized = true;
 
-  const dbPath = path.resolve(__dirname, '../../prisma/test.db');
-  if (fs.existsSync(dbPath)) {
-    fs.unlinkSync(dbPath);
-  }
+  execSync(
+    `"C:\\Program Files\\PostgreSQL\\18\\bin\\psql.exe" -U postgres -h localhost -c "DROP DATABASE IF EXISTS hotel_test WITH (FORCE);"`,
+    { env: { ...process.env, PGPASSWORD: 'postgres' }, stdio: 'pipe' },
+  );
+  execSync(
+    `"C:\\Program Files\\PostgreSQL\\18\\bin\\createdb.exe" -U postgres -h localhost hotel_test`,
+    { env: { ...process.env, PGPASSWORD: 'postgres' }, stdio: 'pipe' },
+  );
 
-  execSync('npx prisma db push --skip-generate', {
+  execSync('npx prisma db push --skip-generate --accept-data-loss', {
     cwd: path.resolve(__dirname, '../..'),
     env: { ...process.env, DATABASE_URL: TEST_DB_URL },
     stdio: 'pipe',
@@ -39,14 +42,21 @@ if (process.env.NODE_ENV !== 'production') {
 export async function resetDb() {
   await prisma.$transaction([
     prisma.auditLog.deleteMany(),
+    prisma.notification.deleteMany(),
+    prisma.invitation.deleteMany(),
+    prisma.guestDocument.deleteMany(),
     prisma.housekeepingTask.deleteMany(),
     prisma.refreshToken.deleteMany(),
     prisma.bookingService.deleteMany(),
+    prisma.folioRoutingRule.deleteMany(),
     prisma.folioTransaction.deleteMany(),
     prisma.folioDiscount.deleteMany(),
     prisma.scheduledCharge.deleteMany(),
     prisma.invoice.deleteMany(),
     prisma.payment.deleteMany(),
+    prisma.gatewayWebhook.deleteMany(),
+    prisma.integrationConfig.deleteMany(),
+    prisma.groupBooking.deleteMany(),
     prisma.folio.deleteMany(),
     prisma.bookingRoom.deleteMany(),
     prisma.booking.deleteMany(),
@@ -55,6 +65,12 @@ export async function resetDb() {
     prisma.cancellationPolicy.deleteMany(),
     prisma.room.deleteMany(),
     prisma.roomType.deleteMany(),
+    prisma.wallet.deleteMany(),
+    prisma.walletTransaction.deleteMany(),
+    prisma.guest.deleteMany(),
+    prisma.restaurantOrder.deleteMany(),
+    prisma.menuItem.deleteMany(),
+    prisma.menuCategory.deleteMany(),
     prisma.user.deleteMany(),
     prisma.hotel.deleteMany(),
   ]);
@@ -137,8 +153,8 @@ export async function seedTestData() {
       hotelId: hotel.id,
       name: 'Flexible',
       rules: JSON.stringify([
-        { hoursBefore: 24, refundPercent: 100 },
-        { hoursBefore: 0, refundPercent: 0 },
+        { cancelBeforeHours: 24, refundPercentage: 100 },
+        { cancelBeforeHours: 0, refundPercentage: 0 },
       ]),
     },
   });

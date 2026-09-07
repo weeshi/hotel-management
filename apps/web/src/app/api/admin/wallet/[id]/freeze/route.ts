@@ -11,7 +11,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
   try {
     const user = (request as any).user;
 
-    const wallet = await walletService.toggleFreeze(params.id, user.role);
+    const wallet = await walletService.toggleFreeze(params.id, user.hotelId, user.role);
 
     return successResponse({
       id: wallet.id,

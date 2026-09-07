@@ -11,7 +11,8 @@ const bookingService = new BookingService();
 // GET — cancellation quote preview
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const quote = await bookingService.getCancellationQuote(params.id);
+    const user = (request as any).user;
+    const quote = await bookingService.getCancellationQuote(params.id, user.hotelId);
     return successResponse(quote);
   } catch (error: any) {
     return errorResponse(error.message || 'فشل الحصول على عرض الإلغاء', error.statusCode || 400);
@@ -24,7 +25,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
     const user = (request as any).user;
     const body = await request.json().catch(() => ({}));
 
-    const booking = await bookingService.cancelWithRefund(params.id, user?.userId, {
+    const booking = await bookingService.cancelWithRefund(params.id, user?.hotelId, user?.userId, {
       reason: body.reason,
       waivePenalty: body.waivePenalty === true,
       noShow: body.noShow === true,

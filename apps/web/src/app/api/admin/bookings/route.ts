@@ -18,23 +18,34 @@ async function getHandler(request: NextRequest) {
     const user = (request as any).user;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
+    const search = searchParams.get('search') || undefined;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
+
+    const where: Record<string, any> = { hotelId: user.hotelId };
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { bookingNo: { contains: search, mode: 'insensitive' } },
+        { guestName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const result = await bookingRepo.paginate({
       page,
       limit,
-      where: { hotelId: user.hotelId, ...(status ? { status } : {}) },
+      where,
       include: {
         rooms: { include: { room: true } },
         guest: true,
         folio: true,
+        bookingServices: { include: { service: true } },
       },
     });
 
     return paginatedResponse(result.data, result.total, page, limit);
   } catch (error: any) {
-    return errorResponse(error.message || 'ظپط´ظ„ ط¬ظ„ط¨ ط§ظ„ط­ط¬ظˆط²ط§طھ');
+    return errorResponse(error.message || 'فشل جلب الحجوزات');
   }
 }
 

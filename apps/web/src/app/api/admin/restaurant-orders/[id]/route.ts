@@ -8,15 +8,14 @@ import { createAuditLog } from '@/lib/services';
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const order = await prisma.restaurantOrder.findUnique({
-      where: { id: params.id },
+    const order = await prisma.restaurantOrder.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: {
         items: { include: { menuItem: { include: { category: true } } } },
         booking: { select: { id: true, bookingNo: true, guestName: true, folio: true } },
       },
     });
     if (!order) return errorResponse('الطلب غير موجود', 404);
-    if (order.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
     return successResponse(order);
   } catch (error: any) {
     return errorResponse(error.message || 'فشل جلب الطلب');
@@ -30,6 +29,12 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     const data: any = {};
     if (body.status) data.status = body.status;
     if (body.notes !== undefined) data.notes = body.notes;
+
+    const existing = await prisma.restaurantOrder.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
+      select: { id: true },
+    });
+    if (!existing) return errorResponse('الطلب غير موجود', 404);
 
     const order = await prisma.restaurantOrder.update({
       where: { id: params.id },

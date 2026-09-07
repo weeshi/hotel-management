@@ -9,7 +9,7 @@ async function handler(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    if (!file) return errorResponse('ط§ظ„ظ…ظ„ظپ ظ…ط·ظ„ظˆط¨', 400);
+    if (!file) return errorResponse('ط§ظ„ظ…ظ„ظ«ظپ ظ…ط·ظ„ظˆط¨', 400);
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -17,11 +17,17 @@ async function handler(request: NextRequest) {
     const ext = path.extname(file.name) || '.jpg';
     const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'rooms');
+    const { searchParams } = new URL(request.url);
+    const subdir = searchParams.get('subdir') || 'rooms';
+    if (!/^[a-zA-Z0-9_-]+$/.test(subdir)) {
+      return errorResponse('دليل غير صالح', 400);
+    }
+
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', subdir);
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, filename), buffer);
 
-    const url = `/uploads/rooms/${filename}`;
+    const url = `/uploads/${subdir}/${filename}`;
     return NextResponse.json({ success: true, data: { url, filename } });
   } catch (error: any) {
     return errorResponse(error.message || 'ظپط´ظ„ ط±ظپط¹ ط§ظ„ظ…ظ„ظپ', 400);

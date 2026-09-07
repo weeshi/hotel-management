@@ -7,14 +7,14 @@ const walletService = new WalletService();
 
 export class PaymentService {
 
-  async processRefund(paymentId: string, data: {
+  async processRefund(paymentId: string, hotelId: string, data: {
     amount: number;
     reason?: string;
     createdById: string;
     userRole: Role;
   }) {
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
+    const payment = await prisma.payment.findFirst({
+      where: { id: paymentId, folio: { booking: { hotelId } } },
       include: { folio: { include: { booking: true } } },
     });
 

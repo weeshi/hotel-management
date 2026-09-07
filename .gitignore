@@ -26,3 +26,9 @@ hotel-management-plan*.html
 
 # Prisma test artifacts
 apps/web/prisma/test.db
+
+# Private document storage (NEVER commit sensitive guest documents)
+apps/web/storage/
+
+# Credentials / API keys (NEVER commit)
+Google stitch (API KEY).txt

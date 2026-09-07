@@ -150,7 +150,7 @@ export default function AdminReportsPage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs"><th className="text-right p-2">الطريقة</th><th className="text-right p-2">المبلغ</th><th className="text-right p-2">العدد</th></tr></thead>
                 <tbody>{(data.byPaymentMethod?.topUp || []).map((r: any, i: number) => (
-                  <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'TRANSFER' ? '🏦 حوالة' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'CHEQUE' ? '📝 شيك' : r.method || '—'}</td><td className="p-2 text-green-600 font-bold">+{Number(r.total).toFixed(2)}</td><td className="p-2">{r.count}</td></tr>
+                  <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'BANK_TRANSFER' ? '🏦 حوالة بنكية' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'POS' ? '🏧 نقاط بيع' : r.method || '—'}</td><td className="p-2 text-green-600 font-bold">+{Number(r.total).toFixed(2)}</td><td className="p-2">{r.count}</td></tr>
                 ))}</tbody>
               </table>
             </Card>
@@ -159,7 +159,7 @@ export default function AdminReportsPage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs"><th className="text-right p-2">الطريقة</th><th className="text-right p-2">المبلغ</th><th className="text-right p-2">العدد</th></tr></thead>
                 <tbody>{(data.byPaymentMethod?.withdrawal || []).map((r: any, i: number) => (
-                  <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'TRANSFER' ? '🏦 حوالة' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'CHEQUE' ? '📝 شيك' : r.method || '—'}</td><td className="p-2 text-red-600 font-bold">-{Number(r.total).toFixed(2)}</td><td className="p-2">{r.count}</td></tr>
+                  <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'BANK_TRANSFER' ? '🏦 حوالة بنكية' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'POS' ? '🏧 نقاط بيع' : r.method || '—'}</td><td className="p-2 text-red-600 font-bold">-{Number(r.total).toFixed(2)}</td><td className="p-2">{r.count}</td></tr>
                 ))}</tbody>
               </table>
             </Card>
@@ -180,7 +180,7 @@ export default function AdminReportsPage() {
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-xs"><th className="text-right p-2">النزيل</th><th className="text-right p-2">النوع</th><th className="text-right p-2">المبلغ</th><th className="text-right p-2">طريقة الدفع</th></tr></thead>
                   <tbody>{data.topWallets.map((r: any, i: number) => (
-                    <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.guestName}</td><td className="p-2">{r.type === 'TOP_UP' ? 'إيداع' : 'سحب'}</td><td className={`p-2 font-bold ${r.type === 'TOP_UP' ? 'text-green-600' : 'text-red-600'}`}>{r.type === 'TOP_UP' ? '+' : '-'}{Number(r.amount).toFixed(2)}</td><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'TRANSFER' ? '🏦 حوالة' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'CHEQUE' ? '📝 شيك' : r.method || '—'}</td></tr>
+                    <tr key={i} className="border-b border-[var(--border)]"><td className="p-2">{r.guestName}</td><td className="p-2">{r.type === 'TOP_UP' ? 'إيداع' : 'سحب'}</td><td className={`p-2 font-bold ${r.type === 'TOP_UP' ? 'text-green-600' : 'text-red-600'}`}>{r.type === 'TOP_UP' ? '+' : '-'}{Number(r.amount).toFixed(2)}</td><td className="p-2">{r.method === 'CASH' ? '💰 نقداً' : r.method === 'BANK_TRANSFER' ? '🏦 حوالة بنكية' : r.method === 'CARD' ? '💳 بطاقة' : r.method === 'POS' ? '🏧 نقاط بيع' : r.method || '—'}</td></tr>
                   ))}</tbody>
                 </table>
               </Card>

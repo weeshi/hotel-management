@@ -15,7 +15,7 @@ export function FolioSummaryCard({ folio }: Props) {
           {[
             { label: 'إجمالي الرسوم', value: `${folio.totalCharges.toFixed(2)} د.ل`, color: 'var(--text-primary)' },
             { label: 'المدفوع', value: `${folio.totalPaid.toFixed(2)} د.ل`, color: 'var(--green)' },
-            { label: 'المتبقي', value: `${folio.balance.toFixed(2)} د.ل`, color: folio.balance > 0 ? 'var(--gold)' : 'var(--green)' },
+            { label: 'المتبقي', value: `${folio.balance.toFixed(2)} د.ل`, color: folio.balance === 0 ? 'var(--green)' : folio.balance > 0 ? 'var(--red)' : 'var(--gold)' },
           ].map((item) => (
             <div key={item.label} className="flex justify-between items-center p-3 rounded-lg bg-[var(--bg-primary)]">
               <span className="text-sm text-[var(--text-secondary)]">{item.label}</span>

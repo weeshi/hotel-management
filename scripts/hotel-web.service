@@ -1,0 +1,20 @@
+[Unit]
+Description=Hotel Management Web Server (Next.js)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=hotel
+Group=hotel
+WorkingDirectory=/opt/hotel-management
+# Start the dev server on port 3210. For production use: exec npm run start
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=development
+# Optional: ensure the storage directory exists and is writable
+ExecStartPre=/bin/mkdir -p /opt/hotel-management/apps/web/storage
+
+[Install]
+WantedBy=multi-user.target

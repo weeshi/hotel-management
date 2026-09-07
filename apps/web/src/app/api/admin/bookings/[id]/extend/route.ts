@@ -17,7 +17,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
     const checkoutDate = new Date(newCheckOut);
     if (isNaN(checkoutDate.getTime())) return errorResponse('تاريخ غير صالح', 400);
 
-    const updated = await bookingService.extendStay(params.id, checkoutDate, user.userId);
+    const updated = await bookingService.extendStay(params.id, user.hotelId, checkoutDate, user.userId);
 
     return successResponse(updated);
   } catch (error: any) {

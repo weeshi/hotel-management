@@ -6,8 +6,8 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const wallet = await prisma.wallet.findUnique({
-      where: { id: params.id },
+    const wallet = await prisma.wallet.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: {
         guest: { select: { id: true, name: true, email: true } },
         transactions: { orderBy: { createdAt: 'desc' }, take: 50 },

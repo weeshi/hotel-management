@@ -11,7 +11,7 @@ interface ServiceCategory {
 
 interface Service {
   id: string; name: string; nameAr?: string; description?: string;
-  price: number; isActive: boolean; categoryId: string; category: ServiceCategory;
+  price: number; capacityIncrease: number; isActive: boolean; categoryId: string; category: ServiceCategory;
 }
 
 export default function AdminServicesPage() {
@@ -21,8 +21,8 @@ export default function AdminServicesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<Service | null>(null);
   const [filterCat, setFilterCat] = useState('');
-  const [form, setForm] = useState({ name: '', nameAr: '', description: '', price: '', categoryId: '', isActive: true });
-  const [editForm, setEditForm] = useState({ name: '', nameAr: '', description: '', price: '', categoryId: '', isActive: true });
+  const [form, setForm] = useState({ name: '', nameAr: '', description: '', price: '', capacityIncrease: '0', categoryId: '', isActive: true });
+  const [editForm, setEditForm] = useState({ name: '', nameAr: '', description: '', price: '', capacityIncrease: '0', categoryId: '', isActive: true });
 
   const [showCatModal, setShowCatModal] = useState(false);
   const [editCatTarget, setEditCatTarget] = useState<ServiceCategory | null>(null);
@@ -48,17 +48,17 @@ export default function AdminServicesPage() {
 
   async function createService(e: React.FormEvent) {
     e.preventDefault();
-    const ok = await apiPost('/api/admin/services', { ...form, price: parseFloat(form.price) }, {
+    const ok = await apiPost('/api/admin/services', { ...form, price: parseFloat(form.price), capacityIncrease: parseInt(form.capacityIncrease) || 0 }, {
       successMsg: '✅ تمت إضافة الخدمة بنجاح',
       errorMsg: 'فشل إضافة الخدمة',
-      onSuccess: () => { setShowCreate(false); setForm({ name: '', nameAr: '', description: '', price: '', categoryId: '', isActive: true }); fetchData(); },
+      onSuccess: () => { setShowCreate(false); setForm({ name: '', nameAr: '', description: '', price: '', capacityIncrease: '0', categoryId: '', isActive: true }); fetchData(); },
     });
   }
 
   async function updateService(e: React.FormEvent) {
     e.preventDefault();
     if (!showEdit) return;
-    const ok = await apiPut(`/api/admin/services/${showEdit.id}`, { ...editForm, price: parseFloat(editForm.price) }, {
+    const ok = await apiPut(`/api/admin/services/${showEdit.id}`, { ...editForm, price: parseFloat(editForm.price), capacityIncrease: parseInt(editForm.capacityIncrease) || 0 }, {
       successMsg: '✅ تم تحديث الخدمة بنجاح',
       errorMsg: 'فشل تحديث الخدمة',
       onSuccess: () => { setShowEdit(null); fetchData(); },
@@ -118,7 +118,7 @@ export default function AdminServicesPage() {
     { key: 'isActive', header: 'الحالة', render: (s: Service) => <Badge variant={s.isActive ? 'green' : 'red'}>{s.isActive ? 'نشط' : 'موقوف'}</Badge> },
     { key: 'actions', header: 'إجراءات', render: (s: Service) => (
       <div className="flex gap-2">
-        <button onClick={() => { setEditForm({ name: s.name, nameAr: s.nameAr || '', description: s.description || '', price: String(s.price), categoryId: s.categoryId, isActive: s.isActive }); setShowEdit(s); }} className="text-xs text-[var(--blue)] hover:underline">تعديل</button>
+        <button onClick={() => { setEditForm({ name: s.name, nameAr: s.nameAr || '', description: s.description || '', price: String(s.price), capacityIncrease: String(s.capacityIncrease || 0), categoryId: s.categoryId, isActive: s.isActive }); setShowEdit(s); }} className="text-xs text-[var(--blue)] hover:underline">تعديل</button>
         <button onClick={() => deleteService(s)} className="text-xs text-[var(--red)] hover:underline">حذف</button>
       </div>
     )},
@@ -154,6 +154,7 @@ export default function AdminServicesPage() {
           <Input label="الاسم (إنجليزي)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input label="الوصف" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <Input label="السعر (د.ل)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+          <Input label="زيادة السعة (عدد أشخاص)" type="number" value={form.capacityIncrease} onChange={(e) => setForm({ ...form, capacityIncrease: e.target.value })} />
           <Select label="الفئة" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} options={categories.map((c) => ({ value: c.id, label: c.nameAr || c.name }))} />
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowCreate(false)}>إلغاء</Button>
@@ -168,6 +169,7 @@ export default function AdminServicesPage() {
           <Input label="الاسم (إنجليزي)" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
           <Input label="الوصف" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
           <Input label="السعر (د.ل)" type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} required />
+          <Input label="زيادة السعة (عدد أشخاص)" type="number" value={editForm.capacityIncrease} onChange={(e) => setEditForm({ ...editForm, capacityIncrease: e.target.value })} />
           <Select label="الفئة" value={editForm.categoryId} onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })} options={categories.map((c) => ({ value: c.id, label: c.nameAr || c.name }))} />
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowEdit(null)}>إلغاء</Button>

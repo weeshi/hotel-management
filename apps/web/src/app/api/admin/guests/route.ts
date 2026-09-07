@@ -39,8 +39,9 @@ async function getHandler(request: NextRequest) {
 
 async function postHandler(request: NextRequest) {
   try {
+    const user = (request as any).user;
     const body = (request as any).validatedBody;
-    const guest = await guestService.create(body);
+    const guest = await guestService.create(body, user.hotelId);
 
     return successResponse(guest, 201);
   } catch (error: any) {

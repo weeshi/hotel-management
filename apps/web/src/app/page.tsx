@@ -24,12 +24,6 @@ export default function HomePage() {
           >
             تسجيل الدخول
           </Link>
-          <Link
-            href="/auth/register"
-            className="px-6 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--gold)] hover:text-[var(--gold)] transition-all"
-          >
-            إنشاء حساب
-          </Link>
         </div>
 
         <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">

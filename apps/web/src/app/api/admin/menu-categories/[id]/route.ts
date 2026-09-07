@@ -6,6 +6,7 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
     const data: any = {};
     if (body.name) data.name = body.name;
@@ -13,6 +14,9 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     if (body.icon !== undefined) data.icon = body.icon;
     if (body.sortOrder !== undefined) data.sortOrder = body.sortOrder;
     if (body.isActive !== undefined) data.isActive = body.isActive;
+
+    const existing = await prisma.menuCategory.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('التصنيف غير موجود', 404);
 
     const category = await prisma.menuCategory.update({
       where: { id: params.id },
@@ -27,7 +31,11 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const count = await prisma.menuItem.count({ where: { categoryId: params.id } });
+    const user = (request as any).user;
+    const existing = await prisma.menuCategory.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('التصنيف غير موجود', 404);
+
+    const count = await prisma.menuItem.count({ where: { categoryId: params.id, hotelId: user.hotelId } });
     if (count > 0) return errorResponse('لا يمكن حذف تصنيف يحتوي على عناصر', 400);
 
     await prisma.menuCategory.delete({ where: { id: params.id } });

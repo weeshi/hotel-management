@@ -72,7 +72,7 @@ async function handler(request: NextRequest) {
         guestPhone: br.booking.guestPhone,
         status: br.booking.status,
         roomId: br.roomId,
-        roomNumber: br.room.roomNumber,
+        roomNumber: br.room?.roomNumber,
         checkIn: br.checkIn,
         checkOut: br.checkOut,
         folioBalance: Number(br.booking.folio?.balance || 0),

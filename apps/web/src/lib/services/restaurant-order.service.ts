@@ -15,15 +15,14 @@ export class RestaurantOrderService {
     userRole: Role;
     hotelId: string;
   }) {
-    const order = await prisma.restaurantOrder.findUnique({
-      where: { id: orderId },
+    const order = await prisma.restaurantOrder.findFirst({
+      where: { id: orderId, hotelId: data.hotelId },
       include: {
         booking: { include: { folio: true, guest: true } },
       },
     });
 
     if (!order) throw new NotFoundError('الطلب غير موجود');
-    if (order.hotelId !== data.hotelId) throw new NotFoundError('الطلب غير موجود');
     if (order.status === 'PAID') throw new ValidationError('الطلب مدفوع بالفعل');
 
     if (data.method === 'WALLET' && !order.bookingId) {
@@ -82,6 +81,7 @@ export class RestaurantOrderService {
 
     const payment = await prisma.payment.create({
       data: {
+        hotelId: order.hotelId,
         bookingId: booking.id,
         folioId: folio.id,
         amount,
@@ -133,6 +133,7 @@ export class RestaurantOrderService {
 
     const payment = await prisma.payment.create({
       data: {
+        hotelId: data.hotelId,
         bookingId: order.bookingId || undefined,
         amount,
         currency: 'LYD',

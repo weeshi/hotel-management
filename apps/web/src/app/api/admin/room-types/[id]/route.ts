@@ -7,8 +7,8 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const roomType = await prisma.roomType.findUnique({
-      where: { id: params.id },
+    const roomType = await prisma.roomType.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: {
         _count: { select: { rooms: true } },
         extraBeds: true,
@@ -17,7 +17,6 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
       },
     });
     if (!roomType) return errorResponse('نوع الغرفة غير موجود', 404);
-    if (roomType.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
 
     return successResponse({
       ...roomType,
@@ -35,9 +34,8 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     const user = (request as any).user;
     const body = await request.json();
 
-    const existing = await prisma.roomType.findUnique({ where: { id: params.id } });
+    const existing = await prisma.roomType.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
     if (!existing) return errorResponse('نوع الغرفة غير موجود', 404);
-    if (existing.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
 
     const data: any = {};
     if (body.name) data.name = body.name;
@@ -92,9 +90,8 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const roomType = await prisma.roomType.findUnique({ where: { id: params.id } });
+    const roomType = await prisma.roomType.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
     if (!roomType) return errorResponse('نوع الغرفة غير موجود', 404);
-    if (roomType.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
 
     const count = await prisma.room.count({ where: { roomTypeId: params.id } });
     if (count > 0) return errorResponse('لا يمكن حذف نوع غرفة يحتوي على غرف', 400);

@@ -9,14 +9,14 @@ export class GuestRepository extends BaseRepository<any> {
   async searchGuests(params: {
     query?: string;
     nationality?: string;
-    hotelId?: string;
+    hotelId: string;
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
     const { query, nationality, hotelId, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = params;
-    const where: any = {};
+    const where: any = { hotelId };
 
     if (query) {
       where.OR = [
@@ -32,8 +32,8 @@ export class GuestRepository extends BaseRepository<any> {
       where,
       include: {
         _count: { select: { bookings: true } },
-        wallets: hotelId ? { where: { hotelId } } : true,
-        bookings: { orderBy: { createdAt: 'desc' }, take: 1 },
+        wallets: { include: { transactions: { orderBy: { createdAt: 'desc' }, take: 1 } } },
+        bookings: { where: { hotelId }, orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { [sortBy]: sortOrder },
       page,
@@ -41,9 +41,10 @@ export class GuestRepository extends BaseRepository<any> {
     });
   }
 
-  async quickSearch(query: string, take = 10) {
+  async quickSearch(query: string, hotelId: string, take = 10) {
     return prisma.guest.findMany({
       where: {
+        hotelId,
         OR: [
           { name: { contains: query } },
           { email: { contains: query } },
@@ -55,14 +56,16 @@ export class GuestRepository extends BaseRepository<any> {
     });
   }
 
-  async findByIdWithRelations(id: string, hotelId?: string) {
-    return prisma.guest.findUnique({
-      where: { id },
+  async findByIdWithRelations(id: string, hotelId: string) {
+    return prisma.guest.findFirst({
+      where: { id, hotelId },
       include: {
-        wallets: hotelId
-          ? { where: { hotelId }, include: { transactions: { orderBy: { createdAt: 'desc' }, take: 50 } } }
-          : { include: { transactions: { orderBy: { createdAt: 'desc' }, take: 50 } } },
+        wallets: {
+          where: { hotelId },
+          include: { transactions: { orderBy: { createdAt: 'desc' }, take: 50 } },
+        },
         bookings: {
+          where: { hotelId },
           orderBy: { createdAt: 'desc' },
           include: {
             rooms: { include: { room: true } },
@@ -85,7 +88,11 @@ export class GuestRepository extends BaseRepository<any> {
     });
   }
 
-  async findByEmail(email: string) {
-    return prisma.guest.findFirst({ where: { email } });
+  async findByHotel(id: string, hotelId: string) {
+    return prisma.guest.findFirst({ where: { id, hotelId } });
+  }
+
+  async findByEmail(email: string, hotelId: string) {
+    return prisma.guest.findFirst({ where: { email, hotelId } });
   }
 }

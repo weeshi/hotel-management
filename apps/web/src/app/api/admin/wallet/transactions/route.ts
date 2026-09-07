@@ -79,8 +79,8 @@ async function getHandler(request: NextRequest) {
       transactions.map(async (tx) => {
         let createdByName = '';
         if (tx.createdById) {
-          const creator = await prisma.user.findUnique({
-            where: { id: tx.createdById },
+          const creator = await prisma.user.findFirst({
+            where: { id: tx.createdById, hotelId: user.hotelId },
             select: { name: true },
           });
           createdByName = creator?.name || '';

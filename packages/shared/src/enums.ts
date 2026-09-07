@@ -1,4 +1,5 @@
 export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
   RECEPTION = 'RECEPTION',
   MANAGER = 'MANAGER',
@@ -49,11 +50,15 @@ export enum PaymentMethod {
   STRIPE = 'STRIPE',
   PAYPAL = 'PAYPAL',
   MOBICASH = 'MOBICASH',
+  SADAD = 'SADAD',
+  TADAWUL = 'TADAWUL',
+  BANK_TRANSFER = 'BANK_TRANSFER',
   IDFA3LY = 'IDFA3LY',
   YASERPAY = 'YASERPAY',
   ONEPAY = 'ONEPAY',
   CASH = 'CASH',
   CARD = 'CARD',
+  POS = 'POS',
   WALLET = 'WALLET',
 }
 

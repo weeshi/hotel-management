@@ -76,7 +76,7 @@ async function handler(request: NextRequest) {
 
     const employeeIds = [...new Set(topUpByEmployee.map(e => e.createdById).filter(Boolean))];
     const employees = employeeIds.length
-      ? await prisma.user.findMany({ where: { id: { in: employeeIds as string[] } }, select: { id: true, name: true } })
+      ? await prisma.user.findMany({ where: { id: { in: employeeIds as string[] }, hotelId: user.hotelId }, select: { id: true, name: true } })
       : [];
     const employeeMap = new Map(employees.map(e => [e.id, e.name]));
 

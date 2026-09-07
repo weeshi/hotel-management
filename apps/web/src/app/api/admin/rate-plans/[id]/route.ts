@@ -7,6 +7,7 @@ import { createAuditLog } from '@/lib/services';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
     const data: any = {};
     if (body.name) data.name = body.name;
@@ -19,8 +20,15 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     if (body.maxChildren !== undefined) data.maxChildren = body.maxChildren;
     if (body.extraBedPrice !== undefined) data.extraBedPrice = body.extraBedPrice ? parseFloat(body.extraBedPrice) : null;
     if (body.applyDays !== undefined) data.applyDays = body.applyDays;
-    if (body.cancellationPolicyId !== undefined) data.cancellationPolicyId = body.cancellationPolicyId;
+    if (body.cancellationPolicyId !== undefined) {
+      const policy = await prisma.cancellationPolicy.findFirst({ where: { id: body.cancellationPolicyId, hotelId: user.hotelId }, select: { id: true } });
+      if (!policy) return errorResponse('سياسة الإلغاء غير موجودة', 404);
+      data.cancellationPolicyId = body.cancellationPolicyId;
+    }
     if (body.isActive !== undefined) data.isActive = body.isActive;
+
+    const existing = await prisma.ratePlan.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('خطة السعر غير موجودة', 404);
 
     const plan = await prisma.ratePlan.update({
       where: { id: params.id },
@@ -47,6 +55,9 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
+    const existing = await prisma.ratePlan.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('خطة السعر غير موجودة', 404);
+
     await prisma.ratePlan.delete({ where: { id: params.id } });
 
     createAuditLog({

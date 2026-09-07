@@ -14,7 +14,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
 
     if (!targetRoomId) return errorResponse('معرف الغرفة المستهدفة مطلوب', 400);
 
-    const updated = await bookingService.moveRoom(params.id, targetRoomId, user.userId, reason);
+    const updated = await bookingService.moveRoom(params.id, user.hotelId, targetRoomId, user.userId, reason);
 
     return successResponse(updated);
   } catch (error: any) {

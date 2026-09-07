@@ -14,8 +14,13 @@ function uuidv4() {
 }
 
 export class AuthService {
-  async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+  // `hotelId` locks the login to a specific tenant (used when the request host
+  // matches a registered hotel customDomain). The failure message stays uniform
+  // so the host never leaks which accounts exist.
+  async login(email: string, password: string, hotelId?: string) {
+    const user = hotelId
+      ? await prisma.user.findFirst({ where: { email, hotelId } })
+      : await prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {

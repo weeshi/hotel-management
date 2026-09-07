@@ -8,8 +8,8 @@ import { createAuditLog } from '@/lib/services';
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+    const booking = await prisma.booking.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: {
         rooms: { include: { room: true, roomCharges: true } },
         guest: true,
@@ -25,7 +25,6 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
     });
 
     if (!booking) return errorResponse('الحجز غير موجود', 404);
-    if (booking.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
 
     return successResponse(booking);
   } catch (error: any) {
@@ -38,14 +37,18 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
     const user = (request as any).user;
     const body = await request.json();
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
-      include: { rooms: true, folio: true },
+    const booking = await prisma.booking.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
+      include: { rooms: true, folio: true, bookingServices: true },
     });
     if (!booking) return errorResponse('الحجز غير موجود', 404);
-    if (booking.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
-    if (!['PENDING', 'CONFIRMED'].includes(booking.status)) {
-      return errorResponse('لا يمكن تعديل الحجز بعد تسجيل الدخول', 400);
+    if (!['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(booking.status)) {
+      return errorResponse('لا يمكن تعديل الحجز في هذه الحالة', 400);
+    }
+
+    const isCheckedin = booking.status === 'CHECKED_IN';
+    if (isCheckedin && (body.checkIn || body.checkOut || body.rooms)) {
+      return errorResponse('لا يمكن تعديل التواريخ أو الغرف بعد تسجيل الدخول', 400);
     }
 
     const oldValue = JSON.stringify({
@@ -55,8 +58,8 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
     });
 
     await prisma.$transaction(async (tx) => {
-      // Update dates on all booking rooms
-      if (body.checkIn || body.checkOut) {
+      // Update dates on all booking rooms (only if not checked in)
+      if (!isCheckedin && (body.checkIn || body.checkOut)) {
         for (const room of booking.rooms) {
           await tx.bookingRoom.update({
             where: { id: room.id },
@@ -68,15 +71,13 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
         }
       }
 
-      // Update rooms if provided
-      if (body.rooms && Array.isArray(body.rooms)) {
-        // Delete existing rooms
+      // Update rooms if provided (only if not checked in)
+      if (!isCheckedin && body.rooms && Array.isArray(body.rooms)) {
         await tx.bookingRoom.deleteMany({ where: { bookingId: params.id } });
 
-        // Create new rooms
         for (const r of body.rooms) {
-          const room = await tx.room.findUnique({
-            where: { id: r.roomId },
+          const room = await tx.room.findFirst({
+            where: { id: r.roomId, hotelId: user.hotelId },
             include: { roomType: true },
           });
           if (!room) throw new Error(`الغرفة غير موجودة`);
@@ -95,9 +96,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
           });
         }
 
-        // Recalculate folio charges if folio exists (booking was confirmed)
         if (booking.folio && booking.status === 'CONFIRMED') {
-          // Clear existing room charges from folio
           const existingTx = await tx.folioTransaction.findMany({
             where: { folioId: booking.folio.id, category: 'ROOM_CHARGE' },
           });
@@ -105,7 +104,6 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
             await tx.folioTransaction.delete({ where: { id: txRecord.id } });
           }
 
-          // Reset folio charges/balance to service charges only
           const serviceTx = await tx.folioTransaction.findMany({
             where: { folioId: booking.folio.id, category: { not: 'ROOM_CHARGE' } },
           });
@@ -115,7 +113,6 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
             data: { totalCharges: serviceTotal, balance: serviceTotal },
           });
 
-          // Add new room charges
           for (const r of body.rooms) {
             const nights = Math.ceil(
               (new Date(body.checkOut || booking.rooms[0].checkOut).getTime() -
@@ -143,6 +140,65 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
         }
       }
 
+      // Sync services if provided
+      if (body.services && Array.isArray(body.services)) {
+        // Capture old service IDs for delta calculation
+        const oldServiceMap: Record<string, number> = {};
+        for (const bs of booking.bookingServices || []) {
+          oldServiceMap[bs.serviceId] = (oldServiceMap[bs.serviceId] || 0) + bs.quantity;
+        }
+
+        // Delete existing booking services
+        await tx.bookingService.deleteMany({ where: { bookingId: params.id } });
+
+        // Resolve service prices and create new records
+        const newServiceMap: Record<string, number> = {};
+        for (const svc of body.services) {
+          const service = await tx.service.findFirst({ where: { id: svc.serviceId, hotelId: user.hotelId } });
+          if (!service) throw new Error(`الخدمة غير موجودة: ${svc.serviceId}`);
+
+          await tx.bookingService.create({
+            data: {
+              bookingId: params.id,
+              serviceId: svc.serviceId,
+              quantity: svc.quantity,
+              price: service.price * svc.quantity,
+            },
+          });
+          newServiceMap[svc.serviceId] = (newServiceMap[svc.serviceId] || 0) + svc.quantity;
+        }
+
+        // If CHECKED_IN, post ONLY the newly added services as folio charges (Rule 2)
+        if (isCheckedin && booking.folio) {
+          for (const svc of body.services) {
+            const oldQty = oldServiceMap[svc.serviceId] || 0;
+            const addedQty = svc.quantity - oldQty;
+            if (addedQty <= 0) continue;
+
+            const service = await tx.service.findFirst({ where: { id: svc.serviceId, hotelId: user.hotelId } });
+            if (!service) continue;
+
+            const chargeAmount = service.price * addedQty;
+            await tx.folioTransaction.create({
+              data: {
+                folioId: booking.folio.id,
+                type: 'CHARGE',
+                category: 'SERVICE',
+                description: `خدمة جديدة: ${service.nameAr || service.name} x${addedQty}`,
+                amount: chargeAmount,
+              },
+            });
+            await tx.folio.update({
+              where: { id: booking.folio.id },
+              data: {
+                totalCharges: { increment: chargeAmount },
+                balance: { increment: chargeAmount },
+              },
+            });
+          }
+        }
+      }
+
       // Update guest info
       if (body.guestName || body.guestPhone || body.guestEmail) {
         await tx.booking.update({
@@ -151,6 +207,17 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
             ...(body.guestName ? { guestName: body.guestName } : {}),
             ...(body.guestPhone ? { guestPhone: body.guestPhone } : {}),
             ...(body.guestEmail ? { guestEmail: body.guestEmail } : {}),
+          },
+        });
+      }
+
+      // Update adults/children if provided
+      if (body.adults !== undefined || body.children !== undefined) {
+        await tx.booking.update({
+          where: { id: params.id },
+          data: {
+            ...(body.adults !== undefined ? { adults: body.adults } : {}),
+            ...(body.children !== undefined ? { children: body.children } : {}),
           },
         });
       }
@@ -171,6 +238,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
       include: {
         rooms: { include: { room: true } },
         folio: true,
+        bookingServices: { include: { service: true } },
       },
     });
 

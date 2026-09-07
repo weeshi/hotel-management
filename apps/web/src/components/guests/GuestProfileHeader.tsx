@@ -15,6 +15,7 @@ interface GuestDetail {
   createdAt: string;
   wallet?: { balance: number } | null;
   _count?: { bookings: number };
+  idDocumentUrl?: string | null;
 }
 
 interface Props {
@@ -38,6 +39,14 @@ export function GuestProfileHeader({ guest, onEdit }: Props) {
           {guest.idNumber && <div className="flex justify-between"><span className="text-[var(--text-secondary)]">رقم الهوية:</span><span>{guest.idNumber}</span></div>}
           {guest.address && <div className="flex justify-between"><span className="text-[var(--text-secondary)]">العنوان:</span><span className="text-xs">{guest.address}</span></div>}
         </div>
+        {guest.idDocumentUrl && (
+          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="text-xs text-[var(--text-secondary)] mb-2">صورة الهوية:</div>
+            <a href={guest.idDocumentUrl} target="_blank" rel="noopener noreferrer">
+              <img src={guest.idDocumentUrl} alt="صورة الهوية" className="w-full max-w-[200px] rounded-lg border border-[var(--border)] hover:opacity-80 transition-opacity" />
+            </a>
+          </div>
+        )}
       </Card>
 
       <Card className="!p-4">

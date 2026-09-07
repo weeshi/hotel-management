@@ -19,8 +19,8 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
     const user = (request as any).user;
     const body = await request.json();
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+    const booking = await prisma.booking.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: { folio: true, guest: true },
     });
     if (!booking) return errorResponse('الحجز غير موجود', 404);
@@ -45,13 +45,13 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
           data: { walletId: wallet.id, type: 'PAYMENT', amount: amountDecimal.negated(), balanceBefore: wallet.balance, balanceAfter: newBalance, description: `تسديد فاتورة #${booking.bookingNo}`, referenceId: params.id },
         });
         const payment = await prisma.payment.create({
-          data: { bookingId: params.id, folioId: booking.folio?.id, amount, method: 'WALLET', status: 'SUCCEEDED' },
+          data: { hotelId: booking.hotelId, bookingId: params.id, folioId: booking.folio?.id, amount, method: 'WALLET', status: 'SUCCEEDED' },
         });
         if (booking.folio) await folioRepo.applyPayment(booking.folio.id, payment.id, amount);
       } else {
         // Standard payment (CASH, CARD, etc.)
         const payment = await prisma.payment.create({
-          data: { bookingId: params.id, folioId: booking.folio?.id, amount, method, status: 'SUCCEEDED' },
+          data: { hotelId: booking.hotelId, bookingId: params.id, folioId: booking.folio?.id, amount, method, status: 'SUCCEEDED' },
         });
         if (booking.folio) await folioRepo.applyPayment(booking.folio.id, payment.id, amount);
       }
@@ -83,6 +83,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
 
       const payment = await prisma.payment.create({
         data: {
+          hotelId: booking.hotelId,
           bookingId: params.id,
           folioId: booking.folio.id,
           amount,
@@ -94,7 +95,8 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
     }
 
     // Check-out: process charges + settle
-    const updated = await bookingService.checkOut(params.id, user.userId);
+    const result = await bookingService.checkOut(params.id, user.hotelId, user.userId);
+    const { booking: updated, folioBalance } = result;
 
     const { sendBookingNotification } = await import('@/lib/services/notification.service');
     sendBookingNotification({
@@ -110,7 +112,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
         const { InvoicePdfService } = await import('@/lib/services/invoice-pdf.service');
         const { sendEmail, buildBookingTemplate } = await import('@/lib/gateways/email.gateway');
         const pdfService = new InvoicePdfService();
-        const folioSummary = await folioRepo.findByBookingId(booking.id);
+        const folioSummary = await folioRepo.findByBookingId(booking.id, booking.hotelId);
         if (folioSummary) {
           const invoiceNo = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${folioSummary.id.slice(0, 6).toUpperCase()}`;
           const pdfBuffer = await pdfService.generate({
@@ -177,7 +179,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
       body: body.payment ? `تم تسجيل الخروج والدفع بقيمة ${body.payment.amount} د.ل` : 'تم تسجيل خروج النزيل',
     });
 
-    return successResponse(updated);
+    return successResponse({ booking: updated, folioBalance });
   } catch (error: any) {
     return errorResponse(error.message || 'فشل تسجيل الخروج', error.statusCode || 400);
   }

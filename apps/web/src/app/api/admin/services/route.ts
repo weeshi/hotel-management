@@ -39,6 +39,7 @@ async function postHandler(request: NextRequest) {
         nameAr: body.nameAr,
         description: body.description,
         price: body.price,
+        capacityIncrease: body.capacityIncrease ?? 0,
         isActive: body.isActive ?? true,
       },
       include: { category: true },
