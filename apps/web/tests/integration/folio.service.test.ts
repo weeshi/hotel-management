@@ -53,7 +53,7 @@ describe('FolioService', () => {
     it('should return folio for a booking', async () => {
       const { booking, folio } = await createCheckedInBooking();
 
-      const result = await folioService.getFolioByBooking(booking.id);
+      const result = await folioService.getFolioByBooking(booking.id, data.hotel.id);
       expect(result).toBeDefined();
       expect(result?.id).toBe(folio.id);
       expect(result?.status).toBe('ACTIVE');
@@ -79,7 +79,7 @@ describe('FolioService', () => {
         },
       });
 
-      const result = await folioService.getFolioByBooking(booking.id);
+      const result = await folioService.getFolioByBooking(booking.id, data.hotel.id);
       expect(result).toBeNull();
     });
   });
@@ -88,7 +88,7 @@ describe('FolioService', () => {
     it('should add a charge to folio and update balance', async () => {
       const { folio } = await createCheckedInBooking();
 
-      const transaction = await folioService.addCharge(folio.id, {
+      const transaction = await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'مشروبات',
         amount: 150,
         category: 'SERVICE',
@@ -107,13 +107,13 @@ describe('FolioService', () => {
     it('should add multiple charges and accumulate', async () => {
       const { folio } = await createCheckedInBooking();
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'مشروبات',
         amount: 100,
         category: 'SERVICE',
       });
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'غسيل',
         amount: 50,
         category: 'SERVICE',
@@ -126,7 +126,7 @@ describe('FolioService', () => {
 
     it('should throw for non-existent folio', async () => {
       await expect(
-        folioService.addCharge('non-existent-id', {
+        folioService.addCharge('non-existent-id', data.hotel.id, {
           description: 'Test',
           amount: 100,
           category: 'SERVICE',
@@ -143,7 +143,7 @@ describe('FolioService', () => {
       });
 
       await expect(
-        folioService.addCharge(folio.id, {
+        folioService.addCharge(folio.id, data.hotel.id, {
           description: 'Test',
           amount: 100,
           category: 'SERVICE',
@@ -156,13 +156,13 @@ describe('FolioService', () => {
     it('should apply a fixed discount', async () => {
       const { folio } = await createCheckedInBooking();
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'إقامة',
         amount: 400,
         category: 'ROOM_CHARGE',
       });
 
-      await folioService.applyDiscount(folio.id, {
+      await folioService.applyDiscount(folio.id, data.hotel.id, {
         type: 'FIXED',
         value: 50,
         reason: 'خصم عميل مميز',
@@ -181,13 +181,13 @@ describe('FolioService', () => {
     it('should apply a percentage discount', async () => {
       const { folio } = await createCheckedInBooking();
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'إقامة',
         amount: 400,
         category: 'ROOM_CHARGE',
       });
 
-      await folioService.applyDiscount(folio.id, {
+      await folioService.applyDiscount(folio.id, data.hotel.id, {
         type: 'PERCENTAGE',
         value: 10,
         reason: 'خصم 10%',
@@ -202,14 +202,14 @@ describe('FolioService', () => {
     it('should reject discount exceeding total charges', async () => {
       const { folio } = await createCheckedInBooking();
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'إقامة',
         amount: 100,
         category: 'ROOM_CHARGE',
       });
 
       await expect(
-        folioService.applyDiscount(folio.id, {
+        folioService.applyDiscount(folio.id, data.hotel.id, {
           type: 'FIXED',
           value: 200,
           reason: 'خصم كبير',
@@ -223,7 +223,7 @@ describe('FolioService', () => {
       const { folio } = await createCheckedInBooking();
 
       await expect(
-        folioService.applyDiscount(folio.id, {
+        folioService.applyDiscount(folio.id, data.hotel.id, {
           type: 'PERCENTAGE',
           value: 150,
           reason: 'خصم كبير',
@@ -266,13 +266,13 @@ describe('FolioService', () => {
     it('should return full folio summary', async () => {
       const { booking, folio } = await createCheckedInBooking();
 
-      await folioService.addCharge(folio.id, {
+      await folioService.addCharge(folio.id, data.hotel.id, {
         description: 'إقامة',
         amount: 400,
         category: 'ROOM_CHARGE',
       });
 
-      const summary = await folioService.getFolioSummary(folio.id);
+      const summary = await folioService.getFolioSummary(folio.id, data.hotel.id);
 
       expect(summary.folioId).toBe(folio.id);
       expect(summary.totalCharges).toBe(400);
@@ -285,7 +285,7 @@ describe('FolioService', () => {
 
     it('should throw for non-existent folio', async () => {
       await expect(
-        folioService.getFolioSummary('non-existent-id')
+        folioService.getFolioSummary('non-existent-id', data.hotel.id)
       ).rejects.toThrow('Folio غير موجود');
     });
   });

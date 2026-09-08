@@ -12,7 +12,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
     const user = (request as any).user;
     const body = await request.json();
 
-    const result = await folioService.applyDiscount(params.id, {
+    const result = await folioService.applyDiscount(params.id, user.hotelId, {
       type: body.type,
       value: body.value,
       reason: body.reason,

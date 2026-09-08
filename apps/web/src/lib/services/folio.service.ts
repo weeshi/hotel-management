@@ -5,17 +5,25 @@ import { ValidationError, NotFoundError } from '@/lib/utils/errors';
 const folioRepo = new FolioRepository();
 
 export class FolioService {
-  async getFolioByBooking(bookingId: string) {
-    return folioRepo.findByBookingId(bookingId);
+  async getFolioByBooking(bookingId: string, hotelId: string) {
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, hotelId },
+      select: { id: true },
+    });
+    if (!booking) throw new NotFoundError('الحجز غير موجود');
+
+    return folioRepo.findByBookingId(bookingId, hotelId);
   }
 
-  async addCharge(folioId: string, data: {
+  async addCharge(folioId: string, hotelId: string, data: {
     description: string;
     amount: number;
     category: string;
     createdById?: string;
   }) {
-    const folio = await prisma.folio.findUnique({ where: { id: folioId } });
+    const folio = await prisma.folio.findFirst({
+      where: { id: folioId, booking: { hotelId } },
+    });
     if (!folio) throw new NotFoundError('Folio غير موجود');
     if (folio.status === 'SETTLED') {
       throw new ValidationError('لا يمكن إضافة رسوم على فاتورة مسددة');
@@ -30,14 +38,16 @@ export class FolioService {
     });
   }
 
-  async applyDiscount(folioId: string, data: {
+  async applyDiscount(folioId: string, hotelId: string, data: {
     type: 'PERCENTAGE' | 'FIXED';
     value: number;
     reason?: string;
     createdById: string;
     userRole: string;
   }) {
-    const folio = await prisma.folio.findUnique({ where: { id: folioId } });
+    const folio = await prisma.folio.findFirst({
+      where: { id: folioId, booking: { hotelId } },
+    });
     if (!folio) throw new NotFoundError('Folio غير موجود');
 
     const totalCharges = Number(folio.totalCharges);
@@ -77,11 +87,13 @@ export class FolioService {
     });
   }
 
-  async voidTransaction(folioId: string, transactionId: string, data: {
+  async voidTransaction(folioId: string, transactionId: string, hotelId: string, data: {
     reason: string;
     createdById: string;
   }) {
-    const folio = await prisma.folio.findUnique({ where: { id: folioId } });
+    const folio = await prisma.folio.findFirst({
+      where: { id: folioId, booking: { hotelId } },
+    });
     if (!folio) throw new NotFoundError('Folio غير موجود');
     if (folio.status === 'SETTLED') {
       throw new ValidationError('لا يمكن تعديل فاتورة مسددة');
@@ -125,9 +137,9 @@ export class FolioService {
     return folios.length;
   }
 
-  async getFolioSummary(folioId: string) {
-    const folio = await prisma.folio.findUnique({
-      where: { id: folioId },
+  async getFolioSummary(folioId: string, hotelId: string) {
+    const folio = await prisma.folio.findFirst({
+      where: { id: folioId, booking: { hotelId } },
       include: {
         transactions: { orderBy: { createdAt: 'asc' } },
         discounts: true,
@@ -145,6 +157,8 @@ export class FolioService {
 
     return {
       folioId: folio.id,
+      folioNo: `FOL-${folio.id.slice(0, 8).toUpperCase()}`,
+      bookingNo: folio.booking.bookingNo,
       status: folio.status,
       totalCharges: Number(folio.totalCharges),
       totalPaid: Number(folio.totalPaid),
@@ -154,7 +168,7 @@ export class FolioService {
         email: folio.booking.guestEmail,
       },
       rooms: folio.booking.rooms.map((r) => ({
-        number: r.room.roomNumber,
+        number: r.room?.roomNumber ?? 'غير محدد',
         checkIn: r.checkIn,
         checkOut: r.checkOut,
         nightlyRate: r.nightlyRate,

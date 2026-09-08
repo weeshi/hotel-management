@@ -70,6 +70,7 @@ export const createServiceSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive(),
   categoryId: z.string().uuid(),
+  capacityIncrease: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
 });
 
@@ -78,6 +79,7 @@ export const createPaymentSchema = z.object({
   amount: z.number().positive(),
   method: z.nativeEnum(PaymentMethod),
   currency: z.string().default('LYD'),
+  externalRef: z.string().optional(),
 });
 
 export const addFolioChargeSchema = z.object({
@@ -109,6 +111,51 @@ export const registerSchema = z.object({
   phone: z.string().optional(),
 });
 
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'رمز الدعوة مطلوب'),
+  name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
+  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+  phone: z.string().optional(),
+});
+
+export const customDomainSchema = z
+  .string()
+  .trim()
+  .max(255, 'اسم النطاق طويل جداً')
+  .nullable()
+  .optional()
+  .transform((value) =>
+    value && value.trim() !== '' ? value.toLowerCase() : null
+  )
+  .refine(
+    (value) =>
+      value === null ||
+      /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(value),
+    'اسم النطاق غير صالح'
+  );
+
+export const updateHotelCustomDomainSchema = z.object({
+  customDomain: customDomainSchema,
+});
+
+export const createHotelInvitationSchema = z.object({
+  hotel: z.object({
+    name: z.string().min(2, 'اسم الفندق يجب أن يكون حرفين على الأقل'),
+    nameAr: z.string().optional(),
+    customDomain: customDomainSchema,
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email('البريد الإلكتروني غير صالح').optional(),
+    currency: z.string().default('LYD'),
+    checkInTime: z.string().default('14:00'),
+    checkOutTime: z.string().default('12:00'),
+  }),
+  manager: z.object({
+    email: z.string().email('البريد الإلكتروني غير صالح'),
+    name: z.string().min(2, 'اسم المدير مطلوب').optional(),
+  }),
+});
+
 export const hotelSchema = z.object({
   name: z.string().min(2),
   nameAr: z.string().optional(),
@@ -128,6 +175,7 @@ export const guestSchema = z.object({
   nationality: z.string().optional().or(z.literal('')),
   idNumber: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
+  idDocumentUrl: z.string().optional().or(z.literal('')),
 });
 
 export const folioTransactionSchema = z.object({
@@ -285,6 +333,14 @@ export const reportSettingsSchema = z.object({
   headerText: z.string().optional().nullable(),
   footerText: z.string().optional().nullable(),
   taxNumber: z.string().optional().nullable(),
+});
+
+export const websiteSettingsSchema = z.object({
+  isOnlineBookingEnabled: z.boolean().optional(),
+  taxRate: z.number().min(0, 'لا يمكن أن تكون الضريبة سالبة').max(100, 'الضريبة لا تتجاوز 100%').optional(),
+  bookingFee: z.number().min(0, 'لا يمكن أن تكون رسوم الحجز سالبة').optional(),
+  discountPercent: z.number().min(0, 'لا يمكن أن يكون الخصم سالبًا').max(100, 'الخصم لا يتجاوز 100%').optional(),
+  confirmationCutoffHours: z.number().int('عدد ساعات صحيح').min(1, 'ساعة واحدة على الأقل').max(720, 'لا تتجاوز 30 يومًا').optional(),
 });
 
 export const reportExportSchema = z.object({

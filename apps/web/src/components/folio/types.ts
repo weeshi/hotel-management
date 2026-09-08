@@ -2,6 +2,8 @@
 
 export interface FolioSummary {
   folioId: string;
+  folioNo: string;
+  bookingNo: string;
   status: string;
   totalCharges: number;
   totalPaid: number;

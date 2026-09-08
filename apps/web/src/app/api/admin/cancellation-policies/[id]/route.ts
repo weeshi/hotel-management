@@ -7,12 +7,16 @@ import { createAuditLog } from '@/lib/services';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
     const data: any = {};
     if (body.name) data.name = body.name;
     if (body.nameAr !== undefined) data.nameAr = body.nameAr;
     if (body.rules) data.rules = body.rules;
     if (body.isActive !== undefined) data.isActive = body.isActive;
+
+    const existing = await prisma.cancellationPolicy.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('سياسة الإلغاء غير موجودة', 404);
 
     const policy = await prisma.cancellationPolicy.update({
       where: { id: params.id },
@@ -38,6 +42,9 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
+    const existing = await prisma.cancellationPolicy.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('سياسة الإلغاء غير موجودة', 404);
+
     await prisma.cancellationPolicy.delete({ where: { id: params.id } });
 
     createAuditLog({

@@ -12,6 +12,7 @@ import {
   createSafeDepositSchema, addSafeDepositItemSchema, closeSafeDepositSchema,
   createLostItemSchema, updateLostItemSchema,
   reportSettingsSchema, reportExportSchema, reportShareSchema,
+  websiteSettingsSchema,
 } from './schemas';
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -43,6 +44,7 @@ export type UpdateLostItemInput = z.infer<typeof updateLostItemSchema>;
 export type ReportSettingsInput = z.infer<typeof reportSettingsSchema>;
 export type ReportExportInput = z.infer<typeof reportExportSchema>;
 export type ReportShareInput = z.infer<typeof reportShareSchema>;
+export type WebsiteSettingsInput = z.infer<typeof websiteSettingsSchema>;
 
 // API response wrapper
 export type ApiResponse<T = unknown> = {

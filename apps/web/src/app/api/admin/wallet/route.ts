@@ -17,8 +17,8 @@ async function getHandler(request: NextRequest) {
     const email = searchParams.get('email');
 
     let guest;
-    if (guestId) guest = await prisma.guest.findUnique({ where: { id: guestId } });
-    else if (email) guest = await prisma.guest.findFirst({ where: { email } });
+    if (guestId) guest = await prisma.guest.findFirst({ where: { id: guestId, hotelId: user.hotelId } });
+    else if (email) guest = await prisma.guest.findFirst({ where: { email, hotelId: user.hotelId } });
 
     if (!guest) return errorResponse('ط§ظ„ط¶ظٹظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯', 404);
 

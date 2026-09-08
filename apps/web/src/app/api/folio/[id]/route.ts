@@ -5,9 +5,10 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 const folioService = new FolioService();
 
-async function getHandler(_request: NextRequest, { params }: { params: { id: string } }) {
+async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const folio = await folioService.getFolioSummary(params.id);
+    const user = (request as any).user;
+    const folio = await folioService.getFolioSummary(params.id, user.hotelId);
     return successResponse(folio);
   } catch (error: any) {
     return errorResponse(error.message || 'فشل جلب الفاتورة', error.statusCode || 400);

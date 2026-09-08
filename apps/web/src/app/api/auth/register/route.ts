@@ -1,45 +1,33 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
-import { hashPassword } from '@/lib/utils/password';
-import { registerSchema } from '@hotel/shared';
-import { errorResponse } from '@/lib/utils/api-response';
+﻿import { NextRequest } from 'next/server';
+import { InvitationService } from '@/lib/services/invitation.service';
+import { acceptInvitationSchema } from '@hotel/shared';
+import { withRateLimit } from '@/middlewares/rate-limit';
+import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
-export async function POST(request: NextRequest) {
+const invitationService = new InvitationService();
+
+async function postHandler(request: NextRequest) {
   try {
     const body = await request.json();
-    const validated = registerSchema.parse(body);
+    const validated = acceptInvitationSchema.parse(body);
 
-    const existing = await prisma.user.findUnique({
-      where: { email: validated.email },
-    });
-    if (existing) {
-      return errorResponse('ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³ط¬ظ„ ظ…ط³ط¨ظ‚ط§ظ‹', 409);
-    }
-
-    const hashedPassword = await hashPassword(validated.password);
-
-    const user = await prisma.user.create({
-      data: {
-        email: validated.email,
-        password: hashedPassword,
-        name: validated.name,
-        phone: validated.phone,
-        role: 'RECEPTION',
-        hotelId: 'default-hotel',
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-      },
+    const user = await invitationService.acceptInvitation({
+      token: validated.token,
+      name: validated.name,
+      password: validated.password,
+      phone: validated.phone,
     });
 
-    return NextResponse.json({ success: true, data: user }, { status: 201 });
+    return successResponse(user, 201);
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return errorResponse('ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©', 422);
+      return errorResponse('بيانات غير صالحة', 422);
     }
-    return errorResponse(error.message || 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨', 400);
+    if (error.name === 'NotFoundError' || error.name === 'ValidationError') {
+      return errorResponse(error.message, error.statusCode || 400);
+    }
+    return errorResponse(error.message || 'فشل إنشاء الحساب', 400);
   }
 }
+
+export const POST = withRateLimit(postHandler, 20);

@@ -12,15 +12,16 @@ interface RatePlanMatch {
 }
 
 export class PricingService {
-  async findBestRatePlan(roomTypeId: string, roomId: string, checkIn: Date, checkOut: Date): Promise<RatePlanMatch | null> {
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
+  async findBestRatePlan(hotelId: string, roomTypeId: string, roomId: string, checkIn: Date, checkOut: Date): Promise<RatePlanMatch | null> {
+    const room = await prisma.room.findFirst({
+      where: { id: roomId, hotelId },
       include: { roomType: true },
     });
     if (!room) throw new NotFoundError('الغرفة غير موجودة');
 
     const activePlans = await prisma.ratePlan.findMany({
       where: {
+        hotelId,
         roomTypeId,
         isActive: true,
         startDate: { lte: checkIn },
@@ -87,14 +88,14 @@ export class PricingService {
     return { refundAmount: (totalAmount * pct) / 100, refundPercentage: pct };
   }
 
-  async getApplicableRate(roomId: string, checkIn: Date, checkOut: Date): Promise<{ nightlyRate: number; ratePlanId?: string; cancellationPolicyId?: string }> {
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
+  async getApplicableRate(hotelId: string, roomId: string, checkIn: Date, checkOut: Date): Promise<{ nightlyRate: number; ratePlanId?: string; cancellationPolicyId?: string }> {
+    const room = await prisma.room.findFirst({
+      where: { id: roomId, hotelId },
       include: { roomType: true },
     });
     if (!room) throw new NotFoundError('الغرفة غير موجودة');
 
-    const plan = await this.findBestRatePlan(room.roomTypeId, roomId, checkIn, checkOut);
+    const plan = await this.findBestRatePlan(hotelId, room.roomTypeId, roomId, checkIn, checkOut);
     if (plan) {
       return {
         nightlyRate: plan.nightlyRate,
@@ -106,8 +107,8 @@ export class PricingService {
     return { nightlyRate: room.roomType.baseRate };
   }
 
-  async checkAvailability(roomId: string, checkIn: Date, checkOut: Date): Promise<boolean> {
-    const room = await prisma.room.findUnique({ where: { id: roomId } });
+  async checkAvailability(hotelId: string, roomId: string, checkIn: Date, checkOut: Date): Promise<boolean> {
+    const room = await prisma.room.findFirst({ where: { id: roomId, hotelId } });
     if (!room) return false;
     if (room.status === 'OCCUPIED' || room.status === 'MAINTENANCE') return false;
 
@@ -117,7 +118,7 @@ export class PricingService {
     const conflictingBooking = await prisma.bookingRoom.findFirst({
       where: {
         roomId,
-        booking: { status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
+        booking: { hotelId, status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
         checkIn: { lt: checkOut },
         checkOut: { gt: checkIn },
       },

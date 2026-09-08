@@ -15,15 +15,17 @@ async function postHandler(request: NextRequest) {
 
 async function getHandler(request: NextRequest) {
   try {
+    const user = (request as any).user;
     const { prisma } = await import('@/lib/utils/prisma');
-    const pending = await prisma.notification.count({ where: { status: 'PENDING' } });
-    const sent = await prisma.notification.count({ where: { status: 'SENT' } });
-    const failed = await prisma.notification.count({ where: { status: 'FAILED' } });
+    const where = { hotelId: user.hotelId };
+    const pending = await prisma.notification.count({ where: { ...where, status: 'PENDING' } });
+    const sent = await prisma.notification.count({ where: { ...where, status: 'SENT' } });
+    const failed = await prisma.notification.count({ where: { ...where, status: 'FAILED' } });
     return successResponse({ pending, sent, failed });
   } catch (error: any) {
     return errorResponse(error.message);
   }
 }
 
-export const POST = withAuth(withRateLimit(postHandler));
-export const GET = withAuth(withRateLimit(getHandler));
+export const POST = withAuth(withRateLimit(postHandler), ['ADMIN', 'MANAGER']);
+export const GET = withAuth(withRateLimit(getHandler), ['ADMIN', 'MANAGER']);

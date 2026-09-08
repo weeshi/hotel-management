@@ -1,19 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { showErrorModal } from '@/components/ui/error-modal';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tenantName, setTenantName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/context')
+      .then(async (res) => {
+        const data = await res.json();
+        if (data.success && data.data?.hotelName) {
+          setTenantName(data.data.hotelName);
+        }
+      })
+      .catch(() => {
+        /* generic SaaS branding is shown when the context is unavailable */
+      });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -26,16 +38,21 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.error?.message || 'فشل تسجيل الدخول');
+        showErrorModal(data.error?.message || 'فشل تسجيل الدخول');
         return;
       }
 
       localStorage.setItem('accessToken', data.data.accessToken);
       localStorage.setItem('user', JSON.stringify(data.data.user));
 
-      router.push('/reception');
+      const role = data.data.user?.role;
+      if (role === 'SUPER_ADMIN') {
+        router.push('/superadmin');
+      } else {
+        router.push('/reception');
+      }
     } catch {
-      setError('حدث خطأ في الاتصال');
+      showErrorModal('حدث خطأ في الاتصال');
     } finally {
       setLoading(false);
     }
@@ -46,17 +63,11 @@ export default function LoginPage() {
       <div className="card w-full max-w-md !p-8">
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">🏨</div>
-          <h1 className="text-2xl font-bold">تسجيل الدخول</h1>
+          <h1 className="text-2xl font-bold">{tenantName || 'تسجيل الدخول'}</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            نظام إدارة الفنادق
+            {tenantName ? `نظام إدارة ${tenantName}` : 'نظام إدارة الفنادق'}
           </p>
         </div>
-
-        {error && (
-          <div className="bg-[var(--red-bg)] text-[var(--red)] text-sm p-3 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -96,13 +107,6 @@ export default function LoginPage() {
             {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-[var(--text-muted)]">
-          ليس لديك حساب؟{' '}
-          <Link href="/auth/register" className="text-[var(--gold)] hover:underline">
-            إنشاء حساب
-          </Link>
-        </div>
       </div>
     </div>
   );

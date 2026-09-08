@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Badge, Input, Select, Modal, Table, Card, EmptyState } from '@/components/ui';
+import { Button, Badge, Input, Modal, Card, EmptyState } from '@/components/ui';
 import { apiGet } from '@/lib/utils/api-client';
 
 interface Booking {
@@ -30,6 +30,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   async function fetchBookings() {
@@ -37,6 +38,7 @@ export default function BookingsPage() {
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
+      if (searchTerm) params.set('search', searchTerm);
       const res = await apiGet(`/api/admin/bookings?${params}`);
       if (res.success) setBookings(res.data);
     } finally {
@@ -44,7 +46,10 @@ export default function BookingsPage() {
     }
   }
 
-  useEffect(() => { fetchBookings(); }, [statusFilter]);
+  useEffect(() => {
+    const timer = setTimeout(() => { fetchBookings(); }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter]);
 
   return (
     <div>
@@ -56,6 +61,13 @@ export default function BookingsPage() {
       </div>
 
       <Card className="mb-6">
+        <div className="mb-4">
+          <Input
+            placeholder="🔍 بحث برقم الحجز أو اسم النزيل..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <div className="flex gap-2 flex-wrap">
           {['', 'PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'].map((s) => (
             <button
@@ -84,7 +96,7 @@ export default function BookingsPage() {
         <EmptyState
           icon="📅"
           title="لا توجد حجوزات"
-          description={statusFilter ? 'لا توجد حجوزات بهذه الحالة' : 'لم يتم إنشاء أي حجز بعد'}
+          description={searchTerm ? `لا توجد نتائج للبحث عن "${searchTerm}"` : statusFilter ? 'لا توجد حجوزات بهذه الحالة' : 'لم يتم إنشاء أي حجز بعد'}
           action={<Button onClick={() => router.push('/reception/bookings/new')}>إنشاء حجز جديد</Button>}
         />
       ) : (
@@ -152,6 +164,11 @@ export default function BookingsPage() {
               )}
             </div>
             <div className="flex gap-2 pt-4 border-t border-[var(--border)]">
+              {selectedBooking.status === 'CONFIRMED' && (
+                <Button size="sm" onClick={() => router.push(`/reception/checkin?bookingId=${selectedBooking.id}`)}>
+                  🔑 تسجيل دخول
+                </Button>
+              )}
               <Button size="sm" onClick={() => router.push(`/reception/folio?bookingId=${selectedBooking.id}`)}>
                 💰 عرض الفاتورة
               </Button>

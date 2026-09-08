@@ -33,7 +33,7 @@ export default function PublicRoomsPage() {
       <div className="text-center mb-12">
         <h1 className="text-3xl md:text-4xl font-extrabold mb-4">🛏️ غرفنا</h1>
         <p className="text-[var(--text-secondary)] max-w-2xl mx-auto">
-          اختر الغرفة التي تناسب احتياجاتك. نقدم多种 أنواع الغرف لتلبية تطلعاتك.
+          اختر الغرفة التي تناسب احتياجاتك. نقدم أنواعاً متعددة من الغرف لتلبية تطلعاتك.
         </p>
       </div>
 

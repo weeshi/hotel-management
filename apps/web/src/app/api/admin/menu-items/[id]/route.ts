@@ -6,15 +6,23 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
     const data: any = {};
     if (body.name) data.name = body.name;
     if (body.nameAr !== undefined) data.nameAr = body.nameAr;
     if (body.description !== undefined) data.description = body.description;
     if (body.price) data.price = body.price;
-    if (body.categoryId) data.categoryId = body.categoryId;
+    if (body.categoryId) {
+      const category = await prisma.menuCategory.findFirst({ where: { id: body.categoryId, hotelId: user.hotelId } });
+      if (!category) return errorResponse('التصنيف غير موجود', 404);
+      data.categoryId = body.categoryId;
+    }
     if (body.image !== undefined) data.image = body.image;
     if (body.isActive !== undefined) data.isActive = body.isActive;
+
+    const existing = await prisma.menuItem.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('العنصر غير موجود', 404);
 
     const item = await prisma.menuItem.update({
       where: { id: params.id },
@@ -30,6 +38,10 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
+    const existing = await prisma.menuItem.findFirst({ where: { id: params.id, hotelId: user.hotelId } });
+    if (!existing) return errorResponse('العنصر غير موجود', 404);
+
     await prisma.menuItem.delete({ where: { id: params.id } });
     return successResponse({ deleted: true });
   } catch (error: any) {

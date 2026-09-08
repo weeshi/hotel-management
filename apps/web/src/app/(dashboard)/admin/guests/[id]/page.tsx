@@ -13,6 +13,7 @@ import {
   WalletTransactionModal,
 } from '@/components/guests';
 import { apiGet } from '@/lib/utils/api-client';
+import { GuestDocuments } from '@/components/guest/GuestDocuments';
 
 interface SafeBoxItem {
   id: string;
@@ -41,6 +42,7 @@ interface GuestDetail {
   wallet?: { id: string; balance: number; transactions: any[] } | null;
   _count?: { bookings: number };
   bookings: any[];
+  idDocumentUrl?: string | null;
 }
 
 const DURATION_LABELS: Record<string, string> = {
@@ -91,6 +93,7 @@ export default function AdminGuestDetailPage() {
 
   const tabs = [
     { key: 'info', label: 'ℹ️ المعلومات' },
+    { key: 'documents', label: '🛂 الوثائق' },
     { key: 'bookings', label: '📋 الحجوزات' },
     { key: 'wallet', label: '💰 المحفظة' },
     { key: 'folios', label: '🧾 الفواتير' },
@@ -139,6 +142,10 @@ export default function AdminGuestDetailPage() {
         <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl overflow-hidden">
           <GuestBookingHistory bookings={guest.bookings || []} />
         </div>
+      )}
+
+      {tab === 'documents' && (
+        <GuestDocuments guestId={guest.id} />
       )}
 
       {tab === 'wallet' && (

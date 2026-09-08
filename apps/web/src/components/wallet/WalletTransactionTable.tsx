@@ -21,9 +21,9 @@ interface Props {
 
 const methodLabels: Record<string, string> = {
   CASH: '💰 نقداً',
-  TRANSFER: '🏦 حوالة',
+  BANK_TRANSFER: '🏦 حوالة بنكية',
   CARD: '💳 بطاقة',
-  CHEQUE: '📝 شيك',
+  POS: '🏧 نقاط بيع',
 };
 
 export function WalletTransactionTable({ transactions, onViewReceipt }: Props) {

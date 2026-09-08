@@ -71,7 +71,7 @@ describe('Phase 2 E2E: Wallet-POS-Folio Money Flow', () => {
 
     // ── 2. Guest + Confirmed Booking ─────────────────────────
     const guest = await prisma.guest.create({
-      data: { name: 'ضيف التجربة', email: 'e2e.guest@test.com', phone: '+218911111111' },
+      data: { name: 'ضيف التجربة', email: 'e2e.guest@test.com', phone: '+218911111111', hotelId: hotel.id },
     });
     const booking = await prisma.booking.create({
       data: {
@@ -131,7 +131,7 @@ describe('Phase 2 E2E: Wallet-POS-Folio Money Flow', () => {
     // ── 7. Full Audit Query ──────────────────────────────────
     const [folioSummary, walletAfter, folioTransactions, walletTransactions, payments] =
       await Promise.all([
-        folioService.getFolioSummary(folio.id),
+        folioService.getFolioSummary(folio.id, hotel.id),
         walletService.getWallet(guest.id, hotel.id),
         prisma.folioTransaction.findMany({
           where: { folioId: folio.id },

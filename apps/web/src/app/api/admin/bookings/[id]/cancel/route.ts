@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { BookingService } from '@/lib/services/booking.service';
+import { sendBookingNotification } from '@/lib/services/notification.service';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
@@ -7,13 +8,33 @@ import { createAuditLog, createNotification } from '@/lib/services';
 
 const bookingService = new BookingService();
 
-async function handler(request: NextRequest, { params }: { params: { id: string } }) {
+// GET — cancellation quote preview
+async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const user = (request as any).user;
+    const quote = await bookingService.getCancellationQuote(params.id, user.hotelId);
+    return successResponse(quote);
+  } catch (error: any) {
+    return errorResponse(error.message || 'فشل الحصول على عرض الإلغاء', error.statusCode || 400);
+  }
+}
+
+// POST — confirm cancellation with financial execution
+async function postHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
     const body = await request.json().catch(() => ({}));
-    const booking = await bookingService.cancel(params.id, body.reason);
 
-    const { sendBookingNotification } = await import('@/lib/services/notification.service');
+    const booking = await bookingService.cancelWithRefund(params.id, user?.hotelId, user?.userId, {
+      reason: body.reason,
+      waivePenalty: body.waivePenalty === true,
+      noShow: body.noShow === true,
+    });
+
+    if (!booking) {
+      return errorResponse('الحجز غير موجود بعد الإلغاء', 404);
+    }
+
     sendBookingNotification({
       hotelId: booking.hotelId,
       bookingId: booking.id,
@@ -24,10 +45,10 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
     createAuditLog({
       hotelId: booking.hotelId,
       userId: user?.userId,
-      action: 'CANCEL',
+      action: body.noShow ? 'NO_SHOW' : 'CANCEL',
       entity: 'BOOKING',
       entityId: booking.id,
-      newValue: JSON.stringify({ status: booking.status, reason: body.reason }),
+      newValue: JSON.stringify({ status: booking.status, reason: body.reason, waivePenalty: body.waivePenalty }),
     });
 
     createNotification({
@@ -46,4 +67,5 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export const POST = withAuth(withCsrf(handler), ['ADMIN', 'MANAGER', 'RECEPTION']);
+export const GET = withAuth(getHandler, ['ADMIN', 'MANAGER', 'RECEPTION']);
+export const POST = withAuth(withCsrf(postHandler), ['ADMIN', 'MANAGER', 'RECEPTION']);

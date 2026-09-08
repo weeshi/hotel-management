@@ -27,6 +27,10 @@ async function postHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
     const body = await request.json();
+
+    const category = await prisma.menuCategory.findFirst({ where: { id: body.categoryId, hotelId: user.hotelId }, select: { id: true } });
+    if (!category) return errorResponse('التصنيف غير موجود', 404);
+
     const item = await prisma.menuItem.create({
       data: {
         hotelId: user.hotelId,

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="slide-mode">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🏨 خطة مشروع إدارة الفنادق — النسخة الكاملة v3.0</title>
+<title>🏨 خطة مشروع إدارة الفنادق — النسخة الكاملة v3.5</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
@@ -554,6 +554,14 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
 .status-dot.green { background:var(--green); }
 .status-dot.red { background:var(--red); }
 .status-dot.yellow { background:var(--yellow); }
+.adv-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+.adv-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; border-top:3px solid var(--gold); transition:all .3s; }
+.adv-card:hover { background:var(--bg-card-hover); border-color:var(--border-gold); transform:translateY(-2px); }
+.adv-card .adv-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; margin-bottom:12px; }
+.adv-card h4 { font-size:.95rem; font-weight:700; margin-bottom:6px; }
+.adv-card p { font-size:.8rem; color:var(--text-muted); }
+.big-num { font-size:1.9rem; font-weight:800; color:var(--gold); line-height:1.2; }
+.big-num small { font-size:.75rem; font-weight:500; color:var(--text-muted); }
 @media (max-width:1200px) {
   .grid-4 { grid-template-columns:repeat(2,1fr); }
 }
@@ -674,8 +682,142 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   .code-block { background:#f4f4f4; }
 }
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+<style>
+/* ===== وضع العرض التقديمي (Reveal.js) ===== */
+html.slide-mode, body.slide-mode { height:100%; overflow:hidden; }
+html.doc-mode, body.doc-mode { height:auto; overflow:auto; }
+body.slide-mode .mobile-toggle,
+body.slide-mode .sidebar,
+body.slide-mode .sidebar-overlay,
+body.slide-mode .main { display:none !important; }
+body.doc-mode #deck { display:none; }
+.reveal {
+  background:#0D0D12;
+  direction:rtl;
+  font-family:'Cairo',sans-serif;
+  --r-background-color:#0D0D12;
+}
+.reveal .slide-background { background:#0D0D12; }
+.reveal h1, .reveal h2, .reveal h3, .reveal h4 { font-family:'Cairo',sans-serif; }
+.reveal .slides { text-align:right; }
+.reveal .slides section { color:var(--text-primary); }
+.reveal .slides > section > section { overflow-y:auto; overflow-x:hidden; padding:6px 2px; -webkit-overflow-scrolling:touch; }
+.reveal .progress span { background:var(--gold); }
+.reveal .controls { color:var(--gold); }
+.reveal .slide-number { color:var(--gold); }
+.hero-slide { display:flex !important; align-items:center; justify-content:center; }
+.hero-slide > div { width:100%; }
+/* ===== تكبير الخطوط وتعبئة الشاشة داخل الشرائح ===== */
+.reveal .slides > section > section {
+  display:flex;
+  flex-direction:column;
+  padding:12px 28px;
+}
+.reveal .slides > section > section > * { width:100%; }
+.reveal .slides > section > section > .section-header { margin:auto 0; }
+.reveal .slides > section > section > .card,
+.reveal .slides > section > section > .grid-2,
+.reveal .slides > section > section > .grid-3,
+.reveal .slides > section > section > .grid-4,
+.reveal .slides > section > section > .feature-grid,
+.reveal .slides > section > section > .pricing-grid,
+.reveal .slides > section > section > .adv-grid,
+.reveal .slides > section > section > .table-wrap,
+.reveal .slides > section > section > .flow-row { flex:1; }
+.reveal .slides > section > section > .card { display:flex; flex-direction:column; }
+.reveal .slides > section > section > .card > * { margin-top:auto; margin-bottom:auto; }
+/* خلفيات الصور داخل الشرائح */
+.reveal .slides section[data-background-image] {
+  background:linear-gradient(160deg, rgba(13,13,18,.85), rgba(13,13,18,.45));
+}
+.reveal .hero-slide[data-background-image] {
+  background:linear-gradient(160deg, rgba(13,13,18,.78) 0%, rgba(13,13,18,.55) 45%, rgba(201,168,76,.18) 100%);
+}
+/* العناوين ~ ×2 */
+.reveal .slides .section-number { font-size:1.2rem; }
+.reveal .slides .section-header h2 { font-size:3.4rem; }
+.reveal .slides .section-header p { font-size:1.4rem; line-height:1.6; }
+.reveal .slides .card h3 { font-size:2rem; margin-bottom:18px; }
+.reveal .slides .feature-item h4 { font-size:1.7rem; }
+.reveal .slides .adv-card h4 { font-size:1.7rem; }
+.reveal .slides .phase h4 { font-size:1.7rem; }
+.reveal .slides .pricing-card .pricing-name { font-size:1.7rem; }
+.reveal .slides .folio-display .folio-header h4 { font-size:1.6rem; }
+.reveal .slides .flow-step { font-size:1.35rem; padding:14px 22px; }
+/* النصوص ~ ×1.5 */
+.reveal .slides .card p, .reveal .slides .card li { font-size:1.3rem; line-height:1.6; }
+.reveal .slides .arrow-list li { font-size:1.3rem; line-height:1.5; }
+.reveal .slides .check-list li { font-size:1.3rem; line-height:1.5; }
+.reveal .slides .folio-line { font-size:1.2rem; }
+.reveal .slides .folio-line.total .amount { font-size:1.3rem; }
+.reveal .slides .folio-line.balance .amount { font-size:1.4rem; }
+.reveal .slides .pricing-card .pricing-desc { font-size:1.15rem; }
+.reveal .slides .pricing-card .pricing-features li { font-size:1.15rem; }
+.reveal .slides .adv-card p { font-size:1.15rem; }
+.reveal .slides .feature-item p { font-size:1.15rem; }
+.reveal .slides .arch-box { font-size:1.15rem; }
+.reveal .slides .flow-row { font-size:1.25rem; }
+.reveal .slides .phase .phase-duration { font-size:1.05rem; }
+.reveal .slides .score-card .score-label { font-size:1.25rem; }
+/* الجداول */
+.reveal .slides table { font-size:1.15rem; }
+.reveal .slides th, .reveal .slides td { padding:14px 18px; }
+.reveal .slides .comparison-table td { font-size:1.15rem; }
+/* أرقام بارزة */
+.reveal .slides .pricing-card .pricing-price { font-size:3rem; }
+.reveal .slides .pricing-card .pricing-price span { font-size:1.1rem; }
+.reveal .slides .big-num { font-size:2.8rem; }
+.reveal .slides .big-num small { font-size:1.05rem; }
+.reveal .slides .score-card .score { font-size:5rem; }
+/* شريحة العنوان */
+.reveal .hero-slide h1 { font-size:4rem; }
+.reveal .hero-slide .subtitle { font-size:1.5rem; line-height:1.7; }
+.reveal .hero-slide .hero-meta-item { font-size:1.2rem; }
+.reveal .hero-slide .hero-badge { font-size:1.2rem; padding:6px 20px; }
+.reveal .hero-slide .hero-meta { gap:28px; }
+/* متنوع */
+.reveal .slides .tag { font-size:1.05rem; padding:4px 14px; }
+.reveal .slides .code-block { font-size:1rem; padding:16px; line-height:1.45; }
+.reveal .slides .arch-layer { gap:6px; margin:6px 0; }
+.reveal .slides .progress-bar { height:10px; }
+.reveal .slides .progress-label { font-size:1.15rem; }
+.reveal .slides .adv-card .adv-icon { width:56px; height:56px; font-size:1.5rem; }
+/* تصغير الأكواد الداخلية (inline styles) في الشرائح */
+.reveal .slides section [style*="font-size:.6"] { font-size:1rem !important; }
+.reveal .slides section [style*="font-size:.65"] { font-size:1rem !important; }
+.reveal .slides section [style*="font-size:.7"] { font-size:1rem !important; }
+.reveal .slides section [style*="font-size:.75"] { font-size:1.05rem !important; }
+.reveal .slides section [style*="font-size:.8"] { font-size:1.15rem !important; }
+.reveal .slides section [style*="font-size:.82"] { font-size:1.2rem !important; }
+.reveal .slides section [style*="font-size:.85"] { font-size:1.25rem !important; }
+.reveal .slides section [style*="font-size:.88"] { font-size:1.25rem !important; }
+.reveal .slides section [style*="font-size:.9"] { font-size:1.3rem !important; }
+.reveal .slides section [style*="font-size:.95"] { font-size:1.3rem !important; }
+#deck { z-index:50; }
+#viewToggle {
+  position:fixed;
+  top:16px; left:16px;
+  z-index:400;
+  padding:9px 18px;
+  border-radius:10px;
+  background:var(--bg-card);
+  border:1px solid var(--border-gold);
+  color:var(--gold);
+  font-family:'Cairo',sans-serif;
+  font-size:.85rem;
+  font-weight:600;
+  cursor:pointer;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  transition:all .2s;
+}
+#viewToggle:hover { background:var(--bg-card-hover); border-color:var(--gold); }
+</style>
 </head>
-<body>
+<body class="slide-mode">
+<div class="reveal" id="deck"><div class="slides" id="slides"></div></div>
+<button id="viewToggle" aria-label="Toggle presentation view">📄 وضع الوثيقة</button>
 <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
   <i class="fas fa-bars"></i>
 </button>
@@ -684,11 +826,12 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   <div class="sidebar-header">
     <div class="logo">🏨</div>
     <h2>Hotel Management</h2>
-    <p>خطة المشروع الكاملة v3.0</p>
+    <p>خطة المشروع الكاملة v3.5</p>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">الخطة</div>
     <a href="#architecture" class="active" onclick="closeSidebar()"><i class="fas fa-sitemap"></i>العمارة التقنية</a>
+    <a href="#resilience" onclick="closeSidebar()"><i class="fas fa-cloud-shield"></i>الهندسة السحابية والاستمرارية</a>
     <a href="#structure" onclick="closeSidebar()"><i class="fas fa-folder-tree"></i>الهيكل التنظيمي</a>
     <a href="#database" onclick="closeSidebar()"><i class="fas fa-database"></i>قاعدة البيانات</a>
     <a href="#security" onclick="closeSidebar()"><i class="fas fa-shield-halved"></i>المصادقة والأمان</a>
@@ -699,14 +842,17 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
     <a href="#modules" onclick="closeSidebar()"><i class="fas fa-utensils"></i>المطعم والخدمات</a>
     <a href="#notifications" onclick="closeSidebar()"><i class="fas fa-bell"></i>الإشعارات والتواصل</a>
     <a href="#partner" onclick="closeSidebar()"><i class="fas fa-plug"></i>API والتقارير</a>
+    <a href="#market" onclick="closeSidebar()"><i class="fas fa-chart-line"></i>السوق والمزايا التنافسية</a>
+    <a href="#revenue" onclick="closeSidebar()"><i class="fas fa-sack-dollar"></i>نموذج الأرباح</a>
     <a href="#deployment" onclick="closeSidebar()"><i class="fas fa-cloud-upload-alt"></i>النشر والأسعار</a>
+    <a href="#offline" onclick="closeSidebar()"><i class="fas fa-wifi"></i>العمل بدون إنترنت</a>
     <a href="#roadmap" onclick="closeSidebar()"><i class="fas fa-road"></i>خريطة التنفيذ</a>
   </nav>
 </aside>
 <main class="main">
 <section class="hero" id="overview">
   <div class="hero-content fade-in visible">
-    <div class="hero-badge"><i class="fas fa-hotel"></i> خطة شاملة v3.0</div>
+    <div class="hero-badge"><i class="fas fa-hotel"></i> خطة شاملة v3.5</div>
     <h1>🏨 نظام إدارة <span>الفنادق</span></h1>
     <p class="subtitle">منصة متكاملة لإدارة الفنادق: حجوزات، فوترة فندقية (Folio Billing)، مطعم، محفظة إلكترونية، صناديق أمانات، مفقودات، صيانة، وبوابات دفع متعددة — مع واجهة عربية كاملة (RTL) ودعم SaaS و On-Premise.</p>
     <div class="hero-meta">
@@ -714,6 +860,7 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
       <div class="hero-meta-item"><i class="fas fa-table-cells"></i> 35+ نموذج قاعدة بيانات</div>
       <div class="hero-meta-item"><i class="fas fa-shield"></i> 7 طبقات أمان — 7 أدوار</div>
       <div class="hero-meta-item"><i class="fas fa-credit-card"></i> 7 بوابات دفع</div>
+      <div class="hero-meta-item"><i class="fas fa-wifi"></i> يعمل بدون إنترنت</div>
       <div class="hero-meta-item"><i class="fas fa-language"></i> عربي + English (RTL)</div>
     </div>
   </div>
@@ -838,9 +985,150 @@ tbody tr:hover { background:rgba(255,255,255,0.02); }
   </div>
 </section>
 
-<section class="section" id="structure">
+<section class="section" id="resilience">
   <div class="section-header fade-in">
     <div class="section-number">02</div>
+    <h2>🏰 الهندسة السحابية والاستمرارية — SaaS الحقيقي</h2>
+    <p>كيف تتغلب كبرى الشركات (Netflix, Salesforce) على التحديات التشغيلية؟ العلامة البيضاء، الكتلة السحابية، العقدة المحلية، وخطة التعافي من الكوارث.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-tag"></i> العلامة البيضاء ودومين خاص لكل فندق (White-label + IP Masking)</h3>
+    <div class="grid-2">
+      <div>
+        <ul class="arrow-list">
+          <li>كل فندق يحصل على دومين خاص به: <strong style="color:var(--text-primary);">booking.alsalam-hotel.ly</strong></li>
+          <li>الزائر والهاكر يرون <strong style="color:var(--text-primary);">عنوان الفندق فقط</strong> — لا أحد يعرف أين يقع سيرفر المنصة</li>
+          <li>شهادة SSL مجانية وتلقائية لكل دومين عبر Cloudflare</li>
+          <li>هوية العلامة التجارية للفندق كاملة: شعار، ألوان، رسائل</li>
+          <li>النظام لا يعرف الفندق إلا من <strong style="color:var(--text-primary);">النطاق نفسه</strong> (customDomain فريد لكل فندق بمطابقة تامة — exact match)</li>
+          <li>قفل على مستوى الفندق: من يسجّل الدخول عبر دومين فندق معيّن يعمل <strong style="color:var(--text-primary);">لذلك الفندق فقط</strong>، حتى لو أُدخلت بيانات حساب فندق آخر</li>
+          <li>عزل تلقائي عبر الكوكيز (Host-only cookies بدون Domain attribute) — لا حاجة لأي إعداد إضافي</li>
+        </ul>
+      </div>
+      <div>
+        <div class="flow-row" style="flex-wrap:wrap;">
+          <span class="flow-step" style="border-color:var(--gold);">🌐 booking.alsalam-hotel.ly</span>
+          <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+          <span class="flow-step" style="border-color:var(--blue);">🛡️ Cloudflare (الدرع)</span>
+          <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+          <span class="flow-step">☁️ السيرفر المخفي</span>
+        </div>
+        <div style="margin-top:10px;background:var(--green-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--green);">
+          <i class="fas fa-eye-slash"></i> الـ IP الحقيقي مخفي تمامًا خلف Cloudflare — مستحيل استهداف السيرفر مباشرة
+        </div>
+        <div style="margin-top:8px;background:var(--blue-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--blue);">
+          <i class="fas fa-circle-check"></i> <strong>تم تنفيذه بالكامل في v3.5</strong> — النظام يثق بالدومين فقط خلف Cloudflare (cf-ray) أو TRUST_PROXY=true، وروابط الدعوة تُبنى على نطاق المنصة (تعمل حتى أثناء انتشار DNS)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-server"></i> ليس سيرفرًا واحدًا — كتلة سحابية (Cloud Cluster)</h3>
+    <p style="font-size:.85rem;color:var(--text-secondary);">نحن لا نشتري "كمبيوتر" ونضع فيه الفنادق! النظام وقاعدة البيانات يعملان ككتلة سحابية (Cluster):</p>
+    <div class="grid-2" style="margin-top:8px;">
+      <div>
+        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:6px;"><i class="fas fa-expand"></i> Auto-scaling</h4>
+        <ul class="arrow-list">
+          <li>عند زيادة الضغط ← السحابة تستنسخ السيرفر تلقائيًا إلى 2 و 3 لتقاسم الحمل</li>
+          <li>عند الهدوء ← تعود تلقائيًا إلى الحجم الطبيعي</li>
+          <li>لا يوجد "نقطة فشل واحدة" (No Single Point of Failure)</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size:.9rem;color:var(--gold);margin-bottom:6px;"><i class="fas fa-clone"></i> Master-Replica</h4>
+        <ul class="arrow-list">
+          <li>قاعدة بيانات أساسية (Master) + "ظل" (Replica) ينسخ البيانات في نفس اللحظة</li>
+          <li>عطل الأساسية ← الظل يستلم العمل في أجزاء من الثانية دون أن يشعر الفندق</li>
+          <li>الانهيار الكلي شبه مستحيل تقنيًا</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-laptop-house"></i> العقدة المحلية = Micro-PMS (وليس النظام الكامل)</h3>
+    <div class="grid-2">
+      <div>
+        <p style="font-size:.82rem;color:var(--text-secondary);">رفضنا تركيب "النظام الكامل" في العقدة المحلية — لأننا نعود لعيوب أنظمة المداد القديمة (بطء، صيانة مكلفة، تحديثات معقدة). نثبّت نسخة طوارئ مصغّرة للخط الأمامي فقط.</p>
+        <div class="table-wrap" style="margin-top:10px;">
+          <table>
+            <thead><tr><th>✅ يفعله Micro-PMS</th><th>❌ لا يفعله</th></tr></thead>
+            <tbody>
+              <tr><td>تسكين (Check-in)</td><td>تقارير الإدارة العليا</td></tr>
+              <tr><td>مغادرة (Check-out)</td><td>إعدادات النظام العميقة</td></tr>
+              <tr><td>إضافة رسوم على الفاتورة</td><td>إدارة الأسعار والقنوات</td></tr>
+              <tr><td>طباعة الفواتير</td><td>بوابات الدفع المتقدمة</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <ul class="arrow-list">
+          <li>ينهار السيرفر في أمريكا أو ينقطع الإنترنت في ليبيا؟ <strong style="color:var(--text-primary);">الاستقبال لا يتوقف ثانية واحدة</strong></li>
+          <li>بعد إصلاح السيرفر ← العقدة تصبّ بياناتها الجديدة في السحابة <strong style="color:var(--text-primary);">بهدوء</strong> (مزامنة آمنة)</li>
+          <li>متكاملة مع بروتوكولات العمل بدون إنترنت: <a href="#offline" style="color:var(--gold);">Heartbeat + 4G + Allotment</a></li>
+        </ul>
+        <div style="margin-top:10px;background:var(--blue-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--blue);">
+          <i class="fas fa-info-circle"></i> التوازن: خفة النظام + استمرارية التشغيل
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-life-ring"></i> خطة التعافي من الكوارث — 3 سيناريوهات</h3>
+    <div class="adv-grid">
+      <div class="adv-card" style="border-top-color:var(--yellow);">
+        <div class="adv-icon" style="background:var(--yellow-bg);color:var(--yellow);"><i class="fas fa-microchip"></i></div>
+        <h4>أ) عطل تقني <span class="tag tag-yellow">احتمال 5%</span></h4>
+        <p style="color:var(--text-secondary);">عطل جهاز أو انهيار برمجي (تحديث خاطئ):</p>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li>الحل: Infrastructure as Code (IaC)</li>
+          <li>إعادة بناء سيرفر مطابق في <strong style="color:var(--text-primary);">15 دقيقة</strong> بضغطة زر</li>
+          <li>مثال: احترق سيرفر لندن ← بناء مطابق في ألمانيا</li>
+        </ul>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--red);">
+        <div class="adv-icon" style="background:var(--red-bg);color:var(--red);"><i class="fas fa-bolt"></i></div>
+        <h4>ب) هجوم DDoS <span class="tag tag-red">وارد جدًا</span></h4>
+        <p style="color:var(--text-secondary);">إغراق السيرفر بطلبات وهمية:</p>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li>الحل: Cloudflare WAF</li>
+          <li>يمتص مليارات الطلبات الوهمية <strong style="color:var(--text-primary);">قبل وصولها</strong> للسيرفر</li>
+          <li>إسقاط السيرفر بهذه الطريقة شبه مستحيل</li>
+        </ul>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--purple);">
+        <div class="adv-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-user-secret"></i></div>
+        <h4>ج) اختراق / Ransomware <span class="tag tag-purple">احتمال ضعيف</span></h4>
+        <p style="color:var(--text-secondary);">سرقة بيانات أو تشفيرها:</p>
+        <ul class="arrow-list" style="font-size:.8rem;">
+          <li>Row-level Isolation: الهاكر حتى لو سرق حساب فندق، <strong style="color:var(--text-primary);">لا يرى بقية الفنادق</strong></li>
+          <li>PITR: نسخة احتياطية مستمرة لحظية</li>
+          <li>مسح في 3:00 ← إرجاع لحالة <strong style="color:var(--text-primary);">2:59</strong> وكأن شيئًا لم يكن</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-in" style="border-color:var(--gold);background:linear-gradient(135deg,#1A1A24,#151A16);">
+    <h3><i class="fas fa-crown"></i> 👑 لماذا هذه العمارة هي الأفضل؟</h3>
+    <p style="font-size:.9rem;color:var(--text-secondary);">
+      في أسوأ سيناريو كارثي يمكن تخيله (السيرفر الرئيسي انهار بالكامل، والنسخة الاحتياطية تحتاج ساعتين للعودة):
+      <strong style="color:var(--text-primary);">موظفو الفنادق لن يصابوا بالذعر</strong> — لأن العقدة المحلية في كل فندق مستمرة في العمل واستقبال النزلاء،
+      مما يمنح فريقنا التقني الوقت الكافي لإصلاح السحابة <strong style="color:var(--gold);">دون أن يفقد الفندق دولارًا واحدًا من إيراداته</strong>.
+    </p>
+    <div style="margin-top:12px;background:var(--green-bg);border-radius:8px;padding:10px;font-size:.85rem;color:var(--green);">
+      <i class="fas fa-gem"></i> هذه هي هندسة الـ SaaS الحقيقية التي تُباع بملايين الدولارات
+    </div>
+  </div>
+</section>
+
+<section class="section" id="structure">
+  <div class="section-header fade-in">
+    <div class="section-number">03</div>
     <h2>📂 الهيكل التنظيمي للمشروع</h2>
     <p>Monorepo مع Turborepo — يضم تطبيق Next.js متكامل مع حزم مشتركة وتوثيق API.</p>
   </div>
@@ -920,7 +1208,7 @@ hotel-management/
 
 <section class="section" id="database">
   <div class="section-header fade-in">
-    <div class="section-number">03</div>
+    <div class="section-number">04</div>
     <h2>🗄️ قاعدة البيانات — PostgreSQL + Prisma</h2>
     <p>35+ نموذج Prisma مع PostgreSQL — تستخدم Decimal للحسابات المالية، Enums للحالات، Json للقواعد المرنة.</p>
   </div>
@@ -1040,11 +1328,41 @@ hotel-management/
       </ul>
     </div>
   </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-cubes"></i> النماذج الموسّعة — المرحلة الثانية</h3>
+    <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:12px;">ميزات متقدمة تُبنى فوق الأساس: التسويق، الولاء، القنوات، المخزون، والعمل بدون إنترنت.</p>
+    <div class="grid-3">
+      <div>
+        <span class="tag tag-gold">التسويق والولاء</span>
+        <ul class="arrow-list">
+          <li><strong>PromoCode</strong> — أكواد خصم (نسبة/مبلغ، صلاحية، حدود استخدام)</li>
+          <li><strong>GuestCRM</strong> — ملفات الضيوف وسجل تفضيلاتهم وتواصلهم</li>
+          <li><strong>LoyaltyTier</strong> — مستويات ولاء (Bronze/Silver/Gold) + نقاط</li>
+        </ul>
+      </div>
+      <div>
+        <span class="tag tag-blue">القنوات والمخزون</span>
+        <ul class="arrow-list">
+          <li><strong>ChannelMapping</strong> — ربط الغرف والأسعار بالقنوات (Booking.com, Expedia, Airbnb)</li>
+          <li><strong>InventoryItem</strong> — مخزون الفندق (مستهلكات، أدوات نظافة/صيانة)</li>
+          <li><strong>StockMovement</strong> — حركات المخزون (دخول/خروج/تلف) مع تتبع كامل</li>
+        </ul>
+      </div>
+      <div>
+        <span class="tag tag-green">العمل بدون إنترنت</span>
+        <ul class="arrow-list">
+          <li><strong>Heartbeat</strong> — نبضات اتصال الأجهزة (حالة آمنة/منقطعة + آخر اتصال)</li>
+          <li><strong>OfflineSyncQueue</strong> — طابور المزامنة المحلي للعمليات بدون إنترنت</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="section" id="security">
   <div class="section-header fade-in">
-    <div class="section-number">04</div>
+    <div class="section-number">05</div>
     <h2>🔐 المصادقة والأمان — 7 طبقات + 7 أدوار</h2>
     <p>نظام أمني متكامل مع مصادقة متعددة العوامل (JWT + 2FA)، صلاحيات دقيقة (RBAC)، وتدقيق كامل (Audit Log).</p>
   </div>
@@ -1149,7 +1467,7 @@ hotel-management/
 
 <section class="section" id="core">
   <div class="section-header fade-in">
-    <div class="section-number">05</div>
+    <div class="section-number">06</div>
     <h2>🏨 الوحدات الأساسية — الفندق، الغرف، الحجوزات، الأسعار</h2>
     <p>اللبنة الأساسية للنظام: إدارة الفنادق، الغرف، الأسعار الموسمية، سياسات الإلغاء، والحجوزات مع دعم كامل للتعددية.</p>
   </div>
@@ -1235,7 +1553,7 @@ hotel-management/
 
 <section class="section" id="folio">
   <div class="section-header fade-in">
-    <div class="section-number">06</div>
+    <div class="section-number">07</div>
     <h2>💳 نظام الفوترة — Folio Billing</h2>
     <p>قلب النظام المالي: حساب غرفة متكامل مع شحن ليلي تلقائي (ScheduledCharge)، ضرائب متعددة (TaxRule)، خصومات، وفواتير PDF.</p>
   </div>
@@ -1332,7 +1650,7 @@ hotel-management/
 
 <section class="section" id="payment">
   <div class="section-header fade-in">
-    <div class="section-number">07</div>
+    <div class="section-number">08</div>
     <h2>💳 بوابات الدفع — طبقة مجردة بـ 7 طرق</h2>
     <p>Gateway Abstraction Layer مع Strategy Pattern — تدعم 7 بوابات دفع محلية وعالمية قابلة للتبديل دون تعديل كود الخدمات.</p>
   </div>
@@ -1451,7 +1769,7 @@ hotel-management/
 
 <section class="section" id="wallet">
   <div class="section-header fade-in">
-    <div class="section-number">08</div>
+    <div class="section-number">09</div>
     <h2>💰 المحفظة الإلكترونية (Wallet)</h2>
     <p>محفظة رقمية لكل ضيف لكل فندق — تتيح إيداع وسحب الرصيد، مع تسوية تلقائية مع فاتورة الفندق (Folio).</p>
   </div>
@@ -1494,7 +1812,7 @@ hotel-management/
 
 <section class="section" id="modules">
   <div class="section-header fade-in">
-    <div class="section-number">09</div>
+    <div class="section-number">10</div>
     <h2>🍽️ المطعم والخدمات الإضافية</h2>
     <p>مطعم (POS)، صناديق الأمانات، المفقودات والمعثورات، التدبير المنزلي والصيانة — وحدات متكاملة ضمن النظام الموحد.</p>
   </div>
@@ -1569,7 +1887,7 @@ hotel-management/
 
 <section class="section" id="notifications">
   <div class="section-header fade-in">
-    <div class="section-number">10</div>
+    <div class="section-number">11</div>
     <h2>📨 الإشعارات والتواصل — Queue-based</h2>
     <p>نظام إشعارات غير متزامن عبر Bull + Redis — يدعم إيميلات (Resend/SendGrid) و SMS مع إعادة محاولة تلقائية.</p>
   </div>
@@ -1617,7 +1935,7 @@ hotel-management/
 
 <section class="section" id="partner">
   <div class="section-header fade-in">
-    <div class="section-number">11</div>
+    <div class="section-number">12</div>
     <h2>🔌 API الشركاء والتقارير</h2>
     <p>واجهة برمجة تطبيقات موثقة للشركاء الخارجيين (Booking.com, Expedia)، مع نظام تقارير شامل وتحكم كامل.</p>
   </div>
@@ -1660,9 +1978,151 @@ hotel-management/
   </div>
 </section>
 
+<section class="section" id="market">
+  <div class="section-header fade-in">
+    <div class="section-number">13</div>
+    <h2>📈 تحليل السوق والمزايا التنافسية</h2>
+    <p>فهم عميق للسوق الليبي، مقارنة مباشرة مع المنافسين، وأربع مزايا تنافسية مسمّاة تجعل النظام الاختيار الأول للفنادق الصغيرة والمتوسطة.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-chart-simple"></i> السوق الليبي — الفرصة الحقيقية</h3>
+    <div class="grid-2">
+      <div>
+        <div class="big-num">+1,500 <small>فندق وشقة فندقية (تقدير)</small></div>
+        <ul class="arrow-list" style="margin-top:12px;">
+          <li><strong style="color:var(--text-primary);">المشكلة:</strong> أنظمة قديمة (Onasoft, Al-Maddad) تكلّف آلاف الدولارات، تحتاج أجهزة محلية وخبراء، ولا تدعم الدفع الإلكتروني الليبي</li>
+          <li><strong style="color:var(--text-primary);">البدائل السحابية:</strong> eHotel و Tarmiz بـ 150$/شهر — خارج ميزانية الفنادق الصغيرة</li>
+          <li><strong style="color:var(--text-primary);">الفرصة:</strong> نمو الحجز الإلكتروني + تعدد بوابات الدفع المحلية + طلب الفنادق على نظام بسيط وبسعر منطقي</li>
+        </ul>
+      </div>
+      <div>
+        <div class="big-num">TAM → SAM → SOM</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+          <div style="padding:8px 12px;border-radius:8px;background:var(--blue-bg);border-right:3px solid var(--blue);font-size:.82rem;">
+            <strong style="color:var(--blue);">TAM:</strong> كل فنادق ليبيا (تقدير 1,500+) — السوق الكلي
+          </div>
+          <div style="padding:8px 12px;border-radius:8px;background:var(--yellow-bg);border-right:3px solid var(--yellow);font-size:.82rem;">
+            <strong style="color:var(--yellow);">SAM:</strong> الفنادق التي لديها إنترنت وأجهزة قابلة للخدمة (≈ 60%)
+          </div>
+          <div style="padding:8px 12px;border-radius:8px;background:var(--green-bg);border-right:3px solid var(--green);font-size:.82rem;">
+            <strong style="color:var(--green);">SOM:</strong> 1-3% في أول سنتين (20-50 فندق) — هدف واقعي قابل للنمو
+          </div>
+        </div>
+        <div style="margin-top:10px;background:var(--red-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--red);">
+          <i class="fas fa-triangle-exclamation"></i> الأرقام تقديرات أولية تُحدَّث بعد دراسة السوق الميدانية
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-scale-balanced"></i> مقارنة مباشرة مع المنافسين</h3>
+    <div class="table-wrap">
+      <table class="comparison-table">
+        <thead><tr><th>المعيار</th><th>Onasoft</th><th>Al-Maddad</th><th>eHotel</th><th>Tarmiz</th><th style="color:var(--gold);">نظامنا</th></tr></thead>
+        <tbody>
+          <tr><td>الموديل</td><td>On-Prem</td><td>On-Prem</td><td>SaaS</td><td>SaaS</td><td class="after">SaaS + On-Prem</td></tr>
+          <tr><td>اشتراك شهري</td><td>—</td><td>—</td><td>150$</td><td>150$</td><td class="after">من 0 → 49 د.ل</td></tr>
+          <tr><td>رسوم معاملات</td><td>—</td><td>—</td><td>0.75%</td><td>0.75%</td><td class="after">0.75%</td></tr>
+          <tr><td>يعمل بدون إنترنت</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td class="after">✅</td></tr>
+          <tr><td>بوابات دفع ليبية</td><td>❌</td><td>❌</td><td>جزئي</td><td>جزئي</td><td class="after">5 بوابات</td></tr>
+          <tr><td>تملك بياناتك</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td class="after">✅</td></tr>
+          <tr><td>واجهة عربية RTL</td><td>جزئي</td><td>جزئي</td><td>✅</td><td>✅</td><td class="after">✅ كاملة</td></tr>
+          <tr><td>تفعيل في يوم واحد</td><td>أيام</td><td>أيام</td><td>—</td><td>—</td><td class="after">✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">"—" = معلومات غير متوفرة | ✅/❌ = مدعوم/غير مدعوم. أسعار eHotel و Tarmiz حسب بيانات السوق المتاحة.</div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-trophy"></i> أربع مزايا تنافسية مسمّاة</h3>
+    <div class="adv-grid">
+      <div class="adv-card" style="border-top-color:var(--green);">
+        <div class="adv-icon" style="background:var(--green-bg);color:var(--green);"><i class="fas fa-shield-halved"></i></div>
+        <h4>🛡️ Financial Firewall</h4>
+        <p>الجدار المالي: كل عملية مالية (دفع، خصم، استرداد، تسوية) تمر عبر طبقة تحقق مزدوجة — Decimal + Audit Log + Idempotency. الأخطاء المالية تُمنع عند المصدر، والعبث يُكتشف فورًا.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--blue);">
+        <div class="adv-icon" style="background:var(--blue-bg);color:var(--blue);"><i class="fas fa-robot"></i></div>
+        <h4>⚙️ Smart Operations</h4>
+        <p>التشغيل المؤتمت: شحن ليلي تلقائي، جدولة التدبير، تذكيرات 24 ساعة، ومزامنة تلقائية مع القنوات. الفندق "يدير نفسه" — الموظف يركز على الضيف لا على الأوراق.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--gold);">
+        <div class="adv-icon" style="background:var(--gold);"><i class="fas fa-bolt" style="color:#000;"></i></div>
+        <h4>⚡ SPA Speed</h4>
+        <p>سرعة الصفحة الواحدة: تطبيق SPA فائق الخفة يعمل على أضعف الأجهزة وأبطأ شبكات الإنترنت في ليبيا — بدون إعادة تحميل، يشعر وكأنه تطبيق أصلي.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--purple);">
+        <div class="adv-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-house-chimney"></i></div>
+        <h4>🏠 Total Ownership</h4>
+        <p>الملكية التامة: بياناتك على سيرفرك، تعمل بدون إنترنت، ونسخة On-Prem الأساسية مجانية مدى الحياة — بدون رسوم شهرية إجبارية أو احتجاز بيانات.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="revenue">
+  <div class="section-header fade-in">
+    <div class="section-number">14</div>
+    <h2>💰 نموذج الأرباح — 3 مصادر دخل</h2>
+    <p>نموذج أعمال مرن يجمع بين الاشتراكات الشهرية، رسوم المعاملات، ورسوم التهيئة — بأقل سعر في السوق مقارنة بـ 150$/شهر للمنافسين.</p>
+  </div>
+
+  <div class="adv-grid fade-in">
+    <div class="adv-card" style="border-top-color:var(--blue);">
+      <div class="adv-icon" style="background:var(--blue-bg);color:var(--blue);"><i class="fas fa-cloud"></i></div>
+      <h4>☁️ B2B SaaS — اشتراك</h4>
+      <p style="color:var(--text-secondary);">اشتراك شهري/سنوي حسب حجم الفندق — دخل متكرر متوقع (MRR):</p>
+      <ul class="arrow-list" style="font-size:.8rem;">
+        <li>Freemium: 0 د.ل (On-Prem مجاني)</li>
+        <li>SaaS Pro: 49 د.ل/شهر — غير محدود</li>
+        <li>On-Prem Pro: 299 د.ل/سنة</li>
+      </ul>
+    </div>
+    <div class="adv-card" style="border-top-color:var(--green);">
+      <div class="adv-icon" style="background:var(--green-bg);color:var(--green);"><i class="fas fa-arrow-right-arrow-left"></i></div>
+      <h4>🔁 رسوم معاملات</h4>
+      <p style="color:var(--text-secondary);">نسبة صغيرة على كل حجز إلكتروني مدفوع عبر النظام — دخل يتناسب مع نمو استخدام العملاء:</p>
+      <ul class="arrow-list" style="font-size:.8rem;">
+        <li>0.75% لكل حجز إلكتروني</li>
+        <li>مثال: حجز 1,000 د.ل ← 7.5 د.ل</li>
+        <li>بنفس سعر المنافسين — لا عائق للاعتماد</li>
+      </ul>
+    </div>
+    <div class="adv-card" style="border-top-color:var(--gold);">
+      <div class="adv-icon" style="background:var(--gold);"><i class="fas fa-screwdriver-wrench" style="color:#000;"></i></div>
+      <h4>🛠️ Setup &amp; Onboarding</h4>
+      <p style="color:var(--text-secondary);">رسوم تهيئة وتدريب لمرة واحدة — إعداد النظام، رفع بيانات الغرف والأسعار، وتدريب الموظفين:</p>
+      <ul class="arrow-list" style="font-size:.8rem;">
+        <li>0 د.ل لخطة SaaS</li>
+        <li>200-500 د.ل لخطة On-Prem (حسب الحجم)</li>
+        <li>تدريب ميداني للموظفين + توثيق</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-scale-balanced"></i> مقارنة الأسعار — لماذا نحن الأرخص والأفضل</h3>
+    <div class="table-wrap">
+      <table class="comparison-table">
+        <thead><tr><th>البند</th><th>eHotel</th><th>Tarmiz</th><th style="color:var(--gold);">نظامنا</th></tr></thead>
+        <tbody>
+          <tr><td>اشتراك شهري</td><td>150$</td><td>150$</td><td class="after">من 0 → 49 د.ل</td></tr>
+          <tr><td>رسوم معاملات</td><td>0.75%</td><td>0.75%</td><td class="after">0.75%</td></tr>
+          <tr><td>رسوم تهيئة</td><td>—</td><td>—</td><td class="after">0-500 د.ل لمرة واحدة</td></tr>
+          <tr><td>ملكية البيانات</td><td>❌</td><td>❌</td><td class="after">✅ كاملة</td></tr>
+          <tr><td>عمل بدون إنترنت</td><td>❌</td><td>❌</td><td class="after">✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="deployment">
   <div class="section-header fade-in">
-    <div class="section-number">12</div>
+    <div class="section-number">15</div>
     <h2>🚀 النشر، الأسعار، والبنية التحتية</h2>
     <p>استراتيجية نشر مرنة: SaaS سحابي أو On-Premise محلي، مع Docker و CI/CD ونظام أسعار Freemium.</p>
   </div>
@@ -1751,6 +2211,13 @@ hotel-management/
     </div>
   </div>
 
+  <div class="card fade-in" style="margin-top:20px;">
+    <h3><i class="fas fa-coins"></i> تكلفة إضافية فقط عند الاستخدام</h3>
+    <p style="font-size:.85rem;color:var(--text-secondary);">
+      إلى جانب الاشتراك، يوجد <strong style="color:var(--text-primary);">رسوم معاملات 0.75%</strong> على الحجوزات الإلكترونية المدفوعة، و<strong style="color:var(--text-primary);">رسوم تهيئة وتدريب لمرة واحدة</strong> (0 د.ل لـ SaaS، 200-500 د.ل لـ On-Prem) — تفاصيل كاملة في قسم <a href="#revenue" style="color:var(--gold);">نموذج الأرباح</a>.
+    </p>
+  </div>
+
   <div class="grid-2 fade-in" style="margin-top:20px;">
     <div class="card">
       <h3><i class="fab fa-docker"></i> Docker Compose</h3>
@@ -1780,11 +2247,99 @@ hotel-management/
   </div>
 </section>
 
+<section class="section" id="offline">
+  <div class="section-header fade-in">
+    <div class="section-number">16</div>
+    <h2>📶 بروتوكولات العمل بدون إنترنت</h2>
+    <p>ثلاثة بروتوكولات متكاملة تضمن استمرار تشغيل الفندق حتى عند انقطاع الإنترنت — بلا توقف، بلا Overbooking، وبلا فقدان بيانات.</p>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card" style="border-top:3px solid var(--green);">
+      <h3><i class="fas fa-heart-pulse icon-green"></i> Smart Time-Scoped Auto-Stop <span class="tag tag-green" style="margin-right:6px;">Heartbeat</span></h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);">النظام يرسل نبضة (Heartbeat) كل <strong style="color:var(--text-primary);">30 ثانية</strong> من جهاز الاستقبال إلى الخادم:</p>
+      <ul class="arrow-list">
+        <li>عند انقطاع الاتصال — العمليات الحساسة (الدفع، Check-out) تتحول تلقائيًا لوضع <strong style="color:var(--text-primary);">مؤجّل</strong></li>
+        <li>العمليات الآمنة (شحن ليلي، حجوزات محلية) تُصفّر في طابور محلي (OfflineSyncQueue)</li>
+        <li>سجل Heartbeat يحفظ آخر اتصال + حالة كل جهاز (آمن / منقطع)</li>
+        <li>عودة الاتصال ← مزامنة آمنة مع كشف التعارضات قبل الدمج</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid var(--blue);">
+      <h3><i class="fas fa-signal icon-blue"></i> IoT / 4G Telemetry Fallback <span class="tag tag-blue" style="margin-right:6px;">شريحة طوارئ</span></h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);">كل جهاز استقبال مزوّد بشريحة 4G احتياطية:</p>
+      <ul class="arrow-list">
+        <li>عند فشل الإنترنت الأساسي ← إعادة توجيه تلقائية إلى شبكة 4G خلال ثوانٍ</li>
+        <li>بدون أي تدخل من الموظف — التشغيل مستمر دون أن يشعر أحد</li>
+        <li>مثالي للمناطق التي يتذبذب فيها الإنترنت</li>
+        <li>تنبيه للمسؤول عند تكرار استخدام الشريحة الاحتياطية</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in">
+    <div class="card" style="border-top:3px solid var(--purple);">
+      <h3><i class="fas fa-shield icon-purple"></i> Allotment Strategy <span class="tag tag-purple" style="margin-right:6px;">حصص معزولة</span></h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);">تخصيص حصص معزولة (Allotment) للقنوات الإلكترونية:</p>
+      <ul class="arrow-list">
+        <li>عدد محدود من الغرف يُعرض على Booking.com / Expedia — والباقي محجوز للاستقبال المباشر</li>
+        <li>عند الانقطاع ← الحصص المجمّدة <strong style="color:var(--text-primary);">لا يمكن حجزها إلكترونيًا</strong> (منع Overbooking)</li>
+        <li>الاستقبال المحلي يستمر بالبيع بشكل طبيعي داخل الحصص المخصصة</li>
+        <li>عودة الاتصال ← مزامنة الحصص مع القنوات تلقائيًا</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-diagram-project"></i> تدفق الانقطاع الكامل</h3>
+      <div class="flow-row" style="flex-wrap:wrap;">
+        <span class="flow-step" style="border-color:var(--green);">عميل يدفع</span>
+        <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+        <span class="flow-step">Heartbeat يكتشف الانقطاع</span>
+        <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+        <span class="flow-step">الطلب في الطابور المحلي</span>
+        <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+        <span class="flow-step" style="border-color:var(--gold);">عودة الاتصال</span>
+        <span class="flow-arrow"><i class="fas fa-arrow-left"></i></span>
+        <span class="flow-step">مزامنة آمنة + إيصال</span>
+      </div>
+      <div style="margin-top:10px;background:var(--green-bg);border-radius:8px;padding:10px;font-size:.8rem;color:var(--green);">
+        <i class="fas fa-circle-check"></i> النتيجة: صفر فقدان بيانات، صفر Overbooking، صفر توقف تشغيلي — تُبنى فوق <a href="#resilience" style="color:var(--gold);">العقدة المحلية Micro-PMS</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="roadmap">
   <div class="section-header fade-in">
-    <div class="section-number">13</div>
+    <div class="section-number">17</div>
     <h2>🗺️ خريطة التنفيذ — من الأساس إلى الإطلاق</h2>
     <p>3 مراحل تنفيذ: MVP الأساسي ← Beta ← الإطلاق الكامل مع جميع الميزات.</p>
+  </div>
+
+  <div class="card fade-in">
+    <h3><i class="fas fa-flask"></i> التطوير التقني — 4 مراحل منتج</h3>
+    <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:16px;">بُنية المنتج تُطوَّر على 4 مراحل متتالية — كل مرحلة تنتج وحدة تشغيلية كاملة قبل الانتقال للتالية:</p>
+    <div class="adv-grid">
+      <div class="adv-card" style="border-top-color:var(--green);">
+        <div class="adv-icon" style="background:var(--green-bg);color:var(--green);"><i class="fas fa-broom"></i></div>
+        <h4>1) Housekeeping</h4>
+        <p>التدبير المنزلي: الغرف، حالات النظافة، المهام، الجدولة — أول وحدة تشغيلية ملموسة.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--blue);">
+        <div class="adv-icon" style="background:var(--blue-bg);color:var(--blue);"><i class="fas fa-tags"></i></div>
+        <h4>2) Pricing / CRM</h4>
+        <p>الأسعار الديناميكية + ملفات الضيوف والولاء — تحويل البيانات إلى قرارات تسعير.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--gold);">
+        <div class="adv-icon" style="background:var(--gold);"><i class="fas fa-calendar-check" style="color:#000;"></i></div>
+        <h4>3) Booking Engine</h4>
+        <p>محرك الحجز الفوري + الدفع الإلكتروني — يفتح قناة البيع المباشر.</p>
+      </div>
+      <div class="adv-card" style="border-top-color:var(--purple);">
+        <div class="adv-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-plug"></i></div>
+        <h4>4) Channel Manager</h4>
+        <p>الربط مع Booking.com و Expedia و Airbnb — بيع الغرفة من كل القنوات بدون Overbooking.</p>
+      </div>
+    </div>
   </div>
 
   <div class="grid-2 fade-in" style="grid-template-columns:1.4fr 1fr;">
@@ -1924,6 +2479,7 @@ hotel-management/
 </section>
 
 </main>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
 <script>
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
@@ -1935,7 +2491,7 @@ function closeSidebar() {
     document.querySelector('.sidebar-overlay').classList.remove('show');
   }
 }
-const sections = document.querySelectorAll('.section, .hero');
+const docSections = document.querySelectorAll('.section, .hero');
 const navLinks = document.querySelectorAll('.sidebar-nav a');
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
@@ -1949,7 +2505,7 @@ const observer = new IntersectionObserver((entries) => {
     }
   });
 }, { rootMargin: '-30% 0px -60% 0px' });
-sections.forEach(s => observer.observe(s));
+docSections.forEach(s => observer.observe(s));
 const fadeEls = document.querySelectorAll('.fade-in:not(.visible)');
 const fadeObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
@@ -1978,6 +2534,143 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (target) target.classList.add('active');
   });
 });
+
+/* ===== وضع العرض التقديمي (Reveal.js) ===== */
+(function () {
+  var slidesEl = document.getElementById('slides');
+  var slideIndexMap = {};
+
+  function cloneSlide(node) { return node.cloneNode(true); }
+
+  var slideBG = {
+    overview: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&q=80&auto=format&fit=crop',
+    architecture: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80&auto=format&fit=crop',
+    resilience: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=1600&q=80&auto=format&fit=crop',
+    structure: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1600&q=80&auto=format&fit=crop',
+    database: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=1600&q=80&auto=format&fit=crop',
+    security: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=1600&q=80&auto=format&fit=crop',
+    core: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=1600&q=80&auto=format&fit=crop',
+    folio: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1600&q=80&auto=format&fit=crop',
+    payment: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1600&q=80&auto=format&fit=crop',
+    wallet: 'https://images.unsplash.com/photo-1580519542036-c47de6196ba5?w=1600&q=80&auto=format&fit=crop',
+    modules: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&q=80&auto=format&fit=crop',
+    notifications: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1600&q=80&auto=format&fit=crop',
+    partner: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80&auto=format&fit=crop',
+    market: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1600&q=80&auto=format&fit=crop',
+    revenue: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=1600&q=80&auto=format&fit=crop',
+    deployment: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80&auto=format&fit=crop',
+    offline: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=1600&q=80&auto=format&fit=crop',
+    roadmap: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1600&q=80&auto=format&fit=crop'
+  };
+  function setBG(slide, url, opacity) {
+    slide.setAttribute('data-background-image', url);
+    slide.setAttribute('data-background-size', 'cover');
+    slide.setAttribute('data-background-position', 'center');
+    if (opacity) slide.setAttribute('data-background-opacity', opacity);
+  }
+
+  var hIndex = 0;
+  var hero = document.getElementById('overview');
+  if (hero) {
+    var heroSlide = cloneSlide(hero);
+    heroSlide.classList.add('hero-slide');
+    heroSlide.removeAttribute('id');
+    if (slideBG.overview) setBG(heroSlide, slideBG.overview, 0.55);
+    slidesEl.appendChild(heroSlide);
+    slideIndexMap['overview'] = [0, 0];
+    hIndex = 1;
+  }
+
+  document.querySelectorAll('.section').forEach(function (sec) {
+    var id = sec.id;
+    var group = document.createElement('section');
+    var vIndex = 0;
+
+    function isImgCard(node) {
+      if (node.matches && node.matches('.pricing-card')) return true;
+      return !!(node.querySelector && node.querySelector('.arch-layer, .flow-diagram, .folio-display, .score-card, .table-wrap'));
+    }
+
+    function addSubSlide(node, isHeader) {
+      var s = document.createElement('section');
+      s.appendChild(cloneSlide(node));
+      if (slideBG[id]) {
+        if (isHeader) setBG(s, slideBG[id], 0.4);
+        else if (isImgCard(node)) setBG(s, slideBG[id], 0.2);
+      }
+      group.appendChild(s);
+      vIndex++;
+      return s;
+    }
+
+    var header = sec.querySelector(':scope > .section-header');
+    if (header) addSubSlide(header, true);
+
+    Array.prototype.slice.call(sec.children).forEach(function (child) {
+      if (child.classList.contains('section-header')) return;
+      if (child.classList.contains('card')) {
+        addSubSlide(child);
+      } else if (child.classList.contains('pricing-grid')) {
+        child.querySelectorAll('.pricing-card').forEach(addSubSlide);
+      } else if (child.classList.contains('adv-grid')) {
+        child.querySelectorAll('.adv-card').forEach(addSubSlide);
+      } else if (/grid-\d/.test(child.className)) {
+        var cards = child.querySelectorAll(':scope > .card');
+        if (cards.length) cards.forEach(addSubSlide);
+        else addSubSlide(child);
+      } else {
+        addSubSlide(child);
+      }
+    });
+
+    slidesEl.appendChild(group);
+    slideIndexMap[id] = [hIndex, 0];
+    hIndex++;
+  });
+
+  slidesEl.querySelectorAll('.fade-in').forEach(function (el) { el.classList.add('visible'); });
+
+  var deck = new Reveal();
+  deck.initialize({
+    rtl: true,
+    hash: true,
+    controls: true,
+    progress: true,
+    slideNumber: 'c/t',
+    center: false,
+    transition: 'slide',
+    width: 1280,
+    height: 800,
+    margin: 0.04
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!document.body.classList.contains('slide-mode')) return;
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a) return;
+    var id = (a.getAttribute('href') || '').replace(/^#\/?/, '');
+    if (slideIndexMap.hasOwnProperty(id)) {
+      e.preventDefault();
+      deck.slide(slideIndexMap[id][0], slideIndexMap[id][1]);
+    }
+  });
+
+  var toggle = document.getElementById('viewToggle');
+  toggle.addEventListener('click', function () {
+    var goingToSlide = document.body.classList.contains('doc-mode');
+    var root = document.documentElement;
+    root.classList.toggle('slide-mode', goingToSlide);
+    root.classList.toggle('doc-mode', !goingToSlide);
+    document.body.classList.toggle('slide-mode', goingToSlide);
+    document.body.classList.toggle('doc-mode', !goingToSlide);
+    toggle.textContent = goingToSlide ? '📄 وضع الوثيقة' : '🎞️ وضع العرض';
+    if (goingToSlide) {
+      requestAnimationFrame(function () { deck.layout(); });
+    } else {
+      window.scrollTo(0, 0);
+    }
+  });
+})();
 </script>
 </body>
 </html>

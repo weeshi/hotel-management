@@ -14,8 +14,25 @@ function uuidv4() {
 }
 
 export class AuthService {
-  async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+  // `hotelId` locks the login to a specific tenant (used when the request host
+  // matches a registered hotel customDomain). The failure message stays uniform
+  // so the host never leaks which accounts exist.
+  async login(email: string, password: string, hotelId?: string) {
+    let user = hotelId
+      ? await prisma.user.findFirst({ where: { email, hotelId } })
+      : await prisma.user.findUnique({ where: { email } });
+
+    // Platform-wide SUPER_ADMINs have hotelId = null (they see all hotels), so
+    // the tenant-locked lookup above returns nothing when a hotel host is
+    // detected. Fall back to the global account lookup, but ONLY for
+    // SUPER_ADMIN accounts — tenant isolation for regular staff is preserved.
+    if (!user && hotelId) {
+      const globalUser = await prisma.user.findUnique({ where: { email } });
+      if (globalUser && globalUser.role === 'SUPER_ADMIN' && !globalUser.hotelId) {
+        user = globalUser;
+      }
+    }
+
     if (!user) throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {

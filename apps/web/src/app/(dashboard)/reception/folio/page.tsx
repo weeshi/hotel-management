@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, EmptyState } from '@/components/ui';
 import { InvoiceModal } from '@/components/folio/invoice';
+import { showErrorModal } from '@/components/ui/error-modal';
 import { apiGet, apiPost } from '@/lib/utils/api-client';
 import { FolioSearch } from '@/components/folio/FolioSearch';
 import { FolioSummaryCard } from '@/components/folio/FolioSummaryCard';
@@ -14,6 +15,7 @@ import { RestaurantOrdersModal } from '@/components/folio/RestaurantOrdersModal'
 import { DiscountModal } from '@/components/folio/DiscountModal';
 import { PaymentModal } from '@/components/folio/PaymentModal';
 import { VoidTransactionModal } from '@/components/folio/VoidTransactionModal';
+import { RefundFolioModal } from '@/components/folio/RefundFolioModal';
 import type { FolioSummary, RestaurantOrder, Service } from '@/components/folio/types';
 
 export default function FolioPage() {
@@ -23,7 +25,6 @@ export default function FolioPage() {
   const [bookingId, setBookingId] = useState(initialBookingId || '');
   const [folio, setFolio] = useState<FolioSummary | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [liveBookingId, setLiveBookingId] = useState(initialBookingId || '');
 
   const [showAddCharge, setShowAddCharge] = useState(false);
@@ -32,6 +33,7 @@ export default function FolioPage() {
   const [showRestaurantOrders, setShowRestaurantOrders] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const [voidTarget, setVoidTarget] = useState<{ id: string; description: string; amount: number } | null>(null);
@@ -40,22 +42,22 @@ export default function FolioPage() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
 
-  async function fetchFolio() {
-    if (!bookingId) return;
+  async function fetchFolio(bookingIdParam?: string) {
+    const targetId = bookingIdParam || bookingId;
+    if (!targetId) return;
     setLoading(true);
-    setError('');
-    setLiveBookingId(bookingId);
+    setLiveBookingId(targetId);
     try {
-      const res = await apiGet(`/api/admin/bookings/${bookingId}`);
+      const res = await apiGet(`/api/admin/bookings/${targetId}`);
       if (res.success && res.data.folio) {
         const folioRes = await apiGet(`/api/folio/${res.data.folio.id}`);
         if (folioRes.success) setFolio(folioRes.data);
-        else setError('لا توجد فاتورة لهذا الحجز');
+        else showErrorModal('لا توجد فاتورة لهذا الحجز');
       } else {
-        setError('لا توجد فاتورة لهذا الحجز');
+        showErrorModal('لا توجد فاتورة لهذا الحجز');
       }
     } catch {
-      setError('فشل الاتصال');
+      showErrorModal('فشل الاتصال');
     } finally {
       setLoading(false);
     }
@@ -138,7 +140,7 @@ export default function FolioPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setError(e.message);
+      showErrorModal(e.message);
     } finally {
       setPdfLoading(false);
     }
@@ -169,11 +171,9 @@ export default function FolioPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <FolioSearch onSearch={(id) => { setBookingId(id); fetchFolio(); }} />
+        <FolioSearch onSearch={(id) => { setBookingId(id); fetchFolio(id); }} />
         <FolioSummaryCard folio={folio} />
       </div>
-
-      {error && <div className="bg-[rgba(231,76,60,0.1)] text-[var(--red)] text-sm p-3 rounded-lg mb-6">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -195,6 +195,7 @@ export default function FolioPage() {
           onShowRestaurantOrders={() => setShowRestaurantOrders(true)}
           onDownloadPdf={downloadPdf}
           onVoidTransaction={(id, description, amount) => setVoidTarget({ id, description, amount })}
+          onRefund={() => setShowRefund(true)}
         />
       ) : !initialBookingId ? (
         <EmptyState icon="💰" title="ابحث عن فاتورة" description="أدخل رقم الحجز للبحث عن الفاتورة" />
@@ -212,6 +213,10 @@ export default function FolioPage() {
       )}
 
       <VoidTransactionModal open={!!voidTarget} transaction={voidTarget} onClose={() => setVoidTarget(null)} onVoid={voidTransaction} />
+
+      {folio && (
+        <RefundFolioModal open={showRefund} folio={folio} onClose={() => setShowRefund(false)} onSaved={fetchFolio} />
+      )}
     </div>
   );
 }

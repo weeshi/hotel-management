@@ -54,7 +54,7 @@ async function postHandler(request: NextRequest) {
     let totalAmount = 0;
     const itemsData = await Promise.all(
       body.items.map(async (item: any) => {
-        const menuItem = await prisma.menuItem.findUnique({ where: { id: item.menuItemId } });
+        const menuItem = await prisma.menuItem.findFirst({ where: { id: item.menuItemId, hotelId: user.hotelId } });
         if (!menuItem) throw new Error(`MenuItem ${item.menuItemId} not found`);
         const price = menuItem.price;
         totalAmount += price * item.quantity;
@@ -66,6 +66,14 @@ async function postHandler(request: NextRequest) {
         };
       })
     );
+
+    if (body.bookingId) {
+      const linkedBooking = await prisma.booking.findFirst({
+        where: { id: body.bookingId, hotelId: user.hotelId },
+        select: { id: true },
+      });
+      if (!linkedBooking) return errorResponse('الحجز غير موجود', 404);
+    }
 
     const order = await prisma.restaurantOrder.create({
       data: {
@@ -89,7 +97,7 @@ async function postHandler(request: NextRequest) {
 
     // Auto-charge to folio if linked to a booking with active folio
     if (body.bookingId) {
-      const folio = await prisma.folio.findUnique({ where: { bookingId: body.bookingId } });
+      const folio = await prisma.folio.findFirst({ where: { bookingId: body.bookingId, booking: { hotelId: user.hotelId } } });
       if (folio && folio.status === 'ACTIVE') {
         await folioRepo.addTransaction(folio.id, {
           type: 'CHARGE',

@@ -5,5 +5,7 @@ export { GuestService } from './guest.service';
 export { PricingService } from './pricing.service';
 export { WalletService } from './wallet.service';
 export { RestaurantOrderService } from './restaurant-order.service';
+export { GroupBookingService } from './group-booking.service';
+export { InvitationService } from './invitation.service';
 export { createAuditLog } from './audit.service';
 export { createNotification } from './notification.service';

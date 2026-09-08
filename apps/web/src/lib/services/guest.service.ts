@@ -9,7 +9,7 @@ export class GuestService {
   async list(params: {
     query?: string;
     nationality?: string;
-    hotelId?: string;
+    hotelId: string;
     page?: number;
     limit?: number;
     sortBy?: string;
@@ -26,12 +26,12 @@ export class GuestService {
     return result;
   }
 
-  async quickSearch(query: string) {
+  async quickSearch(query: string, hotelId: string) {
     if (!query || query.length < 2) return [];
-    return guestRepo.quickSearch(query);
+    return guestRepo.quickSearch(query, hotelId);
   }
 
-  async getById(id: string, hotelId?: string) {
+  async getById(id: string, hotelId: string) {
     const guest = await guestRepo.findByIdWithRelations(id, hotelId);
     if (!guest) throw new NotFoundError('النزيل غير موجود');
     return {
@@ -49,7 +49,8 @@ export class GuestService {
     nationality?: string;
     idNumber?: string;
     notes?: string;
-  }) {
+    idDocumentUrl?: string;
+  }, hotelId: string) {
     const sanitized = {
       name: data.name,
       email: data.email?.trim() || undefined,
@@ -58,38 +59,38 @@ export class GuestService {
       nationality: data.nationality?.trim() || undefined,
       idNumber: data.idNumber?.trim() || undefined,
       notes: data.notes?.trim() || undefined,
+      idDocumentUrl: data.idDocumentUrl?.trim() || undefined,
+      hotelId,
     };
 
-    console.log('[GuestService.create] input:', JSON.stringify(data));
     if (sanitized.email) {
-      const existing = await guestRepo.findByEmail(sanitized.email);
+      const existing = await guestRepo.findByEmail(sanitized.email, hotelId);
       if (existing) throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
     }
     if (sanitized.phone) {
-      const existing = await prisma.guest.findFirst({ where: { phone: sanitized.phone } });
+      const existing = await prisma.guest.findFirst({ where: { phone: sanitized.phone, hotelId } });
       if (existing) throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
     }
     if (sanitized.idNumber) {
-      const existing = await prisma.guest.findFirst({ where: { idNumber: sanitized.idNumber } });
+      const existing = await prisma.guest.findFirst({ where: { idNumber: sanitized.idNumber, hotelId } });
       if (existing) throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
     }
 
     try {
       const result = await guestRepo.create(sanitized);
-      console.log('[GuestService.create] result:', result ? 'OK' : 'null');
       return result;
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        const target = error.meta?.target?.[0];
-        if (target === 'phone') throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
-        if (target === 'idNumber') throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
-        if (target === 'email') throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
+        const target: string[] = error.meta?.target ?? [];
+        if (target.includes('phone')) throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
+        if (target.includes('idNumber')) throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
+        if (target.includes('email')) throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
       }
       throw error;
     }
   }
 
-  async update(id: string, data: {
+  async update(id: string, hotelId: string, data: {
     name?: string;
     email?: string;
     phone?: string;
@@ -98,6 +99,7 @@ export class GuestService {
     idNumber?: string;
     notes?: string;
     allowCredit?: boolean;
+    idDocumentUrl?: string;
   }) {
     const sanitized: Record<string, any> = {
       ...data,
@@ -109,20 +111,21 @@ export class GuestService {
       notes: data.notes?.trim() || undefined,
     };
     if (data.allowCredit === undefined) delete sanitized.allowCredit;
+    if (data.idDocumentUrl !== undefined) sanitized.idDocumentUrl = data.idDocumentUrl || undefined;
 
-    const guest = await guestRepo.findById(id);
+    const guest = await guestRepo.findByHotel(id, hotelId);
     if (!guest) throw new NotFoundError('النزيل غير موجود');
 
     if (sanitized.email && sanitized.email !== guest.email) {
-      const existing = await guestRepo.findByEmail(sanitized.email);
+      const existing = await guestRepo.findByEmail(sanitized.email, hotelId);
       if (existing) throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
     }
     if (sanitized.phone && sanitized.phone !== guest.phone) {
-      const existing = await prisma.guest.findFirst({ where: { phone: sanitized.phone } });
+      const existing = await prisma.guest.findFirst({ where: { phone: sanitized.phone, hotelId } });
       if (existing) throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
     }
     if (sanitized.idNumber && sanitized.idNumber !== guest.idNumber) {
-      const existing = await prisma.guest.findFirst({ where: { idNumber: sanitized.idNumber } });
+      const existing = await prisma.guest.findFirst({ where: { idNumber: sanitized.idNumber, hotelId } });
       if (existing) throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
     }
 
@@ -130,24 +133,24 @@ export class GuestService {
       return guestRepo.update(id, sanitized);
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        const target = error.meta?.target?.[0];
-        if (target === 'phone') throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
-        if (target === 'idNumber') throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
-        if (target === 'email') throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
+        const target: string[] = error.meta?.target ?? [];
+        if (target.includes('phone')) throw new ValidationError('رقم الهاتف مستخدم بالفعل، يرجى إدخال رقم مختلف');
+        if (target.includes('idNumber')) throw new ValidationError('رقم الهوية مستخدم بالفعل، يرجى إدخال رقم مختلف');
+        if (target.includes('email')) throw new ValidationError('البريد الإلكتروني مستخدم بالفعل، يرجى إدخال بريد مختلف');
       }
       throw error;
     }
   }
 
-  async remove(id: string) {
-    const guest = await guestRepo.findById(id);
+  async remove(id: string, hotelId: string) {
+    const guest = await guestRepo.findByHotel(id, hotelId);
     if (!guest) throw new NotFoundError('النزيل غير موجود');
 
     const activeStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
-    const hasActiveBookings = guest.bookings?.some(
-      (b: any) => activeStatuses.includes(b.status)
-    );
-    if (hasActiveBookings) {
+    const activeBookings = await prisma.booking.count({
+      where: { guestId: id, hotelId, status: { in: activeStatuses } },
+    });
+    if (activeBookings > 0) {
       throw new ValidationError('لا يمكن حذف نزيل لديه حجوزات نشطة');
     }
 
@@ -155,7 +158,7 @@ export class GuestService {
   }
 
   async getWallet(guestId: string, hotelId: string) {
-    const guest = await guestRepo.findById(guestId);
+    const guest = await guestRepo.findByHotel(guestId, hotelId);
     if (!guest) throw new NotFoundError('النزيل غير موجود');
 
     let wallet = await prisma.wallet.findUnique({
@@ -173,11 +176,12 @@ export class GuestService {
     return wallet;
   }
 
-  async getFolios(guestId: string) {
-    const guest = await prisma.guest.findUnique({
-      where: { id: guestId },
+  async getFolios(guestId: string, hotelId: string) {
+    const guest = await prisma.guest.findFirst({
+      where: { id: guestId, hotelId },
       include: {
         bookings: {
+          where: { hotelId },
           include: {
             folio: {
               include: {
@@ -209,16 +213,16 @@ export class GuestService {
     name: string;
     email?: string;
     phone?: string;
-  }) {
+  }, hotelId: string) {
     if (data.email) {
-      const existing = await guestRepo.findByEmail(data.email);
+      const existing = await guestRepo.findByEmail(data.email, hotelId);
       if (existing) return existing;
     }
     if (data.phone) {
-      const existing = await prisma.guest.findFirst({ where: { phone: data.phone } });
+      const existing = await prisma.guest.findFirst({ where: { phone: data.phone, hotelId } });
       if (existing) return existing;
     }
 
-    return guestRepo.create({ name: data.name, email: data.email, phone: data.phone });
+    return guestRepo.create({ name: data.name, email: data.email, phone: data.phone, hotelId });
   }
 }

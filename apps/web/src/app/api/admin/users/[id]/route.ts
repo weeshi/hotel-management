@@ -8,6 +8,7 @@ import { createAuditLog } from '@/lib/services';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const currentUser = (request as any).user;
     const body = await request.json();
     const data: any = {};
 
@@ -16,13 +17,18 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     if (body.role) data.role = body.role;
     if (body.password) data.password = await hashPassword(body.password);
 
-    const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+    const result = await prisma.user.updateMany({
+      where: { id: params.id, hotelId: currentUser.hotelId },
       data,
+    });
+    if (result.count === 0) return errorResponse('المستخدم غير موجود', 404);
+
+    const updatedUser = await prisma.user.findFirst({
+      where: { id: params.id, hotelId: currentUser.hotelId },
       select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
     });
+    if (!updatedUser) return errorResponse('المستخدم غير موجود', 404);
 
-    const currentUser = (request as any).user;
     createAuditLog({
       hotelId: currentUser.hotelId,
       userId: currentUser.userId,
@@ -43,7 +49,9 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 async function patchHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const currentUser = (request as any).user;
-    const user = await prisma.user.findUnique({ where: { id: params.id } });
+    const user = await prisma.user.findFirst({
+      where: { id: params.id, hotelId: currentUser.hotelId },
+    });
     if (!user) return errorResponse('المستخدم غير موجود', 404);
 
     const updated = await prisma.user.update({

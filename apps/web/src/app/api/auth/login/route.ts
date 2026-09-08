@@ -3,6 +3,7 @@ import { AuthService } from '@/lib/services/auth.service';
 import { loginSchema } from '@hotel/shared';
 import { errorResponse } from '@/lib/utils/api-response';
 import { ZodError } from 'zod';
+import { resolveTenantFromRequest } from '@/lib/utils/tenant';
 
 const authService = new AuthService();
 
@@ -11,7 +12,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = loginSchema.parse(body);
 
-    const result = await authService.login(validated.email, validated.password);
+    // When the request host matches a hotel customDomain, the login is locked
+    // to that tenant so only that hotel's users can authenticate there.
+    const tenant = await resolveTenantFromRequest(request);
+    const result = await authService.login(
+      validated.email,
+      validated.password,
+      tenant?.id
+    );
 
     const response = NextResponse.json({
       success: true,
@@ -39,8 +47,8 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error: any) {
     if (error instanceof ZodError) {
-      return errorResponse(error.errors.map(e => e.message).join('طŒ '), 422);
+      return errorResponse(error.errors.map(e => e.message).join('، '), 422);
     }
-    return errorResponse(error.message || 'ظپط´ظ„ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„', error.statusCode || 400);
+    return errorResponse(error.message || 'فشل تسجيل الدخول', error.statusCode || 400);
   }
 }

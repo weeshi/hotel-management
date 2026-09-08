@@ -46,8 +46,8 @@ export async function createNotification(params: CreateNotificationParams) {
 
 export async function sendBookingNotification(params: SendBookingNotificationParams) {
   if (!params.guestEmail && !params.guestName) {
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.bookingId },
+    const booking = await prisma.booking.findFirst({
+      where: { id: params.bookingId, hotelId: params.hotelId },
       select: { guestEmail: true, guestName: true },
     });
     if (!booking) return;

@@ -21,7 +21,8 @@ function sanitizeError(error: any) {
 
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const folios = await guestService.getFolios(params.id);
+    const user = (request as any).user;
+    const folios = await guestService.getFolios(params.id, user.hotelId);
 
     return successResponse(folios);
   } catch (error: any) {
@@ -31,6 +32,7 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
 
 async function postHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
     const { bookingId } = body;
 
@@ -38,7 +40,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
       return errorResponse('معرف الحجز مطلوب', 400);
     }
 
-    const summary = await folioService.getFolioSummary(bookingId);
+    const summary = await folioService.getFolioSummary(bookingId, user.hotelId);
 
     return successResponse(summary, 201);
   } catch (error: any) {

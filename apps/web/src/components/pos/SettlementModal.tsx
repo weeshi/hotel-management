@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, Button } from '@/components/ui';
+import { showErrorModal } from '@/components/ui/error-modal';
 import type { RestaurantOrder } from './types';
 
 interface Props {
@@ -20,7 +21,6 @@ const METHODS = [
 export function SettlementModal({ open, order, onClose, onSettle }: Props) {
   const [method, setMethod] = useState<'WALLET' | 'CASH' | 'POS'>('CASH');
   const [settling, setSettling] = useState(false);
-  const [error, setError] = useState('');
 
   if (!order) return null;
   const ord = order;
@@ -31,12 +31,11 @@ export function SettlementModal({ open, order, onClose, onSettle }: Props) {
   async function handleSettle() {
     if (!canSettle) return;
     setSettling(true);
-    setError('');
     try {
       await onSettle(ord.id, method);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'فشلت تسوية الطلب');
+      showErrorModal(err.message || 'فشلت تسوية الطلب');
     } finally {
       setSettling(false);
     }
@@ -95,10 +94,6 @@ export function SettlementModal({ open, order, onClose, onSettle }: Props) {
           <div className="text-xs text-[var(--blue)] bg-blue-500/10 p-2 rounded-lg">
             سيتم خصم المبلغ من محفظة النزيل الإلكترونية وإضافته إلى كشف حساب الغرفة.
           </div>
-        )}
-
-        {error && (
-          <div className="text-xs text-[var(--red)] bg-red-500/10 p-2 rounded-lg">{error}</div>
         )}
 
         <div className="flex gap-2 justify-end pt-2">

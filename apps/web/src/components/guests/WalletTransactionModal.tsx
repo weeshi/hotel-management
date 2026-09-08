@@ -7,9 +7,8 @@ import { useAuth } from '@/contexts/auth-context';
 
 const PAYMENT_METHODS = [
   { value: 'CASH', label: '💰 نقداً' },
-  { value: 'TRANSFER', label: '🏦 حوالة بنكية' },
   { value: 'CARD', label: '💳 بطاقة' },
-  { value: 'CHEQUE', label: '📝 شيك' },
+  { value: 'BANK_TRANSFER', label: '🏦 حوالة بنكية' },
 ];
 
 const RECEPTION_LIMIT = 500;

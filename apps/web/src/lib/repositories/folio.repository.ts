@@ -6,9 +6,9 @@ export class FolioRepository extends BaseRepository<any> {
     super(prisma.folio as any);
   }
 
-  async findByBookingId(bookingId: string) {
-    return prisma.folio.findUnique({
-      where: { bookingId },
+  async findByBookingId(bookingId: string, hotelId?: string) {
+    return prisma.folio.findFirst({
+      where: { bookingId, ...(hotelId ? { booking: { hotelId } } : {}) },
       include: {
         transactions: {
           include: { createdBy: true },
@@ -128,12 +128,12 @@ export class FolioRepository extends BaseRepository<any> {
         const chargeDate = new Date(room.checkIn);
         chargeDate.setDate(chargeDate.getDate() + i);
 
-        charges.push({
-          folioId,
-          description: `إيجار ${room.room.roomNumber} - ${chargeDate.toLocaleDateString('ar-LY')}`,
-          amount: room.nightlyRate,
-          chargeDate,
-        });
+charges.push({
+            folioId,
+            description: `إيجار ${room.room?.roomNumber ?? 'غير محدد'} - ${chargeDate.toLocaleDateString('ar-LY')}`,
+            amount: room.nightlyRate,
+            chargeDate,
+          });
       }
     }
 

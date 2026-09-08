@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Input, EmptyState } from '@/components/ui';
+import { showErrorModal } from '@/components/ui/error-modal';
 import { getCsrfToken, csrfHeaders } from '@/lib/utils/csrf';
 import { BookingCard } from '@/components/checkin/BookingCard';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
+import { CheckInPaymentModal } from '@/components/checkin/CheckInPaymentModal';
 import { CheckoutModal } from '@/components/checkin/CheckoutModal';
 import { CancelModal } from '@/components/checkin/CancelModal';
 import { EditBookingModal } from '@/components/checkin/EditBookingModal';
+import { MoveRoomModal } from '@/components/checkin/MoveRoomModal';
+import { ExtendStayModal } from '@/components/checkin/ExtendStayModal';
 import type { Booking, FolioData } from '@/components/checkin/types';
 
 export default function CheckInOutPage() {
@@ -23,6 +27,8 @@ export default function CheckInOutPage() {
   const [actionBooking, setActionBooking] = useState<Booking | null>(null);
   const [actionType, setActionType] = useState<'checkin' | 'checkout' | 'cancel' | null>(null);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [moveBooking, setMoveBooking] = useState<Booking | null>(null);
+  const [extendBooking, setExtendBooking] = useState<Booking | null>(null);
   const [folioData, setFolioData] = useState<FolioData | null>(null);
 
   async function fetchBookings() {
@@ -72,20 +78,22 @@ export default function CheckInOutPage() {
     ? bookings.filter(b => (b.guestName || '').includes(search) || b.bookingNo.includes(search) || b.rooms?.some(r => r.room.roomNumber.includes(search)))
     : bookings;
 
-  async function handleCheckin(bookingId: string) {
+  async function handleCheckin(bookingId: string, payment?: { method: string; amount: number }) {
     await getCsrfToken();
-    try {
-      const res = await fetch(`/api/admin/bookings/${bookingId}/checkin`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
-      });
-      const data = await res.json();
-      if (data.success) {
-        closeAction();
-        fetchBookings();
-        router.push(`/reception/folio?bookingId=${bookingId}`);
-      }
-    } catch {}
+    const res = await fetch(`/api/admin/bookings/${bookingId}/checkin`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
+      body: JSON.stringify({ payment }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'فشل تسجيل الدخول');
+    closeAction();
+    fetchBookings();
+    router.push(`/reception/folio?bookingId=${bookingId}`);
+  }
+
+  async function handleSkipCheckin(bookingId: string) {
+    await handleCheckin(bookingId);
   }
 
   async function handleCheckout(bookingId: string, payment?: { method: string; amount: number }, action?: string) {
@@ -103,17 +111,25 @@ export default function CheckInOutPage() {
       if (data.success) {
         closeAction();
         fetchBookings();
+        const folioBalance = data.data?.folioBalance;
+        if (folioBalance < 0) {
+          const absBalance = Math.abs(folioBalance).toFixed(2);
+          showErrorModal(
+            `⚠️ تنبيه هام: يوجد رصيد مستحق للنزيل بقيمة ${absBalance} د.ل. جاري تحويلك للفاتورة لتسويته فوراً.`
+          );
+        }
         router.push(`/reception/folio?bookingId=${bookingId}`);
       }
     } catch {}
   }
 
-  async function handleCancel(bookingId: string) {
+  async function handleCancel(bookingId: string, options?: { reason?: string; waivePenalty?: boolean; noShow?: boolean }) {
     await getCsrfToken();
     try {
       const res = await fetch(`/api/admin/bookings/${bookingId}/cancel`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json', ...csrfHeaders() },
+        body: JSON.stringify(options || {}),
       });
       const data = await res.json();
       if (data.success) { closeAction(); fetchBookings(); }
@@ -182,16 +198,19 @@ export default function CheckInOutPage() {
         <div className="space-y-3">
           {filtered.map((booking) => (
             <BookingCard key={booking.id} booking={booking} tab={tab} highlight={booking.id === highlightBookingId}
-              onCheckin={openCheckin} onCheckout={openCheckout} onCancel={openCancel} onEdit={setEditBooking} />
+              onCheckin={openCheckin} onCheckout={openCheckout} onCancel={openCancel} onEdit={setEditBooking}
+              onMoveRoom={(b) => setMoveBooking(b)} onExtendStay={(b) => setExtendBooking(b)} />
           ))}
         </div>
       )}
 
-      <CheckinModal open={actionType === 'checkin'} booking={actionBooking} onConfirm={handleCheckin} onClose={closeAction} />
+      <CheckInPaymentModal open={actionType === 'checkin'} booking={actionBooking} onConfirm={handleCheckin} onSkipPayment={handleSkipCheckin} onClose={closeAction} />
       <CheckoutModal open={actionType === 'checkout'} booking={actionBooking} folioData={folioData}
         onConfirm={handleCheckout} onClose={closeAction} onFetchWallet={fetchWalletBalance} />
       <CancelModal open={actionType === 'cancel'} booking={actionBooking} onConfirm={handleCancel} onClose={closeAction} />
-      <EditBookingModal open={!!editBooking} booking={editBooking} onClose={() => setEditBooking(null)} onSaved={fetchBookings} />
+      <EditBookingModal open={!!editBooking} booking={editBooking} onClose={() => setEditBooking(null)} onSaved={fetchBookings} onMoveRoom={(b) => { setEditBooking(null); setMoveBooking(b); }} />
+      <MoveRoomModal open={!!moveBooking} booking={moveBooking} onClose={() => setMoveBooking(null)} onSaved={fetchBookings} />
+      <ExtendStayModal open={!!extendBooking} booking={extendBooking} onClose={() => setExtendBooking(null)} onSaved={fetchBookings} />
     </div>
   );
 }
