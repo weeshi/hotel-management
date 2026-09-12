@@ -49,7 +49,7 @@ cd D:\ERP-Projects\hotel-management
 docker compose up -d
 ```
 - `postgres` → المنفذ `5432` (مستخدم `hotel`, كلمة سر `hotel_dev_2026`, قاعدة `hotel_management`)
-- `redis` → `6379` (اختياري، غير مستخدم فعليًا في الكود)
+- `redis` → `6379` (**مطلوب** لطوابير BullMQ)
 - `pgadmin` → `5050` (يتطلب `docker compose --profile dev up -d`)
 
 **تحقق أن postgres جاهز:**
@@ -107,6 +107,12 @@ npx prisma db seed
 npm run dev
 ```
 ثم افتح المتصفح على: **http://localhost:3210**
+
+**تشغيل عامل BullMQ (في نافذة PowerShell منفصلة):**
+```powershell
+npm run worker:cm
+```
+هذا يشغّل العامل الوحيد الذي يعالج طوابير التوفر/النشر/الحجوزات/الأسعار/المطابقة.
 
 **وضع الإنتاج:**
 ```powershell

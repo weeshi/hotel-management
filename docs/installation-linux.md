@@ -47,8 +47,11 @@ sudo usermod -aG docker $USER   # ثم سجّل الخروج/الدخول من �
 ```bash
 docker compose up -d
 ```
+يُشغّل PostgreSQL (5432) و **Redis (6379 — مطلوب لـ BullMQ)**.
 
 **الخيار B — PostgreSQL حرفي (بدون Docker):**
+
+...
 
 Ubuntu/Debian:
 ```bash
@@ -117,6 +120,11 @@ cd /path/to/hotel-management
 npm run dev
 ```
 
+**تشغيل عامل BullMQ (في ترمينال منفصل):**
+```bash
+npm run worker:cm
+```
+
 **وضع الإنتاج:**
 ```bash
 npm run build
@@ -135,13 +143,14 @@ npm run lint
 
 ---
 
-## 8) (اختياري) تشغيل كلسكرين الموجودة في الخلفية بـ systemd
+## 8) (اختياري) تشغيل الخدمات في الخلفية بـ systemd
 
+**الويب:**
 أنشئ `/etc/systemd/system/hotel-web.service`:
 ```ini
 [Unit]
 Description=Hotel Management Web
-After=network.target postgresql.service
+After=network.target postgresql.service redis.service
 
 [Service]
 WorkingDirectory=/path/to/hotel-management
@@ -152,11 +161,31 @@ Environment=NODE_ENV=production
 [Install]
 WantedBy=multi-user.target
 ```
+
+**عامل BullMQ:**
+أنشئ `/etc/systemd/system/hotel-worker.service`:
+```ini
+[Unit]
+Description=Hotel Management BullMQ Worker
+After=network.target redis.service
+
+[Service]
+WorkingDirectory=/path/to/hotel-management
+ExecStart=/usr/bin/npm run worker:cm
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=REDIS_URL=redis://:hotel_redis_2026@localhost:6379
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ثم:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now hotel-web
-sudo systemctl status hotel-web
+sudo systemctl enable --now hotel-web hotel-worker
+sudo systemctl status hotel-web hotel-worker
 ```
 
 ---

@@ -2,9 +2,9 @@
 
 منصة متكاملة لإدارة الفنادق مع حجوزات، محفظة نقدية (Wallet)، فوترة فندقية (Folio Billing)، دفتر Ledger مفكوك (Decoupled PMS Ledger) مع حقن الحجوزات الخارجية، صندوق أمانات (Safe Deposit)، مطعم (POS)، تدبير منزلي (Housekeeping)، مكتب مفقودات (Lost & Found)، حجوزات مجموعات (Group Bookings)، Tape Chart تفاعلي، محرك مالي متكامل، و API للربط مع المنظومات العالمية.
 
-> **الفرع الحالي:** `fix/qa-round-1`
+> **الفرع الحالي:** `feature/channel-manager-integration`
 > **البوابة:** `http://localhost:3210`
-> **قاعدة البيانات:** PostgreSQL `localhost:5432/hotel_management`
+> **قاعدة البيانات:** PostgreSQL `localhost:5432/hotel_management` + Redis `localhost:6379`
 
 ---
 
@@ -15,7 +15,7 @@
 - Docker Desktop
 - npm 10+
 
-### 1. تشغيل قاعدة البيانات
+### 1. تشغيل قواعد البيانات
 ```bash
 docker compose up -d
 ```
@@ -39,6 +39,12 @@ npm run dev
 ```
 يفتح على: **http://localhost:3210**
 
+### 5. تشغيل Worker غير المتزامن (اختياري للتطوير)
+```bash
+npm run worker:cm
+```
+يُشغّل عامل BullMQ الوحيد الذي يستهلك جميع طوابير `cm-*` على `localhost:6379`.
+
 ### أوامر مفيدة
 | الأمر | الوصف |
 |-------|--------|
@@ -49,6 +55,8 @@ npm run dev
 | `npm run lint` | فحص الكود (ESLint) |
 | `npm run db:studio` | فتح Prisma Studio |
 | `npm run db:migrate` | إنشاء ترحيل جديد لقاعدة البيانات |
+| `npm run worker:cm` | تشغيل عامل BullMQ الوحيد (pqueues `cm-*`) |
+| `npm run worker:dev` | تشغيل Worker + web معاً (محلياً عبر tsx) |
 
 ### حسابات الاختبار
 | البريد | كلمة المرور | الصلاحية |
@@ -101,17 +109,19 @@ hotel-management/
 │   │   ├── hooks/               ← Custom Hooks
 │   │   ├── lib/
 │   │   │   ├── integrations/     ← محوّلات حقن الحجز الخارجي (normalizers)
-│   │   │   ├── queue/            ← طابور المهام
+│   │   │   ├── queue/            ← طابور المهام (BullMQ: redis.ts, bullmq.ts)
 │   │   │   ├── repositories/     ← طبقة الوصول للبيانات (3)
 │   │   │   ├── services/         ← منطق الأعمال (16)
 │   │   │   └── utils/            ← أدوات مساعدة (CSRF, Toast, API Client)
 │   │   ├── middlewares/         ← Auth, CSRF, Rate Limit, External-Auth, Validate
-│   │   └── middleware.ts        ← Next.js Edge Middleware
+│   │   ├── middleware.ts        ← Next.js Edge Middleware
+│   │   └── workers/             ← عمال BullMQ (index.ts, queue.ts, jobs/*.job.ts)
 │   └── tests/
 │       ├── unit/                ← 4 ملفات اختبار وحدة
 │       └── integration/         ← 14 ملف اختبار تكامل
 ├── packages/shared/             ← أنواع مشتركة + Zod schemas + Enums + Permissions
 ├── docker-compose.yml           ← PostgreSQL + Redis
+├── railway.toml                 ← نشر Railway (web + worker-cm)
 └── package.json                 ← Monorepo (npm workspaces)
 ```
 
@@ -128,7 +138,10 @@ Service Layer (منطق الأعمال — $transaction لضمان الذرية)
     ↓
 Repository Layer (Prisma ORM — فصل تام عن منطق الأعمال)
     ↓
-PostgreSQL + Redis (تخزين مؤقت)
+PostgreSQL + Redis (تخزين مؤقت + طوابير BullMQ)
+    ↓
+Worker Service (cm-availability-snapshot, cm-availability-publish,
+                cm-booking-ingest, cm-rates-push, cm-inventory-reconcile)
 ```
 
 ### المبادئ المعمارية
@@ -234,8 +247,10 @@ PostgreSQL + Redis (تخزين مؤقت)
 - صندوق أمانات
 - تصدير + مشاركة
 
-### 🔌 التكامل الخارجي — Decoupled PMS Ledger
+### 🔌 التكامل الخارجي — Decoupled PMS Ledger + Channel Manager
 > **v8:** الـ PMS لا يتصل بأي بوابة دفع خارجية. محركات الحجز (Booking.com، Expedia، الموقع الإلكتروني) تجمع المدفوعات بنفسها ثم تحقن الحجوزات المؤكدة + سجل المدفوعات عبر API آمن. الاستقبال يتحقق بصرياً من التحويلات ويسجّل المدفوعات يدوياً.
+>
+> **v8.4 (Sprint 2 + Phase 0/1):** تم إضافة **Channel Manager** مع مدير القنوات (`ChannelManagerService`) ونماذج `ChannelProvider`/`ChannelMapping`/`ChannelPriceSnapshot`. يتم بناء لقطات التوفر/الأسعار (`buildAvailabilitySnapshot`) وتخزينها، ثم نشرها إلى OTAs عبر طابور `cm-availability-publish` (مُعالج `pushToOTA` — قيد التنفيذ في Phase 2). الحجوزات الواردة من OTAs تُستقبل عبر `POST /api/external/channel/[provider]/bookings` مع Idempotency عبر `externalRef` + `@@unique([hotelId, externalRef])`. لوحة المراقبة `/admin/queues` (Bull Board) متاحة لـ SUPER_ADMIN فقط.
 
 | المكوّن | الوصف |
 |---------|--------|
@@ -244,6 +259,9 @@ PostgreSQL + Redis (تخزين مؤقت)
 | دفتر Idempotency | `GatewayWebhook` بـ `@@unique([provider, hotelId, eventId])` — إعادة الإرسال تُجاب `duplicate:true` |
 | `/admin/integrations` | إدارة المحركات (Booking.com / Expedia / Website / Custom) + توليد/تدوير المفتاح (يُعرض مرة واحدة) |
 | `payments/create` | تسجيل يدوي SUCCEEDED لأي طريقة (نقدي، موبي كاش، ...) — بلا فرع بوابة |
+| **Channel Manager APIs** | **Sprint 2:** `GET/POST /api/admin/channel-manager/mappings`, `PATCH /api/admin/channel-manager/mappings/[id]`, `GET /api/admin/channel-manager/preview`, `POST /api/admin/channel-manager/publish` (202 — enqueues pushToOTA jobs) |
+| **Inbound OTA Webhook** | `POST /api/external/channel/[provider]/bookings` (تحويل فوري إلى job `cm-booking-ingest`) |
+| **Bull Board Dashboard** | `/admin/queues` (Hono + BullMQAdapter) — SUPER_ADMIN فقط، محمي بـ Cookie |
 
 ### طرق الدفع المسجّلة في الـ Ledger
 | الطريقة | الحالة |
@@ -345,11 +363,16 @@ PostgreSQL + Redis (تخزين مؤقت)
 
 ### المرحلة 6 — التكامل الخارجي (External Integration) 🔄
 - [x] **v8 Decoupled PMS Ledger:** حقن الحجوزات الخارجية عبر `POST /api/integrations/[engine]/bookings` بمفاتيح لكل فندق + دفتر Idempotency + صفحة `/admin/integrations` (إزالة البوابات الخارجة نهائياً)
-- [ ] Channel Manager API (توزيع الغرف على OTAs)
+- [x] **Channel Manager API (Sprint 2):** نماذج `ChannelProvider`/`ChannelMapping`/`ChannelPriceSnapshot`، بناء اللقطات (Availability Snapshots)، المعاينة/النشر غير المتزامن، Webhook الوارد `external/channel/[provider]/bookings`، لوحة Bull Board للمراقبة
 - [ ] تكامل محاسبي (Integration with accounting systems)
 - [ ] PMS API للربط مع الأنظمة العالمية
 - [ ] نظام الحجوزات الجماعية (Wholesale / Travel Agents)
 - [ ] تطبيق موبايل (React Native)
+
+### المرحلة 9 — المهام غير المتزامنة (Async Job Processing) 🔄
+- [x] **Phase 0 — BullMQ Foundation:** Redis + 5 طوابير `cm-*` + عامل واحد + JobScheduler (02:00/03:00) + healthcheck
+- [x] **Phase 1 — Bull Board + Async Publish:** `/admin/queues` مراقب، publish يرسل jobs ويعيد 202
+- [ ] **Phase 2 — Real Job Processors:** buildSnapshot, pushToOTA (w/ Retry-After), processInboundBooking, pushRatePlan, reconcileInventory
 
 ### المرحلة 7 — الذكاء والإحصائيات (Analytics & AI) 📅
 - [ ] لوحة تحليلات متقدمة (Power BI / Metabase)
@@ -630,6 +653,7 @@ tests/
 
 | التاريخ | الإصدار | أبرز التغييرات |
 |---------|---------|----------------|
+| 2026-09-12 | v8.4 | **Sprint 2 (Channel Manager) + Phase 0/1 BullMQ:** نماذج `ChannelProvider`/`ChannelMapping`/`ChannelPriceSnapshot`، `ChannelManagerService` (build/store/ingest)، APIs إدارة الخرائط/المعاينة/النشر (202)، Webhook وارد `external/channel/[provider]/bookings` (idempotent)، لوحة الإدارة `/admin/channel-manager`. **Phase 0:** bullmq@6.3.4 + ioredis@6، 5 طوابير `cm-*`، عامل واحد `worker-cm`، JobScheduler (02:00/03:00)، healthcheck endpoint، docker-compose + railway.toml. **Phase 1:** Bull Board على `/admin/queues` (Hono + cookie SUPER_AUTH)، publish يرسل pushToOTA jobs، timezone-safe date formatting، typecheck + 240/240 أخضر. |
 | 2026-08-06 | v8.3 | **المرحلة 3 — الحجز عبر الموقع (M0+M1+M2):** مهاجرة `BookingRoom_roomType_nullable_roomid` (إضافة `roomTypeId` + backfill + `roomId` اختياري + فهرس) + `RoomType.isWebVisible`/`webRoomLimit`/`webPrice` + حلّ المستأجر مع بديل محلي (localhost) في التطوير + إصلاح مفاتيح سياسات الإلغاء في البذرة + **محرك التوفر والتسعير للويب**: `GET /api/public/availability` بنوع الغرفة (حصة `min(webRoomLimit − PENDING، فيزيائية)` + تفصيل مالي عبر `computeWebPricing`) + `POST /api/public/bookings` يستقبل `roomTypeId` (لا `roomId`) ويحفظ لقطة مالية على `Booking` (`webTaxAmount`/`webFeesAmount`/`webDiscountAmount`/`webTotalAmount`) مع إشعار RECEPTION `BOOKING_REQUEST` + تحديث `RoomSelector`/`GuestForm`/`book` لبطاقات أنواع الغرف والحصة والتفصيل المالي (214 اختبار ✅) |
 | 2026-08-03 | v8.1 | **تدقيق شامل وإصلاحات Ledger/الدفع:** توحيد تعداد `PaymentMethod` بين Prisma والمشترك (`SADAD`, `TADAWUL`, `BANK_TRANSFER`, `CARD`, `POS`) — إصلاح فشل إيداع/سحب المحفظة بطرق CARD/حوالة (كانت تُرفض كقيم غير صالحة) + استبدال قيم `TRANSFER`/`CHEQUE` في واجهة المحفظة وملصقاتها (Modal, Table, إيصال PDF, تقارير) + عدّاد `BookingNumberCounter` ذرّي لـ `bookingNo` (إزالة سباق الأرقام المتكررة في الحقن المتزامن) + إكمال سجل الدفع في `checkIn` (`gateway`/`idempotencyKey`) + تخصيص الاسترداد تسلسلياً عبر مدفوعات متعددة في `cancelWithRefund` (منع الازدواج) (159 اختبار ✅) |
 | 2026-08-03 | v8 | **Decoupled PMS Ledger:** إزالة بوابات الدفع الخارجة نهائياً — `PaymentProviderConfig` → `IntegrationConfig` (مفاتيح مشفّرة AES-256-GCM لكل فندق) + حذف `lib/gateways/*` و `api/webhooks/[provider]` و `api/admin/payment-providers/*` + `POST /api/integrations/[engine]/bookings` (حقن حجز مؤكد + دفع SUCCEEDED + تسوية في معاملة واحدة مع دفتر Idempotency `GatewayWebhook`) + `middlewares/external-auth` + صفحة `/admin/integrations` (توليد/تدوير مفتاح) + `payments/create` أصبح تسجيلاً يدوياً (159 اختبار ✅) |
