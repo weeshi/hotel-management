@@ -33,3 +33,4 @@ apps/web/storage/
 
 # Credentials / API keys (NEVER commit)
 Google stitch (API KEY).txt
+apps/web/tsconfig.tsbuildinfo

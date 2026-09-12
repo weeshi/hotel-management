@@ -14,6 +14,9 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/superadmin/hotels', label: '🏨 الفنادق' },
       { href: '/superadmin/invitations', label: '📨 الدعوات' },
     ]},
+    { section: '⚙️ مراقبة الطوابير', items: [
+      { href: '/admin/queues', label: '📋 لوحة الطوابير (Bull Board)' },
+    ]},
   ],
   ADMIN: [
     { section: '🔝 تشغيل يومي', items: [

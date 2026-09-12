@@ -37,6 +37,10 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/superadmin') && payload.role !== 'SUPER_ADMIN') {
       return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
     }
+    // `/admin/queues` (Bull Board) is reserved for SUPER_ADMIN only
+    if (pathname.startsWith('/admin/queues') && payload.role !== 'SUPER_ADMIN') {
+      return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
+    }
   } catch {
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }

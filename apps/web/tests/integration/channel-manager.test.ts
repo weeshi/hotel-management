@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { Role } from '@hotel/shared';
 import { prisma, resetDb, seedTestData, closeDb } from '../helpers/db';
@@ -8,6 +8,17 @@ import { POST as mappingPOST, GET as mappingGET } from '@/app/api/admin/channel-
 import { GET as previewGET } from '@/app/api/admin/channel-manager/preview/route';
 import { POST as publishPOST } from '@/app/api/admin/channel-manager/publish/route';
 import { POST as inboundPOST } from '@/app/api/external/channel/[provider]/bookings/route';
+import { enqueuePublishJobs } from '@/workers/queue';
+
+vi.mock('@/workers/queue', () => ({
+  enqueuePublishJobs: vi.fn(),
+  formatLocalDate: (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  },
+}));
 
 let data: Awaited<ReturnType<typeof seedTestData>>;
 let superAdmin: { id: string };
@@ -143,7 +154,8 @@ describe('Channel Manager — availability preview / publish', () => {
     expect(dbl.available).toBe(1); // room102 AVAILABLE
   });
 
-  it('persists snapshots on publish', async () => {
+  it('enqueues pushToOTA jobs and returns 202 without synchronous persistence', async () => {
+    vi.mocked(enqueuePublishJobs).mockResolvedValueOnce({ mappings: 2, accepted: 4, skipped: 0 });
     const req = await authRequest(data.admin.id, 'ADMIN', {
       method: 'POST',
       headers: csrfHeaders('csrf-p-1'),
@@ -155,13 +167,27 @@ describe('Channel Manager — availability preview / publish', () => {
     });
     const res = await publishPOST(req, {});
     const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.data.published).toBe(4); // 2 types × 2 nights
+    expect(res.status).toBe(202);
+    expect(body.data).toMatchObject({
+      queued: true,
+      mappings: 2,
+      accepted: 4,
+      skipped: 0,
+      from: '2026-11-01',
+      to: '2026-11-03',
+    });
+    expect(enqueuePublishJobs).toHaveBeenCalledWith({
+      hotelId: data.hotel.id,
+      provider: 'BOOKING_COM',
+      from: new Date('2026-11-01T00:00:00'),
+      to: new Date('2026-11-03T00:00:00'),
+    });
 
+    // Publishing is async now: nothing is persisted synchronously.
     const count = await prisma.channelPriceSnapshot.count({
       where: { hotelId: data.hotel.id, provider: 'BOOKING_COM' },
     });
-    expect(count).toBe(4);
+    expect(count).toBe(0);
   });
 });
 
