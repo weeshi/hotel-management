@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button, Input } from '@/components/ui';
 import { apiGet } from '@/lib/utils/api-client';
-import { TapeChart } from '@/components/tape-chart';
+import { TapeChart, DailyRoomGrid } from '@/components/tape-chart';
 import type { TapeChartData } from '@/components/tape-chart/types';
+
+type ViewMode = 'tape-chart' | 'daily-grid';
 
 function generateDateRange(from: Date, days: number): Date[] {
   const dates: Date[] = [];
@@ -27,7 +29,9 @@ export default function TapeChartPage() {
     return d;
   }, []);
 
+  const [viewMode, setViewMode] = useState<ViewMode>('tape-chart');
   const [fromDate, setFromDate] = useState(formatDateInput(today));
+  const [gridDate, setGridDate] = useState(formatDateInput(today));
   const [rangeDays, setRangeDays] = useState(14);
   const [data, setData] = useState<TapeChartData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,29 +58,84 @@ export default function TapeChartPage() {
 
   useEffect(() => { fetchData(); }, [fromDate, rangeDays]);
 
+  async function fetchGridDay() {
+    setLoading(true);
+    try {
+      const gridDay = new Date(gridDate);
+      const nextDay = new Date(gridDay);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const res = await apiGet(
+        `/api/admin/tape-chart?from=${gridDate}&to=${formatDateInput(nextDay)}`
+      );
+      if (res.success) setData(res.data || null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (viewMode === 'daily-grid') fetchGridDay();
+  }, [viewMode, gridDate]);
+
   return (
     <div data-component="TapeChartPage">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">📅 المخطط الزمني للغرف</h1>
         <div className="flex items-center gap-3">
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
-            className="w-40"
-          />
-          <select
-            value={rangeDays}
-            onChange={e => setRangeDays(Number(e.target.value))}
-            className="px-3 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-sm"
-          >
-            <option value={7}>7 أيام</option>
-            <option value={14}>14 يوم</option>
-            <option value={30}>30 يوم</option>
-            <option value={60}>60 يوم</option>
-          </select>
           <Button variant="secondary" onClick={fetchData}>تحديث</Button>
         </div>
+      </div>
+
+      {/* Controls Row */}
+      <div className="flex gap-2 flex-wrap items-end mb-4">
+        <button
+          onClick={() => setViewMode('tape-chart')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            viewMode === 'tape-chart'
+              ? 'bg-[var(--gold)] text-black'
+              : 'bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)]'
+          }`}
+        >
+          📊 المخطط الزمني
+        </button>
+        <button
+          onClick={() => setViewMode('daily-grid')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            viewMode === 'daily-grid'
+              ? 'bg-[var(--gold)] text-black'
+              : 'bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)]'
+          }`}
+        >
+          🏠 عرض الغرف اليومي
+        </button>
+        {viewMode === 'tape-chart' && (
+          <>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              className="w-36"
+            />
+            <select
+              value={rangeDays}
+              onChange={e => setRangeDays(Number(e.target.value))}
+              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs"
+            >
+              <option value={7}>7 أيام</option>
+              <option value={14}>14 يوم</option>
+              <option value={30}>30 يوم</option>
+              <option value={60}>60 يوم</option>
+            </select>
+          </>
+        )}
+        {viewMode === 'daily-grid' && (
+          <Input
+            type="date"
+            value={gridDate}
+            onChange={e => setGridDate(e.target.value)}
+            className="w-36"
+          />
+        )}
       </div>
 
       {/* Legend */}
@@ -106,7 +165,11 @@ export default function TapeChartPage() {
           </svg>
         </div>
       ) : data ? (
-        <TapeChart data={data} dateColumns={dateColumns} onRefresh={fetchData} />
+        viewMode === 'tape-chart' ? (
+          <TapeChart data={data} dateColumns={dateColumns} onRefresh={fetchData} />
+        ) : (
+          <DailyRoomGrid rooms={data.rooms} bookingRooms={data.bookingRooms} selectedDate={gridDate} />
+        )
       ) : null}
     </div>
   );

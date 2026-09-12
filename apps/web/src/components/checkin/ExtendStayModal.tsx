@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, Button, Input } from '@/components/ui';
+import { showErrorModal } from '@/components/ui/error-modal';
 import { getCsrfToken, csrfHeaders } from '@/lib/utils/csrf';
 import type { Booking } from './types';
 
@@ -15,7 +16,6 @@ interface Props {
 export function ExtendStayModal({ open, booking, onClose, onSaved }: Props) {
   const [newCheckOut, setNewCheckOut] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   if (!booking) return null;
 
@@ -42,11 +42,10 @@ export function ExtendStayModal({ open, booking, onClose, onSaved }: Props) {
   async function handleExtend() {
     if (!booking || !newCheckOut) return;
     if (new Date(newCheckOut) <= new Date(currentCheckOut)) {
-      setError('تاريخ المغادرة الجديد يجب أن يكون بعد التاريخ الحالي');
+      showErrorModal('تاريخ المغادرة الجديد يجب أن يكون بعد التاريخ الحالي');
       return;
     }
     setSaving(true);
-    setError('');
     try {
       await getCsrfToken();
       const res = await fetch(`/api/admin/bookings/${booking.id}/extend`, {
@@ -63,10 +62,10 @@ export function ExtendStayModal({ open, booking, onClose, onSaved }: Props) {
         onSaved();
         onClose();
       } else {
-        setError(data.error || 'فشل تمديد الإقامة');
+        showErrorModal(data.error || 'فشل تمديد الإقامة');
       }
     } catch {
-      setError('حدث خطأ في الاتصال');
+      showErrorModal('حدث خطأ في الاتصال');
     } finally {
       setSaving(false);
     }
@@ -106,10 +105,6 @@ export function ExtendStayModal({ open, booking, onClose, onSaved }: Props) {
               سيتم إعادة حساب رسوم الغرفة وإضافة الفرق إلى الفاتورة
             </div>
           </div>
-        )}
-
-        {error && (
-          <div className="text-sm text-[var(--red)] bg-[rgba(231,76,60,0.1)] p-3 rounded-lg">{error}</div>
         )}
 
         <div className="flex gap-2 justify-end pt-2">

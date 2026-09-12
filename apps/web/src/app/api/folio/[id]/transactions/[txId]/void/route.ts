@@ -16,7 +16,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
       return errorResponse('سبب الإلغاء مطلوب', 400);
     }
 
-    const result = await folioService.voidTransaction(params.id, params.txId, {
+    const result = await folioService.voidTransaction(params.id, params.txId, user.hotelId, {
       reason: body.reason,
       createdById: user.userId,
     });

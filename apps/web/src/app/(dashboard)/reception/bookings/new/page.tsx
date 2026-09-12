@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { DateRangeCard } from '@/components/bookings/DateRangeCard';
 import { GuestInfoCard } from '@/components/bookings/GuestInfoCard';
@@ -9,17 +9,18 @@ import { RoomSelectionCard } from '@/components/bookings/RoomSelectionCard';
 import { InvoiceSummaryCard } from '@/components/bookings/InvoiceSummaryCard';
 import { ServicesCard } from '@/components/bookings/ServicesCard';
 import { apiGet, apiPost } from '@/lib/utils/api-client';
+import { showErrorModal } from '@/components/ui/error-modal';
 import type { Room, RatePlanOption } from '@/components/bookings/types';
 
-export default function NewBookingPage() {
+function NewBookingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [allRatePlans, setAllRatePlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
 
-  const [checkIn, setCheckIn] = useState('');
+  const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
   const [checkOut, setCheckOut] = useState('');
   const [guestId, setGuestId] = useState<string | undefined>();
   const [guestName, setGuestName] = useState('');
@@ -29,6 +30,8 @@ export default function NewBookingPage() {
   const [children, setChildren] = useState(0);
   const [selectedRooms, setSelectedRooms] = useState<Record<string, number>>({});
   const [selectedServices, setSelectedServices] = useState<Record<string, number>>({});
+  const [serviceTotal, setServiceTotal] = useState(0);
+  const [totalCapacityIncrease, setTotalCapacityIncrease] = useState(0);
 
   useEffect(() => {
     async function init() {
@@ -45,6 +48,16 @@ export default function NewBookingPage() {
     }
     init();
   }, []);
+
+  // Auto-select room from URL param after rooms load
+  useEffect(() => {
+    const roomId = searchParams.get('roomId');
+    if (!roomId || rooms.length === 0) return;
+    const room = rooms.find(r => r.id === roomId);
+    if (room) {
+      setSelectedRooms({ [roomId]: room.roomType.baseRate ?? 0 });
+    }
+  }, [rooms, searchParams]);
 
   const ratePlansByRoomType = useMemo(() => {
     const map: Record<string, RatePlanOption[]> = {};
@@ -81,12 +94,23 @@ export default function NewBookingPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
 
-    if (!checkIn || !checkOut) { setError('اختر تاريخ الوصول والمغادرة'); return; }
-    if (new Date(checkOut) <= new Date(checkIn)) { setError('تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول'); return; }
-    if (!guestName.trim()) { setError('أدخل اسم النزيل'); return; }
-    if (Object.keys(selectedRooms).length === 0) { setError('اختر غرفة واحدة على الأقل'); return; }
+    if (!checkIn || !checkOut) { showErrorModal('اختر تاريخ الوصول والمغادرة'); return; }
+    if (new Date(checkOut) <= new Date(checkIn)) { showErrorModal('تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول'); return; }
+    if (!guestName.trim()) { showErrorModal('أدخل اسم النزيل'); return; }
+    if (Object.keys(selectedRooms).length === 0) { showErrorModal('اختر غرفة واحدة على الأقل'); return; }
+
+    const overCapacity = Object.keys(selectedRooms).find(roomId => {
+      const room = rooms.find(r => r.id === roomId);
+      const dynamicCapacity = (room?.roomType.capacity ?? 0) + totalCapacityIncrease;
+      return room && (adults + children) > dynamicCapacity;
+    });
+    if (overCapacity) {
+      const room = rooms.find(r => r.id === overCapacity);
+      const dynamicCapacity = (room?.roomType.capacity ?? 0) + totalCapacityIncrease;
+      showErrorModal(`الغرفة ${room?.roomNumber} تتسع لـ ${dynamicCapacity} أشخاص${totalCapacityIncrease > 0 ? ` (بما في ذلك زيادة السعة من الخدمات)` : ''} (تم اختيار ${adults + children})`);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -109,7 +133,7 @@ export default function NewBookingPage() {
       if (!res.success) throw new Error(res.error?.message || 'فشل إنشاء الحجز');
       router.push(`/reception/checkin?bookingId=${res.data.id}`);
     } catch (err: any) {
-      setError(err.message);
+      showErrorModal(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -145,10 +169,6 @@ export default function NewBookingPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-900/20 border border-red-500/30 text-red-400 rounded-xl p-4 text-sm">{error}</div>
-        )}
-
         <DateRangeCard checkIn={checkIn} checkOut={checkOut} nights={nights}
           onCheckInChange={setCheckIn} onCheckOutChange={setCheckOut} />
 
@@ -160,9 +180,9 @@ export default function NewBookingPage() {
         <RoomSelectionCard rooms={rooms} selectedRooms={selectedRooms} ratePlans={ratePlansByRoomType}
           onToggleRoom={toggleRoom} onRateChange={(roomId, rate) => setSelectedRooms(prev => ({ ...prev, [roomId]: rate }))} />
 
-        <ServicesCard selectedServices={selectedServices} onServicesChange={setSelectedServices} />
+        <ServicesCard selectedServices={selectedServices} onServicesChange={setSelectedServices} onTotalServicePriceChange={setServiceTotal} onCapacityIncreaseChange={setTotalCapacityIncrease} />
 
-        <InvoiceSummaryCard rooms={rooms} selectedRooms={selectedRooms} nights={nights} totalCharges={totalCharges} />
+        <InvoiceSummaryCard rooms={rooms} selectedRooms={selectedRooms} nights={nights} totalCharges={totalCharges} serviceTotal={serviceTotal} />
 
         <div className="flex gap-3 justify-end">
           <Button variant="secondary" type="button" onClick={() => router.back()}>إلغاء</Button>
@@ -173,4 +193,17 @@ export default function NewBookingPage() {
       </form>
     </div>
   );
+}
+
+const spinner = (
+  <div className="flex items-center justify-center py-20">
+    <svg className="animate-spin h-8 w-8 text-[var(--gold)]" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  </div>
+);
+
+export default function NewBookingPage() {
+  return <Suspense fallback={spinner}><NewBookingForm /></Suspense>;
 }

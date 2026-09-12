@@ -44,6 +44,8 @@ export const Permissions = {
 } as const;
 
 const rolePermissions: Record<Role, string[]> = {
+  [Role.SUPER_ADMIN]: Object.values(Permissions),
+
   [Role.ADMIN]: Object.values(Permissions),
 
   [Role.MANAGER]: [
@@ -129,6 +131,7 @@ export function hasRole(userRole: string, allowed: (Role | string)[]): boolean {
 
 export function getRoleLabel(role: Role, locale: 'ar' | 'en' = 'ar'): string {
   const labels: Record<Role, { ar: string; en: string }> = {
+    [Role.SUPER_ADMIN]: { ar: 'مشرف النظام', en: 'Super Admin' },
     [Role.ADMIN]: { ar: 'مدير النظام', en: 'Admin' },
     [Role.MANAGER]: { ar: 'مدير', en: 'Manager' },
     [Role.RECEPTION]: { ar: 'استقبال', en: 'Reception' },

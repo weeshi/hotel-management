@@ -13,6 +13,7 @@ interface CreateGroupParams {
 
 interface AssignBookingsParams {
   groupId: string;
+  hotelId: string;
   bookingIds: string[];
   createdById?: string;
 }
@@ -27,9 +28,20 @@ export class GroupBookingService {
     const { name, hotelId, createdById } = params;
 
     return prisma.$transaction(async (tx) => {
+      const placeholderBooking = await tx.booking.create({
+        data: {
+          bookingNo: `GRP-${Date.now()}`,
+          hotelId,
+          guestName: name,
+          adults: 1,
+          children: 0,
+          status: 'CONFIRMED',
+        },
+      });
+
       const folio = await tx.folio.create({
         data: {
-          bookingId: '', // temporary — will update after group creation
+          bookingId: placeholderBooking.id,
           status: 'ACTIVE',
         },
       });
@@ -39,13 +51,6 @@ export class GroupBookingService {
           name,
           hotelId,
           masterFolioId: folio.id,
-        },
-      });
-
-      await tx.folio.update({
-        where: { id: folio.id },
-        data: {
-          bookingId: `GROUP_${group.id}`,
         },
       });
 
@@ -81,9 +86,9 @@ export class GroupBookingService {
     });
   }
 
-  async getById(groupId: string) {
-    const group = await prisma.groupBooking.findUnique({
-      where: { id: groupId },
+  async getById(groupId: string, hotelId: string) {
+    const group = await prisma.groupBooking.findFirst({
+      where: { id: groupId, hotelId },
       include: {
         masterFolio: {
           include: { transactions: true, payments: true },
@@ -125,10 +130,10 @@ export class GroupBookingService {
   }
 
   async assignBookings(params: AssignBookingsParams) {
-    const { groupId, bookingIds, createdById } = params;
+    const { groupId, hotelId, bookingIds, createdById } = params;
 
-    const group = await prisma.groupBooking.findUnique({
-      where: { id: groupId },
+    const group = await prisma.groupBooking.findFirst({
+      where: { id: groupId, hotelId },
       include: { bookings: true },
     });
     if (!group) throw new NotFoundError('المجموعة غير موجودة');
@@ -193,9 +198,9 @@ export class GroupBookingService {
     });
   }
 
-  async setRoutingRules(groupId: string, rules: RoutingRuleInput[], createdById?: string) {
-    const group = await prisma.groupBooking.findUnique({
-      where: { id: groupId },
+  async setRoutingRules(groupId: string, hotelId: string, rules: RoutingRuleInput[], createdById?: string) {
+    const group = await prisma.groupBooking.findFirst({
+      where: { id: groupId, hotelId },
       include: { masterFolio: true, bookings: { include: { folio: true } } },
     });
     if (!group) throw new NotFoundError('المجموعة غير موجودة');
@@ -207,7 +212,7 @@ export class GroupBookingService {
     }
 
     const existingFolios = await prisma.folio.findMany({
-      where: { id: { in: Array.from(folioIds) } },
+      where: { id: { in: Array.from(folioIds) }, booking: { hotelId } },
     });
     const existingFolioIds = new Set(existingFolios.map(f => f.id));
 
@@ -264,9 +269,9 @@ export class GroupBookingService {
     });
   }
 
-  async getTargetFolio(bookingId: string, chargeType: string): Promise<string | null> {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+  async getTargetFolio(bookingId: string, chargeType: string, hotelId?: string): Promise<string | null> {
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, ...(hotelId ? { hotelId } : {}) },
       include: {
         groupBooking: {
           include: {

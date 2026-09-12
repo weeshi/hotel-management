@@ -54,6 +54,9 @@ async function postHandler(request: NextRequest) {
     const user = (request as any).user;
     const body = await request.json();
 
+    const roomType = await prisma.roomType.findFirst({ where: { id: body.roomTypeId, hotelId: user.hotelId }, select: { id: true } });
+    if (!roomType) return errorResponse('نوع الغرفة غير موجود', 404);
+
     const room = await prisma.room.create({
       data: {
         hotelId: user.hotelId,

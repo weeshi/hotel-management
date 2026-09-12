@@ -17,6 +17,7 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 
     const group = await groupBookingService.setRoutingRules(
       params.id,
+      user.hotelId,
       body.rules,
       user?.userId,
     );

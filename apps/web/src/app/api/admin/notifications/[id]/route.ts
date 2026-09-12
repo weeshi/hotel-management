@@ -5,8 +5,9 @@ import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const notification = await prisma.notification.findUnique({
-      where: { id: params.id },
+    const user = (request as any).user;
+    const notification = await prisma.notification.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
     });
     if (!notification) return errorResponse('الإشعار غير موجود', 404);
 

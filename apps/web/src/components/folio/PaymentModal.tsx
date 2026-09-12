@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Input, Button } from '@/components/ui';
+import { showErrorModal } from '@/components/ui/error-modal';
 
 interface Props {
   open: boolean;
@@ -11,25 +12,25 @@ interface Props {
 }
 
 export function PaymentModal({ open, onClose, balance, onCollect }: Props) {
-  if (balance <= 0) {
-    if (open) onClose();
-    return null;
-  }
   const [amount, setAmount] = useState(String(balance));
   const [method, setMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (balance <= 0 && open) onClose();
+  }, [balance, open, onClose]);
+
+  if (balance <= 0) return null;
 
   async function handleCollect() {
     if (!amount) return;
     setLoading(true);
-    setError('');
     try {
       const res = await onCollect(parseFloat(amount), method);
       setResult(res);
     } catch (e: any) {
-      setError(e.message || 'فشل الدفع');
+      showErrorModal(e.message || 'فشل الدفع');
     } finally {
       setLoading(false);
     }
@@ -37,7 +38,6 @@ export function PaymentModal({ open, onClose, balance, onCollect }: Props) {
 
   function handleClose() {
     setResult(null);
-    setError('');
     onClose();
   }
 
@@ -77,7 +77,6 @@ export function PaymentModal({ open, onClose, balance, onCollect }: Props) {
   return (
     <Modal open={open} onClose={handleClose} title="💳 تحصيل دفعة" size="lg">
       <div className="space-y-4">
-        {error && <div className="bg-[rgba(231,76,60,0.1)] text-[var(--red)] text-sm p-3 rounded-lg">{error}</div>}
         <Input label="المبلغ (د.ل)" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <div>
           <label className="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]">طريقة الدفع</label>
@@ -86,8 +85,10 @@ export function PaymentModal({ open, onClose, balance, onCollect }: Props) {
             <option value="WALLET">👛 المحفظة</option>
             <option value="CASH">💰 نقداً</option>
             <option value="CARD">💳 بطاقة</option>
-            <option value="STRIPE">🌐 Stripe</option>
             <option value="MOBICASH">📱 موبي كاش</option>
+            <option value="SADAD">📲 سداد</option>
+            <option value="TADAWUL">📲 تدوال</option>
+            <option value="BANK_TRANSFER">🏦 تحويل بنكي</option>
           </select>
         </div>
         <div className="flex gap-2 justify-end pt-2">

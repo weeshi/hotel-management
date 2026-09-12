@@ -47,6 +47,10 @@ async function postHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
     const body = (request as any).validatedBody;
+
+    const room = await prisma.room.findFirst({ where: { id: body.roomId, hotelId: user.hotelId }, select: { id: true } });
+    if (!room) return errorResponse('الغرفة غير موجودة', 404);
+
     const task = await prisma.housekeepingTask.create({
       data: {
         hotelId: user.hotelId,

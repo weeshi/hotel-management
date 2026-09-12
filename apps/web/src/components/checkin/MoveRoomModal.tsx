@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Modal, Button } from '@/components/ui';
+import { showErrorModal } from '@/components/ui/error-modal';
 import { getCsrfToken, csrfHeaders } from '@/lib/utils/csrf';
 import type { Booking } from './types';
 
@@ -25,13 +26,11 @@ export function MoveRoomModal({ open, booking, onClose, onSaved }: Props) {
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       setLoading(true);
-      setError('');
       setSelectedRoomId('');
       setReason('');
       fetch('/api/admin/rooms?status=AVAILABLE&status=DIRTY', {
@@ -41,7 +40,7 @@ export function MoveRoomModal({ open, booking, onClose, onSaved }: Props) {
         .then((data) => {
           if (data.success) setAvailableRooms(data.data);
         })
-        .catch(() => setError('فشل تحميل الغرف المتاحة'))
+        .catch(() => showErrorModal('فشل تحميل الغرف المتاحة'))
         .finally(() => setLoading(false));
     }
   }, [open]);
@@ -49,7 +48,6 @@ export function MoveRoomModal({ open, booking, onClose, onSaved }: Props) {
   async function handleMove() {
     if (!booking || !selectedRoomId) return;
     setSaving(true);
-    setError('');
     try {
       await getCsrfToken();
       const res = await fetch(`/api/admin/bookings/${booking.id}/move-room`, {
@@ -66,10 +64,10 @@ export function MoveRoomModal({ open, booking, onClose, onSaved }: Props) {
         onSaved();
         onClose();
       } else {
-        setError(data.error || 'فشل نقل الغرفة');
+        showErrorModal(data.error || 'فشل نقل الغرفة');
       }
     } catch {
-      setError('حدث خطأ في الاتصال');
+      showErrorModal('حدث خطأ في الاتصال');
     } finally {
       setSaving(false);
     }
@@ -142,10 +140,6 @@ export function MoveRoomModal({ open, booking, onClose, onSaved }: Props) {
             className="w-full px-3 py-2 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--gold)]"
           />
         </div>
-
-        {error && (
-          <div className="text-sm text-[var(--red)] bg-[rgba(231,76,60,0.1)] p-3 rounded-lg">{error}</div>
-        )}
 
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="secondary" onClick={onClose}>إلغاء</Button>

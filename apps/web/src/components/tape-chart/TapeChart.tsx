@@ -25,17 +25,22 @@ function isWeekend(d: Date): boolean {
   return day === 5 || day === 6;
 }
 
+function normalizeDate(d: Date): Date {
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
 function getBookingStyle(booking: TapeChartBooking, dateColumns: Date[]) {
-  const checkIn = new Date(booking.checkIn);
-  const checkOut = new Date(booking.checkOut);
+  const checkIn = normalizeDate(new Date(booking.checkIn));
+  const checkOut = normalizeDate(new Date(booking.checkOut));
 
-  const startCol = dateColumns.findIndex(d => d.toDateString() === checkIn.toDateString());
-  const endCol = dateColumns.findIndex(d => d.toDateString() === checkOut.toDateString());
+  const startCol = dateColumns.findIndex(d => normalizeDate(d).getTime() === checkIn.getTime());
+  if (startCol === -1) return null;
 
-  if (startCol === -1 || endCol === -1) return null;
+  const endCol = dateColumns.findIndex(d => normalizeDate(d).getTime() >= checkOut.getTime());
+  const effectiveEndCol = endCol === -1 ? dateColumns.length : endCol;
 
   const left = startCol * DAY_WIDTH;
-  const width = (endCol - startCol) * DAY_WIDTH;
+  const width = Math.max(DAY_WIDTH, (effectiveEndCol - startCol) * DAY_WIDTH);
 
   return { left: `${left}px`, width: `${width}px`, top: '2px', height: `${ROW_HEIGHT - 4}px` };
 }
@@ -219,7 +224,11 @@ export function TapeChart({ data, dateColumns, onRefresh }: TapeChartProps) {
                           <div
                             key={b.id}
                             draggable={!processing}
-                            onDragStart={() => handleDragStart(b, 'move')}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', b.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              handleDragStart(b, 'move');
+                            }}
                             onDragEnd={handleDragEnd}
                             className={`absolute rounded-lg border border-r-0 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-lg ${getBookingColor(b.status)} ${
                               dragBooking?.id === b.id && dragType === 'move' ? 'opacity-50 scale-95' : ''
@@ -245,11 +254,13 @@ export function TapeChart({ data, dateColumns, onRefresh }: TapeChartProps) {
                               draggable={!processing}
                               onDragStart={(e) => {
                                 e.stopPropagation();
+                                e.dataTransfer.setData('text/plain', b.id);
+                                e.dataTransfer.effectAllowed = 'move';
                                 handleDragStart(b, 'extend');
                               }}
                               onDragEnd={handleDragEnd}
-                              className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/20 rounded-r"
-                              style={{ left: 'auto', right: '-4px', zIndex: 20 }}
+                              className="absolute top-0 bottom-0 w-3 cursor-col-resize hover:bg-white/20 rounded"
+                              style={{ left: 'auto', right: '-6px', zIndex: 20 }}
                               title="اسحب لتمديد الإقامة"
                             />
                           </div>

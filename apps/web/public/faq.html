@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — دليل إدارة وتشغيل نظام إدارة الفنادق</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8D48B;
+    --gold-dark: #A8882E;
+    --bg-primary: #0D0D12;
+    --bg-secondary: #13131A;
+    --bg-card: #1A1A24;
+    --bg-card-hover: #22222E;
+    --text-primary: #F0EDE8;
+    --text-secondary: #A09C96;
+    --text-muted: #6B6760;
+    --border: #2A2A36;
+    --border-gold: rgba(201, 168, 76, 0.3);
+    --green: #2ECC71;
+    --red: #E74C3C;
+    --yellow: #F1C40F;
+    --blue: #3498DB;
+    --purple: #9B59B6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+  /* ===== Header / Hero ===== */
+  .hero {
+    background: linear-gradient(180deg, #17171f 0%, var(--bg-primary) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 0 40px;
+    text-align: center;
+  }
+  .hero .badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    background: rgba(201,168,76,0.12);
+    color: var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border-gold);
+    margin-bottom: 18px;
+    letter-spacing: 0.3px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+  .hero h1 span { color: var(--gold); }
+  .hero p.sub {
+    color: var(--text-secondary);
+    font-size: 17px;
+    max-width: 640px;
+    margin: 0 auto;
+    font-weight: 400;
+  }
+
+  /* ===== Search ===== */
+  .search-wrap {
+    max-width: 620px;
+    margin: 28px auto 0;
+    position: relative;
+  }
+  .search-wrap .icon {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 20px;
+    pointer-events: none;
+  }
+  #searchInput {
+    width: 100%;
+    padding: 15px 52px 15px 18px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: 'Cairo', sans-serif;
+    font-size: 16px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  #searchInput:focus { border-color: var(--border-gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
+  #searchInput::placeholder { color: var(--text-muted); }
+  #resultCount {
+    display: block;
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* ===== Category filter chips ===== */
+  .cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 24px 0 8px;
+  }
+  .chip {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-family: 'Cairo', sans-serif;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--border-gold); color: var(--text-primary); }
+  .chip.active {
+    background: var(--gold);
+    color: #0D0D12;
+    border-color: var(--gold);
+  }
+
+  /* ===== FAQ Accordion ===== */
+  .faq-list { padding: 20px 0 60px; }
+  .faq-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold);
+    margin: 30px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .faq-section-title .num {
+    width: 30px; height: 30px;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    background: rgba(201,168,76,0.12);
+    border: 1px solid var(--border-gold);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .faq-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .faq-item.open { border-color: var(--border-gold); }
+  .faq-q {
+    width: 100%;
+    text-align: right;
+    padding: 16px 18px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: 'Cairo', sans-serif;
+    font-size: 15.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .faq-q .q-text { display: flex; align-items: flex-start; gap: 10px; }
+  .faq-q .q-text .qmark {
+    color: var(--gold);
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .faq-q .chev {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform .25s;
+    font-size: 14px;
+  }
+  .faq-item.open .chev { transform: rotate(180deg); color: var(--gold); }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+  }
+  .faq-a-inner {
+    padding: 0 18px 16px 18px;
+    color: var(--text-secondary);
+    font-size: 14.5px;
+    border-top: 1px solid var(--border);
+    margin: 0 18px;
+    padding-right: 0;
+    padding-left: 0;
+    padding-bottom: 14px;
+    padding-top: 14px;
+  }
+  .faq-a-inner p { margin-bottom: 8px; }
+  .faq-a-inner p:last-child { margin-bottom: 0; }
+  .faq-a-inner ul { padding-right: 20px; margin: 6px 0; }
+  .faq-a-inner li { margin-bottom: 4px; }
+  .faq-a-inner strong { color: var(--text-primary); }
+  .faq-a-inner .gold { color: var(--gold); font-weight: 700; }
+  .faq-a-inner .green { color: var(--green); font-weight: 700; }
+  .faq-a-inner .blue { color: var(--blue); font-weight: 700; }
+  .faq-a-inner .red { color: var(--red); font-weight: 700; }
+  .faq-a-inner code {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 13px;
+    color: var(--gold-light);
+    direction: ltr;
+    display: inline-block;
+  }
+  .tip {
+    background: rgba(52,152,219,0.08);
+    border-right: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-size: 13.5px;
+  }
+  .note {
+    background: rgba(241,196,15,0.08);
+    border-right: 3px solid var(--yellow);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-size: 13.5px;
+  }
+  .warn {
+    background: rgba(231,76,60,0.08);
+    border-right: 3px solid var(--red);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-size: 13.5px;
+  }
+
+  /* tags */
+  .tags { padding: 8px 18px 14px 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s;
+    border: 1px solid transparent;
+  }
+  .tag:hover { opacity: 0.8; }
+  .tag-gold   { background: rgba(201,168,76,0.14);  color: var(--gold-light);  border-color: var(--border-gold); }
+  .tag-green  { background: rgba(46,204,113,0.12);  color: #7fe3a8; }
+  .tag-blue   { background: rgba(52,152,219,0.12);  color: #8ec4ea; }
+  .tag-red    { background: rgba(231,76,60,0.12);   color: #f3968a; }
+  .tag-purple { background: rgba(155,89,182,0.14);  color: #c7a1d9; }
+  .tag.active-tag { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .ico { font-size: 46px; margin-bottom: 14px; }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 26px 0 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+  footer .roles { margin-top: 6px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold-dark); }
+
+  .hidden-item { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="container">
+    <span class="badge">📘 دليل الاستخدام الشامل</span>
+    <h1>الأسئلة الشائعة — <span>FAQ</span></h1>
+    <p class="sub">دليل عملي لإدارة وتشغيل نظام إدارة الفنادق: الإعدادات، المستخدمون، الغرف، الحجوزات، المدفوعات، المحافظ والمزيد.</p>
+
+    <div class="search-wrap">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="ابحث عن سؤال أو موضوع... (مثال: حجز، دفع، صندوق أمانات)" autocomplete="off">
+      <span id="resultCount"></span>
+    </div>
+
+    <div class="cats" id="cats">
+      <button class="chip active" data-cat="all">الكل</button>
+      <button class="chip" data-cat="settings">⚙️ الإعدادات</button>
+      <button class="chip" data-cat="users">👥 المستخدمون</button>
+      <button class="chip" data-cat="hotel">🏨 الفندق</button>
+      <button class="chip" data-cat="rooms">🛏️ الغرف</button>
+      <button class="chip" data-cat="guests">👤 النزلاء</button>
+      <button class="chip" data-cat="bookings">📋 الحجوزات</button>
+      <button class="chip" data-cat="services">🛎️ الخدمات</button>
+      <button class="chip" data-cat="payments">💳 المدفوعات</button>
+      <button class="chip" data-cat="safes">🔐 الصناديق والمفقودات</button>
+      <button class="chip" data-cat="wallet">👛 المحافظ</button>
+      <button class="chip" data-cat="reports">📊 التقارير والسجلات</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="faq-list" id="faqList">
+    <!-- JavaScript يملأ المحتوى هنا -->
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <strong style="color: var(--gold);">نظام إدارة الفنادق</strong> — دليل الأسئلة الشائعة
+    <div class="roles">الأدوار: مشرف النظام · مدير النظام · مدير · استقبال · تدبير منزلي · صيانة · مطعم · محاسب</div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   بيانات الأسئلة والأجوبة
+   ============================================================ */
+const CATEGORIES = {
+  settings: { label: '⚙️ الإعدادات' },
+  users:    { label: '👥 المستخدمون' },
+  hotel:    { label: '🏨 الفندق' },
+  rooms:    { label: '🛏️ الغرف' },
+  guests:   { label: '👤 النزلاء' },
+  bookings: { label: '📋 الحجوزات' },
+  services: { label: '🛎️ الخدمات' },
+  payments: { label: '💳 المدفوعات' },
+  safes:    { label: '🔐 الصناديق والمفقودات' },
+  wallet:   { label: '👛 المحافظ' },
+  reports:  { label: '📊 التقارير والسجلات' },
+};
+
+/* الأيقونة لكل فئة */
+const CAT_ICON = {
+  settings: '⚙️', users: '👥', hotel: '🏨', rooms: '🛏️', guests: '👤',
+  bookings: '📋', services: '🛎️', payments: '💳', safes: '🔐', wallet: '👛', reports: '📊',
+};
+
+/* الوسوم: [الاسم، اللون] — ألوان: gold/green/blue/red/purple */
+const FAQS = [
+  /* ============ ⚙️ الإعدادات ============ */
+  {
+    cat: 'settings',
+    q: 'كيف أدخل إلى صفحة إعدادات الفندق وأعدّل بياناته الأساسية؟',
+    a: '<p>من القائمة الجانبية اضغط <strong>الإعدادات</strong> (إعدادات الفندق). يمكنك تعديل:</p><ul><li><strong>اسم الفندق</strong> بالعربية والإنجليزية.</li><li><strong>العنوان، الهاتف، البريد الإلكتروني</strong>.</li><li><strong>العملة</strong> (الافتراضي <span class="gold">LYD — د.ل</span>).</li><li><strong>وقت الدخول</strong> (الافتراضي 14:00) و<strong>وقت الخروج</strong> (الافتراضي 12:00).</li></ul><p>اضغط <strong>💾 حفظ الإعدادات</strong> في النهاية. هذه الإعدادات تُستخدم في الفواتير والتقارير والحجوزات تلقائيًا.</p><div class="tip">🛑 الصلاحية المطلوبة: <code>settings:write</code> (متاحة لمدير النظام فقط).</div>',
+    tags: ['settings', 'hotel', 'إعدادات', 'بيانات الفندق']
+  },
+  {
+    cat: 'settings',
+    q: 'هل يمكنني تخصيص إعدادات موقع الحجز العام (الواجهة العامة)؟',
+    a: '<p>نعم، من صفحة <strong>إعدادات الموقع</strong> (<span class="blue">website-settings</span>) يمكنك التحكم بالمحتوى الظاهر في الموقع العام الذي يشاهده الزوار، مثل شعار الفندق والنصوص والأقسام المرئية.</p><div class="note">⚠️ هذه إعدادات منفصلة عن إعدادات الفندق الأساسية في صفحة <strong>الإعدادات</strong>.</div>',
+    tags: ['settings', 'website', 'موقع', 'واجهة عامة', 'إعدادات الموقع']
+  },
+  {
+    cat: 'settings',
+    q: 'ما هي سياسات الإلغاء وكيف أضبطها؟',
+    a: '<p>من <strong>سياسات الإلغاء</strong> يمكنك تعريف القواعد التي تحدد ما إذا كان بإمكان النزيل/العميل إلغاء الحجز دون غرامة أو مع خصم، حسب المدة المتبقية قبل موعد الوصول.</p><p>عند إنشاء حجز يُربط بسياسة إلغاء، وتُطبق تلقائيًا عند إلغاء الحجز.</p>',
+    tags: ['settings', 'تفاصيل', 'إلغاء', 'سياسات الإلغاء', 'حجز']
+  },
+  {
+    cat: 'settings',
+    q: 'كيف أعدّل الأسعار (خطط الأسعار / Rate Plans) وضريبة الخدمة؟',
+    a: '<p>من <strong>خطط الأسعار</strong> (rate-plans) تدير الأسعار حسب نوع الغرفة والفترة. كما يوجد <strong>قواعد الضرائب</strong> (tax-rules) تسمح بإضافة الضرائب على الخدمات أو المبيعات.</p><ul><li>أنشئ خطة سعر باسم واضح (مثل: قياسي، عائلي، موسمي).</li><li>حدد السعر الأساسي لنوع الغرفة.</li><li>اربط قواعد الضرائب عند الحاجة.</li></ul>',
+    tags: ['settings', 'أسعار', 'rate', 'خطط الأسعار', 'الضرائب']
+  },
+
+  /* ============ 👥 المستخدمون ============ */
+  {
+    cat: 'users',
+    q: 'ما هي أدوار المستخدمين المتاحة في النظام؟',
+    a: '<p>يوجد <strong>8 أدوار</strong> تتحكم بالصلاحيات:</p><ul><li><span class="gold">مشرف النظام (Super Admin)</span> — يدير المنصة وكل الفنادق.</li><li><span class="gold">مدير النظام (Admin)</span> — كل الصلاحيات داخل الفندق.</li><li><span class="blue">مدير (Manager)</span> — إدارة العمليات والغرف والتقارير.</li><li><span class="green">استقبال (Reception)</span> — الحجوزات، الدخول والخروج، الفواتير.</li><li><span class="blue">تدبير منزلي (Housekeeping)</span> — مهام التنظيف والمفقودات.</li><li><span class="blue">صيانة (Maintenance)</span> — مهام الصيانة.</li><li><span class="purple">مطعم (Restaurant)</span> — القوائم والطلبات.</li><li><span class="green">محاسب (Accountant)</span> — قراءة المدفوعات والتقارير والفواتير.</li></ul><p>للمزيد عن صلاحيات كل دور اعرض جدول الصلاحيات في دليل التطوير.</p>',
+    tags: ['users', 'أدوار', 'roles', 'صلاحيات', 'مستخدمين']
+  },
+  {
+    cat: 'users',
+    q: 'كيف أنشئ مستخدمًا جديدًا وأمنحه صلاحية؟',
+    a: '<p>من <strong>إدارة المستخدمين</strong> اضغط <strong>+ مستخدم جديد</strong>، ثم أدخل:</p><ul><li><strong>الاسم</strong> و<strong>البريد الإلكتروني</strong>.</li><li><strong>كلمة المرور</strong>.</li><li><strong>الصلاحية</strong> من القائمة (مدير النظام / مدير / استقبال).</li></ul><p>اضغط <strong>إضافة</strong> ليُنشأ الحساب فورًا ويمكنه تسجيل الدخول.</p><div class="tip">🛑 لإضافة حسابات بدور خاص (تدبير منزلي، صيانة، مطعم، محاسب) أو لإنشاء حسابات عبر دعوات، استخدم صلاحية المشرف العام من صفحة <strong>الدعوات</strong> (Invitations).</div>',
+    tags: ['users', 'إنشاء', 'مستخدم', 'إضافة', 'حساب']
+  },
+  {
+    cat: 'users',
+    q: 'كيف أعدّل بيانات مستخدم أو أغيّر صلاحيته؟',
+    a: '<p>في <strong>إدارة المستخدمين</strong> اضغط <strong>تعديل</strong> بجانب المستخدم المطلوب، ثم عدّل الاسم أو البريد أو الصلاحية. يمكنك أيضًا تغيير كلمة المرور (اتركها فارغة إن لم ترد التغيير).</p><p>اضغط <strong>حفظ</strong> عند الانتهاء.</p>',
+    tags: ['users', 'تعديل', 'صلاحية', 'مستخدم']
+  },
+  {
+    cat: 'users',
+    q: 'كيف أوقف مستخدمًا (تعطيل) يمنع دخوله للنظام؟',
+    a: '<p>في <strong>إدارة المستخدمين</strong> اضغط <strong>تعطيل</strong> بجانب الحساب. يصبح الحساب <span class="red">موقوف</span> ولا يستطيع تسجيل الدخول حتى يُفعّل مجددًا بزر <strong>تفعيل</strong>.</p><p>تُظهر الصفحة أيضًا <strong>آخر دخول</strong> لكل مستخدم لمراقبة النشاط.</p>',
+    tags: ['users', 'تعطيل', 'إيقاف', 'حظر', 'حساب']
+  },
+  {
+    cat: 'users',
+    q: 'ماذا يعني الدعوات (Invitations) لإنشاء حسابات؟',
+    a: '<p>في <strong>الدعوات</strong> (خاص بالمشرف العام) يمكن إنشاء <strong>روابط دعوة</strong> تُرسل عبر البريد، وعندما يقبلها المدعو يُنشئ كلمة المرور ويفعّل حسابه بنفسه. هذه طريقة آمنة لإضافة مديري فنادق في بيئة متعددة المستأجرين (White-Label SaaS).</p><p>الدعوة لها <strong>صلاحية محددة</strong> و<strong>تاريخ انتهاء</strong>، وتُستخدم مرة واحدة فقط.</p>',
+    tags: ['users', 'دعوات', 'invitations', 'حساب', 'SaaS']
+  },
+
+  /* ============ 🏨 الفندق ============ */
+  {
+    cat: 'hotel',
+    q: 'كيف أدير فندقي من حسابي (البيانات، العملة، التوقيت)؟',
+    a: '<p>تُدار بيانات الفندق (الاسم، العنوان، الهاتف، البريد، <span class="gold">العملة LYD</span>، أوقات الدخول/الخروج، المنطقة الزمنية) من <strong>الإعدادات</strong>. هذه البيانات تظهر في الفواتير والتقارير.</p>',
+    tags: ['hotel', 'فندق', 'بيانات']
+  },
+  {
+    cat: 'hotel',
+    q: 'ماذا يشمل مفهوم المنصة متعددة الفنادق (White-Label SaaS)؟',
+    a: '<p>يسمح النظام بعمل <strong>مجموعة فنادق</strong> يديرها <span class="gold">مشرف عام</span>. كل فندق مستقل ببياناته وغرفه وحجوزاته ومستخدميه، لكنها كلها تعمل تحت منصة واحدة موحدة.</p><div class="note">⚠️ لإدارة الفنادق وإنشاء فندق جديد والربط بتوجه مخصص (customDomain) استخدم لوحة <strong>المشرف العام</strong>.</div>',
+    tags: ['hotel', 'SaaS', 'فنادق', 'white-label', 'منصة']
+  },
+  {
+    cat: 'hotel',
+    q: 'كيف أفصل بين حسابات الموظفين داخل الفندق؟',
+    a: '<p>كل مستخدم ينتمي إلى فندق محدّد وله دور يحدد ما يراه. الموظف العادي لا يرى بيانات الفندق الأخرى في نفس المنصة. يتحقق النظام من الصلاحية عند كل عملية (قراءة أو كتابة).</p>',
+    tags: ['hotel', 'مستخدمين', 'فصل', 'صلاحيات', 'فنادق']
+  },
+
+  /* ============ 🛏️ الغرف ============ */
+  {
+    cat: 'rooms',
+    q: 'كيف أنشئ نوع غرفة (Room Type) جديد؟',
+    a: '<p>من <strong>أنواع الغرف</strong> (room-types) اضغط <strong>+ نوع جديد</strong> وحدد:</p><ul><li><strong>الاسم</strong> (عربي/إنجليزي).</li><li><strong>الأسعار الأساسية</strong> والوسائل/المرافق (amenities).</li><li><strong>الأسرة الإضافية</strong> (extra beds) إن وجدت.</li><li><strong>الخدمات الافتراضية</strong> المرتبطة تلقائيًا بهذا النوع.</li></ul><p>بعد الحفظ يصبح النوع متاحًا لربطه بغرف جديدة.</p>',
+    tags: ['rooms', 'نوع غرفة', 'room type', 'إنشاء', 'غرف']
+  },
+  {
+    cat: 'rooms',
+    q: 'كيف أضيف غرفة جديدة وأحدد نوعها وطابقها ورقمها؟',
+    a: '<p>من <strong>إدارة الغرف</strong> (rooms) اضغط <strong>+ غرفة جديدة</strong> وأدخل:</p><ul><li><strong>رقم الغرفة</strong>.</li><li><strong>الطابق</strong> (يُستخدم في تقارير الإشغال حسب الطابق).</li><li><strong>نوع الغرفة</strong> المرتبط مسبقًا.</li><li><strong>حالة الغرفة</strong> (متاحة/مشغولة/قيد التنظيف...).</li></ul>',
+    tags: ['rooms', 'غرفة', 'إنشاء', 'إضافة']
+  },
+  {
+    cat: 'rooms',
+    q: 'كيف أتحقق من توفر الغرف في تاريخ معين (خريطة الشريط / Tape Chart)؟',
+    a: '<p>افتح <strong>خريطة الشريط</strong> (tape-chart) من لوحة الاستقبال لرؤية حالة كل الغرف عبر الأيام بشكل بصري: متاحة، مشغولة، محجوزة، قيد التنظيف. تساعد في اتخاذ قرار الحجز السريع.</p>',
+    tags: ['rooms', 'tape', 'توفر', 'خريطة الشريط', 'حجز']
+  },
+
+  /* ============ 👤 النزلاء ============ */
+  {
+    cat: 'guests',
+    q: 'كيف أسجّل نزيلًا جديدًا في النظام؟',
+    a: '<p>من <strong>إدارة النزلاء</strong> (guests) اضغط <strong>+ نزيل جديد</strong> وأدخل بيانات النزيل (الاسم، رقم الهاتف، البريد إن وجد). يُنشأ ملف نزيل كامل يمكن ربطه بصفة حجوزه.</p><p>يمكنك أيضًا البحث عن نزيل موجود بنفس الاسم أو الهاتف عند إنشاء الحجز.</p>',
+    tags: ['guests', 'نزيل', 'إنشاء', 'تسجيل', 'عميل']
+  },
+  {
+    cat: 'guests',
+    q: 'كيف أرفع وثائق النزيل (جواز سفر، إقامة...)؟',
+    a: '<p>من ملف النزيل اختر <strong>الوثائق</strong> (guest documents) وارفع الملفات المطلوبة. تُخزَّن في مجلد <code>apps/web/storage</code> المحمي و<strong>لا تُرفع إلى git</strong> حفاظًا على خصوصية النزلاء.</p><div class="warn">🚫 مسؤولية: وثائق النزلاء بيانات حساسة. تأكد من أذونات مجلد التخزين وعدم مشاركتها خارج النظام.</div>',
+    tags: ['guests', 'وثائق', 'documents', 'رفع', 'ملفات']
+  },
+  {
+    cat: 'guests',
+    q: 'هل يوجد لدفتر نزيل أو حساب (محفظة)؟',
+    a: '<p>نعم، كل نزيل يمكن أن يمتلك <strong>محفظة (Wallet)</strong> خاصة به تضبط رصيدًا يُستخدم لدفع الخدمات. راجع قسم <strong>إدارة المحافظ</strong> في هذا الدليل.</p>',
+    tags: ['guests', 'محفظة', 'wallet', 'نزيل']
+  },
+
+  /* ============ 📋 الحجوزات ============ */
+  {
+    cat: 'bookings',
+    q: 'كيف أنشئ حجزًا جديدًا؟',
+    a: '<p>من لوحة الاستقبال اضغط <strong>+ حجز جديد</strong> (أو من صفحة <code>/reception/bookings/new</code>) وأكمل الخطوات:</p><ul><li><strong>البحث عن نزيل</strong> أو إدخال بياناته.</li><li><strong>اختيار نوع الغرفة/الغرفة</strong> والتاريخ (الدخول/الخروج).</li><li><strong>عدد الأشخاص</strong> والأسرة الإضافية.</li><li><strong>خطة السعر</strong> وسياسة الإلغاء.</li></ul><p>عند الحفظ يُنشأ الحجز برقم تلقائي (<span class="gold">bookingNo</span>) وفاتورة (Folio) مرتبطة به.</p>',
+    tags: ['bookings', 'حجز', 'إنشاء', 'جديد']
+  },
+  {
+    cat: 'bookings',
+    q: 'ما معنى حالات الحجز المختلفة؟',
+    a: '<p>حالات الحجز في النظام:</p><ul><li><span class="yellow">قيد الانتظار (PENDING)</span> — لم يُؤكد بعد.</li><li><span class="green">مؤكد (CONFIRMED)</span> — تم التأكيد وجاهز للدخول.</li><li><span class="blue">تم الدخول (CHECKED_IN)</span> — النزيل مسجّل في الغرفة.</li><li><span class="gold">تم الخروج (CHECKED_OUT)</span> — أنهى الإقامة.</li><li><span class="red">ملغي (CANCELLED)</span> — أُلغي الحجز.</li><li><span class="red">لم يحضر (NO_SHOW)</span> — لم يصل النزيل.</li></ul>',
+    tags: ['bookings', 'حالات', 'status', 'حجز']
+  },
+  {
+    cat: 'bookings',
+    q: 'كيف أسجّل دخول نزيل (Check-in)؟',
+    a: '<p>من صفحة <strong>تسجيل الدخول</strong> (checkin)، اختر الحجز بحالته <span class="green">مؤكد</span> ثم اضغط <strong>🔑 تسجيل دخول</strong>. يتحول الحجز إلى حالة <span class="blue">تم الدخول</span> وتُحتسب الفاتورة من تاريخ الدخول.</p><div class="tip">💡 يمكنك إنهاء الدخول مباشرة من تفاصيل الحجز بزر <code>تسجيل دخول</code>.</div>',
+    tags: ['bookings', 'checkin', 'دخول', 'تسجيل دخول']
+  },
+  {
+    cat: 'bookings',
+    q: 'كيف أسجّل خروج نزيل (Check-out) وأسوّي الفاتورة؟',
+    a: '<p>من صفحة <strong>الفواتير</strong> (folio) للحجز أو من <strong>تسجيل الخروج</strong> (checkout):</p><ul><li>راجع رصيد الفاتورة.</li><li>احصل على المدفوعات أو طبّق الخصومات.</li><li>قم بالمصادقة على الخروج ليصبح الحجز <span class="gold">تم الخروج</span>.</li></ul><div class="note">⚠️ للسماح بالمصادقة على رصيد (Credit)، يجب تفعيل إعداد <code>allow-credit</code> ومنح الصلاحية المناسبة.</div>',
+    tags: ['bookings', 'checkout', 'خروج', 'فاتورة', 'مصادقة']
+  },
+  {
+    cat: 'bookings',
+    q: 'كيف ألغي حجزًا، وهل تُطبَّق سياسات الإلغاء تلقائيًا؟',
+    a: '<p>افتح تفاصيل الحجز واضغط <strong>إلغاء الحجز</strong>. يطبق النظام <strong>سياسة الإلغاء</strong> المرتبطة بالحجز لتحديد ما إذا كان هناك استرداد أو غرامة، ثم يتحول الحجز إلى <span class="red">ملغي</span>.</p><div class="tip">💡 احرص على إدخال سياسة الإلغاء الصحيحة عند إنشاء الحجز لضمان دقة الاسترداد.</div>',
+    tags: ['bookings', 'إلغاء', 'cancel', 'استرداد']
+  },
+  {
+    cat: 'bookings',
+    q: 'كيف أمدّد إقامة نزيل أو أنقل غرفته؟',
+    a: '<p>من تفاصيل الحجز يمكنك:</p><ul><li><strong>تمديد (extend)</strong> — إطالة تاريخ الخروج.</li><li><strong>نقل غرفة (move-room)</strong> — نقل النزيل إلى غرفة أخرى.</li><li><strong>إضافة خدمة (charge-service)</strong> — تحميل خدمة على الفاتورة.</li></ul>',
+    tags: ['bookings', 'تمديد', 'transfers', 'نقل', 'غرفة']
+  },
+  {
+    cat: 'bookings',
+    q: 'ما هي الحجوزات الجماعية (Group Bookings)؟',
+    a: '<p>الحجز الجماعي يجمع <strong>عدة غرف/حجوزات</strong> تحت طلب واحد (مثل وفد أو مجموعة سياحية). يمكنك توزيع الغرف على النزلاء وإدارة التوجيه (routing) بصورة موحدة.</p><ul><li>أنشئ حجزًا جماعيًا.</li><li>أضف الغرف المطلوبة.</li><li>استخدم <strong>assign</strong> لتخصيص النزلاء و<strong>routing</strong> لتوزيع المصاريف على الفواتير.</li></ul>',
+    tags: ['bookings', 'جماعي', 'group', 'مجموعة', 'حجز']
+  },
+
+  /* ============ 🛎️ الخدمات ============ */
+  {
+    cat: 'services',
+    q: 'كيف أنشئ خدمة (Service) جديدة وأحدد سعرها؟',
+    a: '<p>من <strong>إدارة الخدمات</strong> (services) اضغط <strong>+ خدمة جديدة</strong>:</p><ul><li><strong>الاسم</strong> بالعربية والإنجليزية والوصف.</li><li><strong>السعر</strong> بوحدة عملة الفندق (<span class="gold">د.ل</span>).</li><li><strong>زيادة السعة</strong> (عدد أشخاص إضافيين مثل سرير إضافي).</li><li><strong>الفئة</strong> التي تنتمي إليها الخدمة.</li></ul><p>ثم اضغط <strong>إضافة</strong>.</p>',
+    tags: ['services', 'خدمة', 'إنشاء', 'سعر']
+  },
+  {
+    cat: 'services',
+    q: 'كيف أدير فئات الخدمات (Service Categories)؟',
+    a: '<p>من <strong>إدارة الخدمات</strong> اضغط <strong>📂 إدارة الفئات</strong> لإنشاء/تعديل/حذف فئات (مثل: مطعم، تنظيف، نقل...). كل فئة تجمع خدمات متشابهة لتسهيل التصفية.</p><div class="note">⚠️ لا يمكنك حذف فئة تحتوي خدمات — انقل خدماتها أولًا أو احذفها.</div>',
+    tags: ['services', 'فئات', 'categories', 'خدمة']
+  },
+  {
+    cat: 'services',
+    q: 'كيف أحمّل خدمة على فاتورة حجز (Charge Service)؟',
+    a: '<p>من تفاصيل الحجز اختر <strong>إضافة خدمة (charge-service)</strong>، اختر الخدمة وعددها، فيُضاف مبلغها إلى <strong>فاتورة الحجز (Folio)</strong> تلقائيًا. تظهر في التقارير حسب الفئة.</p>',
+    tags: ['services', 'فاتورة', 'charge', 'تحميل', 'خدمة']
+  },
+  {
+    cat: 'services',
+    q: 'ما الفرق بين المطعم (Restaurant) والخدمات العامة؟',
+    a: '<p><strong>المطعم</strong> نظام منفصل يضم القوائم (menus) والعناصر (items) والطلبات (orders) الخاصة بالمطعم، بصلاحيات دور <span class="purple">مطعم</span>.</p><p>بينما <strong>الخدمات</strong> العامة (مثل الغسيل، النقل، الواي فاي) تُضاف وتُحمل على الفواتير من نوع Charge.</p>',
+    tags: ['services', 'مطعم', 'restaurant', 'قوائم', 'خدمة']
+  },
+
+  /* ============ 💳 المدفوعات ============ */
+  {
+    cat: 'payments',
+    q: 'ما هي طرق الدفع المدعومة؟',
+    a: '<p>يدعم النظام طرق دفع متعددة:</p><ul><li><span class="green">نقدًا (CASH)</span>، <span class="blue">بطاقة (CARD)</span>، <span class="blue">نقاط بيع (POS)</span>.</li><li>تحويل بنكي (BANK_TRANSFER).</li><li>بوابات: Stripe, PayPal, MobiCash, سداد (SADAD), تدوال (TADAWUL), إدفعلي (IDFA3LY), ياسر باي (YASERPAY), OnePay.</li><li><span class="gold">المحفظة (WALLET)</span>.</li></ul><p>يظهر وصف الطريقة بالعربية في قائمة المدفوعات.</p>',
+    tags: ['payments', 'دفع', 'طرق', 'methods', 'بوابة']
+  },
+  {
+    cat: 'payments',
+    q: 'كيف أسجّل دفعة على فاتورة حجز؟',
+    a: '<p>من صفحة <strong>الفواتير</strong> (folio) لاختيار الحجز، اختر <strong>تحصيل/دفع</strong>، حدد المبلغ وطريقة الدفع (<code>CASH</code>، <code>CARD</code>، <code>POS</code>...). تُسجَّل الدفعة في النظام ويُحدَّث رصيد الفاتورة ويمكن إصدار إيصال.</p><div class="tip">💡 تأكد أن الحجز لديه رصيد مستحق قبل التحصيل.</div>',
+    tags: ['payments', 'دفع', 'تحصيل', 'فاتورة', 'إيصال']
+  },
+  {
+    cat: 'payments',
+    q: 'كيف أقوم باسترداد (Refund) مبلغ دفع؟',
+    a: '<p>من صفحة <strong>المدفوعات</strong> اضغط <strong>🔄 استرداد</strong> بجانب الدفعة الناجحة (SUCCEEDED) التي لم يُسترجع كامل مبلغها. أدخل المبلغ وسبب الاسترداد.</p><p>تتغير حالة الدفعة إلى <span class="purple">مسترجع جزئياً (PARTIALLY_REFUNDED)</span> أو <span class="gold">مسترجع (REFUNDED)</span> حسب المبلغ.</p><div class="note">⚠️ لا يسترد النظام إلا المبالغ غير المسترجعة بالكامل.</div>',
+    tags: ['payments', 'استرداد', 'refund', 'رد']
+  },
+  {
+    cat: 'payments',
+    q: 'ما معنى حالات الدفع في النظام؟',
+    a: '<ul><li><span class="yellow">قيد الانتظار (PENDING)</span> — لم يكتمل بعد.</li><li><span class="green">تم بنجاح (SUCCEEDED)</span> — اكتملت الدفعة.</li><li><span class="red">فشل (FAILED)</span> — فشلت العملية.</li><li><span class="purple">مسترجع جزئياً (PARTIALLY_REFUNDED)</span> — استُرد جزء.</li><li><span class="gold">مسترجع (REFUNDED)</span> — استُرد كامل المبلغ.</li></ul>',
+    tags: ['payments', 'حالات', 'status', 'دفع']
+  },
+
+  /* ============ 🔐 الصناديق والمفقودات ============ */
+  {
+    cat: 'safes',
+    q: 'كيف أفتح صندوق أمانات (Safe Deposit Box) لنزيل؟',
+    a: '<p>من <strong>صناديق الأمانات</strong> (safe-deposit) اضغط <strong>+ فتح صندوق جديد</strong>:</p><ul><li>اختر النزيل/الغرفة.</li><li>سجّل محتويات الصندوق (الأغراض، العناصر).</li><li>سجّل وقت الفتح (openedAt).</li></ul><p>يصبح الصندوق بحالة <span class="green">نشط (ACTIVE)</span> وتُوثَّق عملية الفتح باسم الموظف المسؤول.</p><div class="tip">💡 يمكن استخدام صناديق الأمانات (safeboxes) مع حزم تسعير للفترات.</div>',
+    tags: ['safes', 'أمانات', 'safe', 'صندوق', 'فتح']
+  },
+  {
+    cat: 'safes',
+    q: 'كيف أغلق صندوق أمانات؟',
+    a: '<p>افتح تفاصيل الصندوق النشط واضغط <strong>إغلاق</strong>. يُسجَّل وقت الإغلاق (closedAt) والموظف الذي أغلق الصندوق، وتتحول الحالة إلى <span class="text-muted">مغلق (CLOSED)</span> وتُوثّق العملية في السجل.</p><div class="note">⚠️ الصلاحية <code>safe-deposit:close</code> مطلوبة للإغلاق (متاحة للمدير/مشرف النظام).</div>',
+    tags: ['safes', 'أمانات', 'إغلاق', 'safe', 'صندوق']
+  },
+  {
+    cat: 'safes',
+    q: 'كيف أسجّل غرضًا مفقودًا أو معثورًا عليه (Lost & Found)؟',
+    a: '<p>من <strong>المفقودات</strong> (lost-found) اضغط <strong>+ تسجيل غرض</strong> وأدخل: وصف الغرض، مكان العثور (locationFound)، الغرفة (إن وُجدت)، واسم من وجده.</p><p>تكون الحالة الابتدائية <span class="yellow">قيد الانتظار (PENDING)</span>.</p>',
+    tags: ['safes', 'مفقودات', 'lost', 'غرض', 'عثور']
+  },
+  {
+    cat: 'safes',
+    q: 'كيف أسلم غرضًا لصاحبه أو أتخلص منه؟',
+    a: '<p>من تفاصيل الغرض المفقود:</p><ul><li>اضغط <strong>تسليم/استلام (claim)</strong> وأدخل اسم المستلم لتصبح الحالة <span class="green">تم الاستلام (CLAIMED)</span>.</li><li>أو اضغط <strong>تخلص (dispose)</strong> لتصبح <span class="red">تم التخلص (DISPOSED)</span>.</li></ul><div class="tip">💡 الصلاحيات <code>lost-found:claim</code> و<code>lost-found:dispose</code> تُحدد من يمكنه تنفيذ هاتين العمليتين.</div>',
+    tags: ['safes', 'مفقودات', 'استلام', 'claim', 'تخلص']
+  },
+
+  /* ============ 👛 المحافظ ============ */
+  {
+    cat: 'wallet',
+    q: 'ما هي المحفظة (Wallet) وما فائدتها؟',
+    a: '<p>المحفظة هي <strong>رصيد مسبق الدفع</strong> يرتبط بنزيل، يُستخدم لدفع الخدمات والفواتير بسهولة. لكل نزيل محفظة مستقلة برصيدها الخاص.</p><p>أنواع عمليات المحفظة: <span class="green">إيداع (DEPOSIT)</span>، <span class="red">سحب (WITHDRAWAL)</span>، دفع (PAYMENT)، استرداد (REFUND)، تسوية (ADJUSTMENT).</p>',
+    tags: ['wallet', 'محفظة', 'رصيد', 'إيداع', 'نزيل']
+  },
+  {
+    cat: 'wallet',
+    q: 'كيف أُودع رصيدًا في محفظة نزيل (Top-up)؟',
+    a: '<p>من <strong>إدارة المحافظ</strong> اختر النزيل واضغط <strong>إيداع</strong> (Top-up)، حدد المبلغ وطريقة الدفع (<code>CASH</code>، <code>CARD</code>، <code>BANK_TRANSFER</code>، <code>POS</code>...). سيزداد رصيد المحفظة ويمكن إصدار إيصال.</p><p>تظهر الإيداعات في تقرير المحفظة حسب طريقة الدفع وحسب الموظف.</p>',
+    tags: ['wallet', 'إيداع', 'topup', 'رصيد', 'محفظة']
+  },
+  {
+    cat: 'wallet',
+    q: 'كيف أسحب مبلغًا من محفظة نزيل؟',
+    a: '<p>من <strong>إدارة المحافظ</strong> اختر النزيل واضغط <strong>سحب</strong> (Withdrawal)، حدد المبلغ وطريقة صرف المبلغ. سينقص رصيد المحفظة وتُوثّق العملية.</p><div class="note">⚠️ لا يمكنك سحب مبلغ يفوق رصيد المحفظة.</div>',
+    tags: ['wallet', 'سحب', 'withdrawal', 'رصيد', 'محفظة']
+  },
+  {
+    cat: 'wallet',
+    q: 'كيف أبحث في معاملات المحفظة وأصدر إيصالًا؟',
+    a: '<p>في <strong>إدارة المحافظ</strong> يمكنك:</p><ul><li><strong>البحث باسم النزيل</strong>.</li><li><strong>تصفية حسب نوع العملية</strong> (إيداع/سحب).</li><li><strong>تصفية حسب التاريخ</strong> (من/إلى).</li><li><strong>عرض إيصال</strong> لأي عملية (Wallet Receipt).</li><li><strong>📥 تصدير CSV</strong> لجميع المعاملات.</li></ul>',
+    tags: ['wallet', 'بحث', 'إيصال', 'تصدير', 'csv', 'محفظة']
+  },
+
+  /* ============ 📊 التقارير والسجلات ============ */
+  {
+    cat: 'reports',
+    q: 'ما أنواع التقارير المتوفرة؟',
+    a: '<p>من <strong>التقارير المتقدمة</strong> يمكنك اختيار نوع التقرير:</p><ul><li>🛏️ <strong>الإشغال</strong> (occupancy) — حسب الفئة والطابق.</li><li>💰 <strong>الإيرادات</strong> (revenue) — الرسوم، الخصومات، الصافي.</li><li>👛 <strong>المحفظة</strong> (wallet) — الإيداعات والسحوبات حسب الطريقة والموظف.</li><li>🧹 <strong>التدبير المنزلي</strong> — إنجاز المهام.</li><li>🍽️ <strong>المطعم</strong> — الطلبات والإيرادات.</li><li>🔐 <strong>صناديق الأمانات</strong> — الصناديق النشطة والمغلقة.</li><li>📦 <strong>المفقودات</strong> — النتائج ومعدّل الاستلام.</li></ul><p>اختر <strong>الفترة</strong> (اليوم/الأسبوع/الشهر/السنة/الكل) لعرض البيانات حسب النطاق الزمني.</p>',
+    tags: ['reports', 'تقارير', 'أنواع', 'occupancy', 'revenue']
+  },
+  {
+    cat: 'reports',
+    q: 'كيف أصدّر تقريرًا أو أشاركه؟',
+    a: '<p>من صفحة التقارير استخدم أزرار <strong>التصدير</strong> (Export) — تتوفر صيغ CSV/JSON/HTML للطباعة — ثم شارك التقرير عبر <strong>📧 مشاركة</strong> لنقله إلى البريد أو تنزيله.</p><div class="tip">💡 الصلاحيات <code>reports:export</code> و<code>reports:share</code> تتحكم بمن يمكنه التصدير/المشاركة.</div>',
+    tags: ['reports', 'تصدير', 'share', 'مشاركة', 'csv', 'pdf']
+  },
+  {
+    cat: 'reports',
+    q: 'كيف أشاهد سجل العمليات (Audit Logs) داخل النظام؟',
+    a: '<p>من <strong>سجلات التدقيق</strong> (audit-logs) يمكنك تتبع العمليات الحساسة التي قام بها المستخدمون (تسجيل الدخول، إنشاء/تعديل حجز، مدفوعات، فتح/إغلاق صناديق...).</p><p>هذه السجلات مهمة لمراقبة الأمان والامتثال ومتاحة لمن يملك صلاحية <code>audit-logs:read</code> (مدير النظام والمشرف العام).</p>',
+    tags: ['reports', 'سجلات', 'audit', 'سجل', 'عمليات']
+  },
+  {
+    cat: 'reports',
+    q: 'كيف أخصّص إعدادات التقارير (Reports Settings)؟',
+    a: '<p>اضغط <strong>⚙️ الإعدادات</strong> داخل صفحة التقارير لضبط تفضيلات التقرير (مثل الإعدادات الافتراضية للفترة أو الضمانات). تُحفظ هذه الإعدادات لاستخدامها في التقارير القادمة.</p><div class="tip">💡 الصلاحية <code>reports:settings</code> مطلوبة لتغيير هذه الإعدادات.</div>',
+    tags: ['reports', 'إعدادات', 'settings', 'تخصيص']
+  },
+];
+
+/* ============================================================
+   منطق العرض والب﻿حث والوسوم
+   ============================================================ */
+const faqList = document.getElementById('faqList');
+const searchInput = document.getElementById('searchInput');
+const resultCount = document.getElementById('resultCount');
+
+let activeCat = 'all';
+let activeTag = null;
+let searchText = '';
+
+// إعادة بناء ثم تصفية
+function render() {
+  const filtered = FAQS.filter(faq => {
+    // فلترة التصنيف
+    if (activeCat !== 'all' && faq.cat !== activeCat) return false;
+    // فلترة الوسم النشط
+    if (activeTag && !faq.tags.includes(activeTag)) return false;
+    // فلترة البحث
+    if (searchText) {
+      const hay = (faq.q + ' ' + faq.a.replace(/<[^>]+>/g, ' ') + ' ' + faq.tags.join(' ')).toLowerCase();
+      if (!hay.includes(searchText)) return false;
+    }
+    return true;
+  });
+
+  // تجميع حسب التصنيف (مع الحفاظ على ترتيب الفئات)
+  const order = ['settings','users','hotel','rooms','guests','bookings','services','payments','safes','wallet','reports'];
+  const groups = {};
+  filtered.forEach(f => {
+    if (!groups[f.cat]) groups[f.cat] = [];
+    groups[f.cat].push(f);
+  });
+
+  let html = '';
+  if (filtered.length === 0) {
+    html = '<div class="empty-state"><div class="ico">🤔</div><p>لا توجد نتائج مطابقة.<br>جرّب كلمة أخرى أو أزل عوامل التصفية.</p></div>';
+  } else {
+    order.forEach(cat => {
+      const items = groups[cat];
+      if (!items || items.length === 0) return;
+      const num = order.indexOf(cat) + 1;
+      html += `<div class="faq-section-title" data-cat="${cat}"><span class="num">${num}</span> ${CAT_ICON[cat]} ${CATEGORIES[cat].label}</div>`;
+      items.forEach((faq, i) => {
+        const tagHtml = faq.tags.map(t => {
+          const color = tagColor(t);
+          return `<span class="tag tag-${color}${activeTag === t ? ' active-tag' : ''}" data-tag="${t}">${t}</span>`;
+        }).join('');
+        html += `
+          <div class="faq-item" data-key="${cat}-${i}">
+            <button class="faq-q" onclick="toggle(this)">
+              <span class="q-text"><span class="qmark">؟</span><span>${faq.q}</span></span>
+              <span class="chev">▼</span>
+            </button>
+            <div class="faq-a"><div class="faq-a-inner">${faq.a}</div></div>
+            <div class="tags">${tagHtml}</div>
+          </div>`;
+      });
+    });
+  }
+
+  faqList.innerHTML = html;
+  resultCount.textContent = filtered.length
+    ? `عدد النتائج المعروضة: ${filtered.length}`
+    : '';
+
+  // ربط نقرات الوسوم
+  faqList.querySelectorAll('.tag').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const t = el.dataset.tag;
+      activeTag = (activeTag === t) ? null : t;
+      // تصفية يجب أن تنسحب على كل الأقسام
+      render();
+    });
+  });
+}
+
+function tagColor(t) {
+  const gold = ['إعدادات','بيانات الفندق','فندق','أسعار','حجز','الفندق','المحفظة','إيداع','سحب','رصيد'];
+  const green = ['دفع','إيصال','استرداد','فتح','إضافة','إنشاء','نزيل','تسجيل'];
+  const red = ['إلغاء','تعطيل','إيقاف','حظر','فشل','تخلص','المفقودات'];
+  const purple = ['مطعم','دعوات','invitations','SaaS'];
+  const ln = t.toLowerCase();
+  if (red.includes(ln)) return 'red';
+  if (purple.includes(ln)) return 'purple';
+  if (green.includes(ln)) return 'green';
+  if (gold.includes(ln)) return 'gold';
+  return 'blue';
+}
+
+function toggle(btn) {
+  const item = btn.closest('.faq-item');
+  const wasOpen = item.classList.contains('open');
+  // إغلاق الكل (أكورديون)
+  document.querySelectorAll('.faq-item.open').forEach(i => {
+    i.classList.remove('open');
+    i.querySelector('.faq-a').style.maxHeight = '0px';
+  });
+  if (!wasOpen) {
+    item.classList.add('open');
+    const answer = item.querySelector('.faq-a');
+    answer.style.maxHeight = answer.scrollHeight + 60 + 'px';
+  }
+}
+
+/* أحداث البحث */
+searchInput.addEventListener('input', e => {
+  searchText = e.target.value.trim().toLowerCase();
+  render();
+});
+
+/* أزرار التصنيف */
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    activeCat = chip.dataset.cat;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    render();
+    window.scrollTo({ top: document.querySelector('.search-wrap').getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
+  });
+});
+
+/* العرض الأول */
+render();
+</script>
+</body>
+</html>

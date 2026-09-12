@@ -9,8 +9,8 @@ const pdfService = new WalletReceiptPdfService();
 async function getHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const tx = await prisma.walletTransaction.findUnique({
-      where: { id: params.id },
+    const tx = await prisma.walletTransaction.findFirst({
+      where: { id: params.id, wallet: { hotelId: user.hotelId } },
       include: {
         wallet: {
           include: { guest: { select: { name: true, phone: true } } },
@@ -18,12 +18,11 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
       },
     });
     if (!tx) return errorResponse('المعاملة غير موجودة', 404);
-    if (tx.wallet.hotelId !== user.hotelId) return errorResponse('غير مصرح', 403);
 
     let createdByName = '';
     if (tx.createdById) {
-      const creator = await prisma.user.findUnique({
-        where: { id: tx.createdById },
+      const creator = await prisma.user.findFirst({
+        where: { id: tx.createdById, hotelId: user.hotelId },
         select: { name: true },
       });
       createdByName = creator?.name || '';

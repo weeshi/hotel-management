@@ -31,6 +31,14 @@ async function postHandler(request: NextRequest) {
   try {
     const user = (request as any).user;
     const body = (request as any).validatedBody;
+
+    const roomType = await prisma.roomType.findFirst({ where: { id: body.roomTypeId, hotelId: user.hotelId }, select: { id: true } });
+    if (!roomType) return errorResponse('نوع الغرفة غير موجود', 404);
+    if (body.cancellationPolicyId) {
+      const policy = await prisma.cancellationPolicy.findFirst({ where: { id: body.cancellationPolicyId, hotelId: user.hotelId }, select: { id: true } });
+      if (!policy) return errorResponse('سياسة الإلغاء غير موجودة', 404);
+    }
+
     const plan = await prisma.ratePlan.create({
       data: {
         hotelId: user.hotelId,

@@ -15,6 +15,7 @@ interface GuestData {
   idNumber?: string | null;
   notes?: string | null;
   allowCredit?: boolean;
+  idDocumentUrl?: string | null;
 }
 
 interface Props {
@@ -36,6 +37,8 @@ export function EditGuestModal({ open, onClose, guest, onSuccess }: Props) {
     notes: '',
     allowCredit: false,
   });
+  const [idDocumentUrl, setIdDocumentUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (guest) {
@@ -49,8 +52,24 @@ export function EditGuestModal({ open, onClose, guest, onSuccess }: Props) {
         notes: guest.notes || '',
         allowCredit: guest.allowCredit || false,
       });
+      setIdDocumentUrl(guest.idDocumentUrl || '');
     }
   }, [guest]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/uploads?subdir=guests', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) setIdDocumentUrl(data.data.url);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +84,7 @@ export function EditGuestModal({ open, onClose, guest, onSuccess }: Props) {
     if (form.idNumber !== (guest.idNumber || '')) body.idNumber = form.idNumber || undefined;
     if (form.notes !== (guest.notes || '')) body.notes = form.notes || undefined;
     if (form.allowCredit !== guest.allowCredit) body.allowCredit = form.allowCredit;
+    if (idDocumentUrl !== (guest.idDocumentUrl || '')) body.idDocumentUrl = idDocumentUrl || undefined;
 
     await apiMutation({
       method: 'PUT',
@@ -91,6 +111,21 @@ export function EditGuestModal({ open, onClose, guest, onSuccess }: Props) {
         <Input label="الجنسية" value={form.nationality} onChange={e => setForm({ ...form, nationality: e.target.value })} />
         <Input label="رقم الهوية" value={form.idNumber} onChange={e => setForm({ ...form, idNumber: e.target.value })} />
         <Input label="ملاحظات" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">صورة الهوية / جواز السفر</label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] cursor-pointer transition-colors text-sm text-[var(--text-muted)]">
+              <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+              {uploading ? 'جاري الرفع...' : '📷 التقط صورة أو اختر ملف'}
+            </label>
+            {idDocumentUrl && (
+              <div className="relative">
+                <img src={idDocumentUrl} alt="صورة الهوية" className="w-16 h-16 object-cover rounded-lg border border-[var(--border)]" />
+                <button type="button" onClick={() => setIdDocumentUrl('')} className="absolute -top-2 -right-2 bg-[var(--red)] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">&times;</button>
+              </div>
+            )}
+          </div>
+        </div>
         {isAdmin && (
           <label className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] cursor-pointer">
             <input type="checkbox" checked={form.allowCredit} onChange={e => setForm({ ...form, allowCredit: e.target.checked })}

@@ -126,7 +126,7 @@ describe('BookingService', () => {
   });
 
   describe('confirm', () => {
-    it('should confirm a pending booking and mark rooms OCCUPIED', async () => {
+    it('should confirm a pending booking', async () => {
       const booking = await bookingService.create({
         hotelId: data.hotel.id,
         guestName: 'ضيف',
@@ -137,16 +137,16 @@ describe('BookingService', () => {
         rooms: [{ roomId: data.room101.id, nightlyRate: 200 }],
       });
 
-      const confirmed = await bookingService.confirm(booking.id);
+      const confirmed = await bookingService.confirm(booking.id, data.hotel.id);
       expect(confirmed.status).toBe('CONFIRMED');
 
       const room = await prisma.room.findUnique({ where: { id: data.room101.id } });
-      expect(room?.status).toBe('OCCUPIED');
+      expect(room?.status).toBe('AVAILABLE');
     });
 
     it('should throw for non-existent booking', async () => {
       await expect(
-        bookingService.confirm('non-existent-id')
+        bookingService.confirm('non-existent-id', data.hotel.id)
       ).rejects.toThrow('الحجز غير موجود');
     });
   });
@@ -160,11 +160,12 @@ describe('BookingService', () => {
         children: 0,
         checkIn: '2026-07-01T14:00:00Z',
         checkOut: '2026-07-03T12:00:00Z',
+        source: 'RECEPTION',
         rooms: [{ roomId: data.room101.id, nightlyRate: 200 }],
       });
 
-      await bookingService.confirm(booking.id);
-      const checkedIn = await bookingService.checkIn(booking.id);
+      await bookingService.confirm(booking.id, data.hotel.id);
+      const checkedIn = await bookingService.checkIn(booking.id, data.hotel.id);
       expect(checkedIn.status).toBe('CHECKED_IN');
 
       const folio = await prisma.folio.findUnique({ where: { bookingId: booking.id } });
@@ -184,13 +185,13 @@ describe('BookingService', () => {
       });
 
       await expect(
-        bookingService.checkIn(booking.id)
+        bookingService.checkIn(booking.id, data.hotel.id)
       ).rejects.toThrow('يجب تأكيد الحجز أولاً');
     });
   });
 
   describe('checkOut', () => {
-    it('should check out a checked-in guest', async () => {
+    it('should check out a checked-in guest with zero balance', async () => {
       const booking = await bookingService.create({
         hotelId: data.hotel.id,
         guestName: 'ضيف',
@@ -198,14 +199,35 @@ describe('BookingService', () => {
         children: 0,
         checkIn: '2026-07-01T14:00:00Z',
         checkOut: '2026-07-03T12:00:00Z',
+        source: 'RECEPTION',
         rooms: [{ roomId: data.room101.id, nightlyRate: 200 }],
       });
 
-      await bookingService.confirm(booking.id);
-      await bookingService.checkIn(booking.id);
-      const checkedOut = await bookingService.checkOut(booking.id, data.admin.id);
+      await bookingService.confirm(booking.id, data.hotel.id);
+      await bookingService.checkIn(booking.id, data.hotel.id);
 
-      expect(checkedOut.status).toBe('CHECKED_OUT');
+      // Pay off the balance so checkout succeeds (strict financial check)
+      const folio = await prisma.folio.findUnique({ where: { bookingId: booking.id } });
+      const balance = Number(folio!.balance);
+      await prisma.$transaction([
+        prisma.payment.create({
+          data: { hotelId: data.hotel.id, folioId: folio!.id, amount: balance, method: 'CASH', status: 'SUCCEEDED' },
+        }),
+        prisma.folioTransaction.create({
+          data: {
+            folioId: folio!.id, type: 'PAYMENT', category: 'PAYMENT',
+            description: 'تسديد كامل', amount: -balance,
+          },
+        }),
+        prisma.folio.update({
+          where: { id: folio!.id },
+          data: { totalPaid: { increment: balance }, balance: { decrement: balance } },
+        }),
+      ]);
+
+      const checkedOut = await bookingService.checkOut(booking.id, data.hotel.id, data.admin.id);
+
+      expect(checkedOut.booking.status).toBe('CHECKED_OUT');
 
       const room = await prisma.room.findUnique({ where: { id: data.room101.id } });
       expect(room?.status).toBe('AVAILABLE');
@@ -229,8 +251,8 @@ describe('BookingService', () => {
       });
 
       await expect(
-        bookingService.checkOut(booking.id, data.admin.id)
-      ).rejects.toThrow('الضيف ليس في إقامة نشطة');
+        bookingService.checkOut(booking.id, data.hotel.id, data.admin.id)
+      ).rejects.toThrow('النزيل ليس في إقامة نشطة');
     });
   });
 
@@ -246,7 +268,7 @@ describe('BookingService', () => {
         rooms: [{ roomId: data.room101.id, nightlyRate: 200 }],
       });
 
-      const cancelled = await bookingService.cancel(booking.id, 'تغيير في الخطط');
+      const cancelled = await bookingService.cancel(booking.id, data.hotel.id, 'تغيير في الخطط');
       expect(cancelled.status).toBe('CANCELLED');
       expect(cancelled.cancellationReason).toBe('تغيير في الخطط');
 
@@ -256,7 +278,7 @@ describe('BookingService', () => {
 
     it('should throw for non-existent booking', async () => {
       await expect(
-        bookingService.cancel('non-existent-id')
+        bookingService.cancel('non-existent-id', data.hotel.id)
       ).rejects.toThrow('الحجز غير موجود');
     });
   });

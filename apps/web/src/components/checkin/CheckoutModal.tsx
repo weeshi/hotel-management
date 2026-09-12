@@ -25,6 +25,20 @@ export function CheckoutModal({ open, booking, folioData, onConfirm, onClose, on
   if (!booking) return null;
   const b = booking;
 
+  // Detect early departure
+  const firstRoom = b.rooms?.[0];
+  const scheduledCheckOut = firstRoom?.checkOut ? new Date(firstRoom.checkOut) : null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const isEarlyDeparture = scheduledCheckOut && scheduledCheckOut > now;
+  let earlyNights = 0;
+  if (isEarlyDeparture && firstRoom?.checkIn) {
+    const checkIn = new Date(firstRoom.checkIn);
+    const totalNights = Math.ceil((scheduledCheckOut!.getTime() - checkIn.getTime()) / 86400000);
+    const usedNights = Math.max(1, Math.ceil((now.getTime() - checkIn.getTime()) / 86400000));
+    earlyNights = totalNights - usedNights;
+  }
+
   async function handleMethodChange(method: string) {
     setPayMethod(method);
     if (method === 'WALLET' && b.guest?.id) {
@@ -48,6 +62,16 @@ export function CheckoutModal({ open, booking, folioData, onConfirm, onClose, on
           <div><strong>الحجز:</strong> #{b.bookingNo}</div>
           <div><strong>النزيل:</strong> {b.guestName || b.guest?.name || 'غير محدد'}</div>
         </div>
+
+        {isEarlyDeparture && (
+          <div className="bg-[rgba(245,158,11,0.12)] border border-[var(--gold)] text-sm p-3 rounded-lg">
+            <strong className="text-[var(--gold)]">⚠️ تسجيل خروج مبكر</strong>
+            <p className="text-[var(--text-secondary)] mt-1">
+              يغادر النزيل قبل الموعد المجدول بـ <strong className="text-[var(--text-primary)]">{earlyNights}</strong> {earlyNights === 1 ? 'ليلة' : 'ليالٍ'}.
+              سيتم تطبيق سياسات الإلغاء آلياً وإدراج أي رصيد مسترد في فاتورة النزيل لتسويته.
+            </p>
+          </div>
+        )}
 
         {folioData && (
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 text-sm">
@@ -91,8 +115,10 @@ export function CheckoutModal({ open, booking, folioData, onConfirm, onClose, on
                   className="w-full px-3 py-2 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--gold)]">
                   <option value="CASH">💰 نقداً</option>
                   <option value="CARD">💳 بطاقة</option>
-                  <option value="STRIPE">🌐 Stripe</option>
                   <option value="MOBICASH">📱 موبي كاش</option>
+                  <option value="SADAD">📲 سداد</option>
+                  <option value="TADAWUL">📲 تدوال</option>
+                  <option value="BANK_TRANSFER">🏦 تحويل بنكي</option>
                   {b.guest?.id && <option value="WALLET">👛 محفظة إلكترونية</option>}
                 </select>
               </div>

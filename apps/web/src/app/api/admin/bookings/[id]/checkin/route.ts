@@ -10,7 +10,12 @@ const bookingService = new BookingService();
 async function handler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user;
-    const booking = await bookingService.checkIn(params.id);
+    const body = await request.json().catch(() => ({}));
+    const payment = body.payment && body.payment.amount > 0
+      ? { method: body.payment.method || 'CASH', amount: Number(body.payment.amount) }
+      : undefined;
+
+    const booking = await bookingService.checkIn(params.id, user.hotelId, payment);
 
     const { sendBookingNotification } = await import('@/lib/services/notification.service');
     sendBookingNotification({

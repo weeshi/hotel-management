@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { Input, Select, Button } from '@/components/ui';
+import { Button, Input, Select } from '@/components/ui';
 import { GuestSearchCombobox } from '@/components/guests';
 
 interface Props {
@@ -20,7 +20,8 @@ interface Props {
 
 export function GuestInfoCard({
   guestId, guestName, guestEmail, guestPhone, adults, numChildren,
-  onGuestIdChange, onNameChange, onEmailChange, onPhoneChange, onAdultsChange, onChildrenChange,
+  onGuestIdChange, onNameChange, onEmailChange, onPhoneChange,
+  onAdultsChange, onChildrenChange,
 }: Props) {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
@@ -57,13 +58,13 @@ export function GuestInfoCard({
         <Select
           label="عدد البالغين"
           value={String(adults)}
-          onChange={(v) => onAdultsChange(Number(v))}
+          onChange={(e) => onAdultsChange(Number(e.target.value))}
           options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))}
         />
         <Select
           label="عدد الأطفال"
           value={String(numChildren)}
-          onChange={(v) => onChildrenChange(Number(v))}
+          onChange={(e) => onChildrenChange(Number(e.target.value))}
           options={[0, 1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }))}
         />
       </div>

@@ -17,6 +17,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
 
     const group = await groupBookingService.assignBookings({
       groupId: params.id,
+      hotelId: user.hotelId,
       bookingIds: body.bookingIds,
       createdById: user?.userId,
     });

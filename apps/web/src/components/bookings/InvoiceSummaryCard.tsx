@@ -7,10 +7,11 @@ interface Props {
   selectedRooms: Record<string, number>;
   nights: number;
   totalCharges: number;
+  serviceTotal?: number;
 }
 
-export function InvoiceSummaryCard({ rooms, selectedRooms, nights, totalCharges }: Props) {
-  if (nights <= 0 || totalCharges <= 0) return null;
+export function InvoiceSummaryCard({ rooms, selectedRooms, nights, totalCharges, serviceTotal }: Props) {
+  if (nights <= 0 || (totalCharges <= 0 && (!serviceTotal || serviceTotal <= 0))) return null;
 
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
@@ -25,9 +26,15 @@ export function InvoiceSummaryCard({ rooms, selectedRooms, nights, totalCharges 
             </div>
           );
         })}
+        {serviceTotal && serviceTotal > 0 && (
+          <div className="flex justify-between text-[var(--text-secondary)]">
+            <span>خدمات إضافية</span>
+            <span>{serviceTotal} د.ل</span>
+          </div>
+        )}
         <div className="border-t border-[var(--border)] pt-2 flex justify-between font-bold text-base">
           <span>الإجمالي</span>
-          <span className="text-[var(--gold)]">{totalCharges} د.ل</span>
+          <span className="text-[var(--gold)]">{totalCharges + (serviceTotal || 0)} د.ل</span>
         </div>
       </div>
     </div>

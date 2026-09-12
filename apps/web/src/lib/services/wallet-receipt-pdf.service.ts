@@ -17,9 +17,9 @@ interface ReceiptData {
 
 const methodLabels: Record<string, string> = {
   CASH: 'نقداً',
-  TRANSFER: 'حوالة بنكية',
+  BANK_TRANSFER: 'حوالة بنكية',
   CARD: 'بطاقة',
-  CHEQUE: 'شيك',
+  POS: 'نقاط بيع',
 };
 
 const typeLabels: Record<string, string> = {

@@ -17,10 +17,11 @@ function sanitizeError(error: any) {
 
 async function getHandler(request: NextRequest) {
   try {
+    const user = (request as any).user;
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
 
-    const guests = await guestService.quickSearch(q);
+    const guests = await guestService.quickSearch(q, user.hotelId);
 
     return successResponse(guests);
   } catch (error: any) {

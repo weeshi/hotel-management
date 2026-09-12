@@ -5,6 +5,7 @@ import { Card, Button, Badge } from '@/components/ui';
 import { apiPut } from '@/lib/utils/api-mutation';
 import type { GroupBookingData, RoutingRuleData, FolioData } from './types';
 import { AssignBookingsModal } from './AssignBookingsModal';
+import { CreateSubBookingModal } from './CreateSubBookingModal';
 
 interface Props {
   group: GroupBookingData;
@@ -31,6 +32,7 @@ function folioBalance(folio: FolioData | null) {
 
 export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
   const [showAssign, setShowAssign] = useState(false);
+  const [showSubBooking, setShowSubBooking] = useState(false);
   const [editingRules, setEditingRules] = useState(false);
   const [rules, setRules] = useState<RoutingRuleData[]>(group.routingRules);
   const [saving, setSaving] = useState(false);
@@ -83,6 +85,9 @@ export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
             <Button size="sm" variant="secondary" onClick={() => setShowAssign(true)}>
               + إضافة حجوزات
             </Button>
+            <Button size="sm" variant="secondary" onClick={() => setShowSubBooking(true)}>
+              ➕ حجز فرعي
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => setEditingRules(!editingRules)}>
               {editingRules ? 'إلغاء' : '⚙️ التوجيه'}
             </Button>
@@ -112,27 +117,49 @@ export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
 
         {/* Routing Rules Editor */}
         {editingRules && (
-          <div className="mb-4 p-4 border border-[var(--border)] rounded-xl space-y-3">
-            <h4 className="font-bold text-sm">قواعد التوجيه</h4>
-            {rules.map(rule => (
-              <div key={rule.chargeType} className="flex items-center gap-3">
-                <span className="text-sm w-32">{CHARGE_TYPE_LABELS[rule.chargeType] || rule.chargeType}</span>
-                <select
-                  value={rule.targetFolioId}
-                  onChange={e => toggleRuleFolio(rule.chargeType, e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm"
-                >
-                  {allFolios.map(f => (
-                    <option key={f.id} value={f.id}>{f.label}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
-            <div className="flex gap-2 justify-end pt-2">
+          <div className="mb-4 p-4 border border-[var(--border)] rounded-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm">⚙️ قواعد التوجيه (Routing)</h4>
+              <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-card)] px-2 py-1 rounded-full">
+                تحدد أي فاتورة تتحمل كل نوع من الرسوم
+              </span>
+            </div>
+
+            <div className="bg-[rgba(52,152,219,0.08)] border border-[var(--blue)]/30 rounded-xl p-3 text-xs space-y-1">
+              <p className="font-semibold text-[var(--blue)]">📋 الفاتورة الرئيسية (Master Folio)</p>
+              <p className="text-[var(--text-muted)]">
+                تجمع جميع الرسوم التي لم تُوجّه إلى فاتورة فرعية معينة. تُستخدم للدفع الموحد للمجموعة.
+              </p>
+              <p className="font-semibold text-[var(--gold)] mt-2">🚪 الفواتير الفرعية (Sub-Folios)</p>
+              <p className="text-[var(--text-muted)]">
+                كل حجز له فاتورته الخاصة. يمكن توجيه أنواع رسوم محددة (مثل الخدمات) إلى فاتورة غرفة معينة أو إلى الفاتورة الرئيسية.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {rules.map(rule => (
+                <div key={rule.chargeType} className="flex items-center gap-3">
+                  <span className="text-sm w-36 font-medium">{CHARGE_TYPE_LABELS[rule.chargeType] || rule.chargeType}</span>
+                  <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                  <select
+                    value={rule.targetFolioId}
+                    onChange={e => toggleRuleFolio(rule.chargeType, e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm"
+                  >
+                    {allFolios.map(f => (
+                      <option key={f.id} value={f.id}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end pt-2 border-t border-[var(--border)]">
               <Button size="sm" variant="secondary" onClick={() => { setEditingRules(false); setRules(group.routingRules); }}>
                 إلغاء
               </Button>
-              <Button size="sm" onClick={handleSaveRules} loading={saving}>حفظ</Button>
+              <Button size="sm" onClick={handleSaveRules} loading={saving}>💾 حفظ قواعد التوجيه</Button>
             </div>
           </div>
         )}
@@ -172,6 +199,13 @@ export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
       <AssignBookingsModal
         open={showAssign}
         onClose={() => setShowAssign(false)}
+        onSuccess={onRefresh}
+        groupId={group.id}
+        hotelId={hotelId}
+      />
+      <CreateSubBookingModal
+        open={showSubBooking}
+        onClose={() => setShowSubBooking(false)}
         onSuccess={onRefresh}
         groupId={group.id}
         hotelId={hotelId}

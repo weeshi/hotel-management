@@ -4,10 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ToastContainer } from '@/components/ui/toast';
+import { ErrorModal } from '@/components/ui/error-modal';
 import { apiGet } from '@/lib/utils/api-client';
 import { AuthProvider } from '@/contexts/auth-context';
 
 const roleNavItems: Record<string, { section: string; items: { href: string; label: string }[] }[]> = {
+  SUPER_ADMIN: [
+    { section: '👑 منصة SaaS', items: [
+      { href: '/superadmin/hotels', label: '🏨 الفنادق' },
+      { href: '/superadmin/invitations', label: '📨 الدعوات' },
+    ]},
+    { section: '⚙️ مراقبة الطوابير', items: [
+      { href: '/admin/queues', label: '📋 لوحة الطوابير (Bull Board)' },
+    ]},
+  ],
   ADMIN: [
     { section: '🔝 تشغيل يومي', items: [
       { href: '/admin', label: '⚙️ لوحة الإدارة' },
@@ -18,6 +28,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/reception/folio', label: '💰 الفواتير' },
       { href: '/reception/payments', label: '💳 المدفوعات' },
       { href: '/reception/tape-chart', label: '📊 المخطط الزمني' },
+      { href: '/reception/group-bookings', label: '👥 الحجوزات الجماعية' },
     ]},
     { section: '🏗️ إدارة المنشأة', items: [
       { href: '/admin/rooms', label: '🚪 إدارة الغرف' },
@@ -46,6 +57,10 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/admin/reports', label: '📊 التقارير' },
       { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
       { href: '/admin/notifications', label: '🔔 الإشعارات' },
+      { href: '/admin/integrations', label: '🔌 تكاملات الحجز' },
+      { href: '/admin/channel-manager', label: '📡 مدير القنوات (OTA)' },
+      { href: '/admin/api-keys', label: '🔑 مفاتيح API' },
+      { href: '/admin/website-settings', label: '🌐 إعدادات الموقع' },
       { href: '/admin/settings', label: '⚙️ إعدادات الفندق' },
     ]},
   ],
@@ -64,6 +79,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
     { section: '🔔 النظام', items: [
       { href: '/admin/audit-logs', label: '📋 سجل التدقيق' },
       { href: '/admin/notifications', label: '🔔 الإشعارات' },
+      { href: '/admin/api-keys', label: '🔑 مفاتيح API' },
     ]},
   ],
   RECEPTION: [
@@ -279,6 +295,7 @@ export default function DashboardLayout({
         <div className="p-4 lg:p-6"><AuthProvider>{children}</AuthProvider></div>
       </main>
       <ToastContainer />
+      <ErrorModal />
     </div>
   );
 }

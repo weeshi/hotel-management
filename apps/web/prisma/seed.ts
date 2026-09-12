@@ -14,6 +14,7 @@ async function main() {
       id: 'default-hotel',
       name: 'فندق السلام',
       nameAr: 'فندق السلام',
+      customDomain: 'localhost',
       address: 'طرابلس، ليبيا',
       phone: '+218-21-1234567',
       email: 'info@hotel-salam.ly',
@@ -28,6 +29,20 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 12);
   const receptionPassword = await bcrypt.hash('reception123', 12);
   const password123 = await bcrypt.hash('123456', 12);
+  const superAdminPassword = await bcrypt.hash('superadmin123', 12);
+
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'super@hotel.com' },
+    update: {},
+    create: {
+      email: 'super@hotel.com',
+      password: superAdminPassword,
+      name: 'المشرف العام على المنصة',
+      role: 'SUPER_ADMIN',
+      // لا ينتمي لفندق واحد — يرى جميع فنادق المنصة (SaaS)
+    },
+  });
+  console.log(`✅ تم إنشاء المشرف العام: ${superAdmin.email}`);
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@hotel.com' },
@@ -161,7 +176,7 @@ async function main() {
   // إنشاء أنواع الغرف
   const singleRoom = await prisma.roomType.upsert({
     where: { id: 'room-type-single' },
-    update: {},
+    update: { webPrice: 250, webRoomLimit: 5 },
     create: {
       id: 'room-type-single',
       hotelId: hotel.id,
@@ -169,6 +184,8 @@ async function main() {
       nameAr: 'غرفة مفردة',
       description: 'غرفة مريحة بسرير واحد',
       baseRate: 250,
+      webPrice: 250,
+      webRoomLimit: 5,
       capacity: 1,
       amenityServices: { create: [{ serviceId: 'svc-breakfast' }, { serviceId: 'svc-room-cleaning' }] },
     },
@@ -176,7 +193,7 @@ async function main() {
 
   const doubleRoom = await prisma.roomType.upsert({
     where: { id: 'room-type-double' },
-    update: {},
+    update: { webPrice: 350, webRoomLimit: 5 },
     create: {
       id: 'room-type-double',
       hotelId: hotel.id,
@@ -184,6 +201,8 @@ async function main() {
       nameAr: 'غرفة مزدوجة',
       description: 'غرفة واسعة بسريرين',
       baseRate: 350,
+      webPrice: 350,
+      webRoomLimit: 5,
       capacity: 2,
       amenityServices: { create: [{ serviceId: 'svc-breakfast' }, { serviceId: 'svc-room-cleaning' }, { serviceId: 'svc-dry-cleaning' }] },
     },
@@ -191,7 +210,7 @@ async function main() {
 
   const suiteRoom = await prisma.roomType.upsert({
     where: { id: 'room-type-suite' },
-    update: {},
+    update: { webPrice: 550, webRoomLimit: 3 },
     create: {
       id: 'room-type-suite',
       hotelId: hotel.id,
@@ -199,6 +218,8 @@ async function main() {
       nameAr: 'جناح',
       description: 'جناح فاخر مع غرفة معيشة',
       baseRate: 550,
+      webPrice: 550,
+      webRoomLimit: 3,
       capacity: 4,
       amenityServices: { create: [{ serviceId: 'svc-breakfast' }, { serviceId: 'svc-lunch' }, { serviceId: 'svc-dinner' }, { serviceId: 'svc-room-cleaning' }, { serviceId: 'svc-dry-cleaning' }] },
     },
@@ -243,9 +264,9 @@ async function main() {
         name: 'مرنة',
         nameAr: 'مرنة',
         rules: JSON.stringify([
-          { hoursBefore: 48, refundPercent: 100 },
-          { hoursBefore: 24, refundPercent: 50 },
-          { hoursBefore: 0, refundPercent: 0 },
+          { cancelBeforeHours: 48, refundPercentage: 100 },
+          { cancelBeforeHours: 24, refundPercentage: 50 },
+          { cancelBeforeHours: 0, refundPercentage: 0 },
         ]),
       },
       {
@@ -253,9 +274,9 @@ async function main() {
         name: 'معتدلة',
         nameAr: 'معتدلة',
         rules: JSON.stringify([
-          { hoursBefore: 72, refundPercent: 100 },
-          { hoursBefore: 48, refundPercent: 50 },
-          { hoursBefore: 0, refundPercent: 25 },
+          { cancelBeforeHours: 72, refundPercentage: 100 },
+          { cancelBeforeHours: 48, refundPercentage: 50 },
+          { cancelBeforeHours: 0, refundPercentage: 25 },
         ]),
       },
       {
@@ -263,9 +284,9 @@ async function main() {
         name: 'صارمة',
         nameAr: 'صارمة',
         rules: JSON.stringify([
-          { hoursBefore: 168, refundPercent: 100 },
-          { hoursBefore: 72, refundPercent: 50 },
-          { hoursBefore: 0, refundPercent: 0 },
+          { cancelBeforeHours: 168, refundPercentage: 100 },
+          { cancelBeforeHours: 72, refundPercentage: 50 },
+          { cancelBeforeHours: 0, refundPercentage: 0 },
         ]),
       },
     ],
@@ -292,6 +313,7 @@ async function main() {
 
   console.log('\n🎉 تم إنشاء جميع البيانات التجريبية بنجاح!');
   console.log('\n📧 حسابات الاختبار:');
+  console.log('   super@hotel.com        / superadmin123 (المشرف العام على المنصة - SUPER_ADMIN)');
   console.log('   admin@hotel.com        / admin123    (مدير النظام)');
   console.log('   manager@hotel.com      / 123456      (مدير الفندق)');
   console.log('   reception@hotel.com    / reception123 (موظف الاستقبال)');

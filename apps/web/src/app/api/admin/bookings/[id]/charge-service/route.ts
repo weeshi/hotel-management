@@ -16,13 +16,13 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
 
     if (!serviceId) return errorResponse('معرف الخدمة مطلوب', 400);
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+    const booking = await prisma.booking.findFirst({
+      where: { id: params.id, hotelId: user.hotelId },
       include: { folio: true },
     });
     if (!booking) return errorResponse('الحجز غير موجود', 404);
 
-    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    const service = await prisma.service.findFirst({ where: { id: serviceId, hotelId: user.hotelId } });
     if (!service) return errorResponse('الخدمة غير موجودة', 404);
 
     const qty = quantity || 1;

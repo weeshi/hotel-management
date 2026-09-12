@@ -16,9 +16,9 @@ export class WalletService {
     return wallet;
   }
 
-  async getWalletById(walletId: string) {
-    const wallet = await prisma.wallet.findUnique({
-      where: { id: walletId },
+  async getWalletById(walletId: string, hotelId: string) {
+    const wallet = await prisma.wallet.findFirst({
+      where: { id: walletId, hotelId },
       include: {
         guest: true,
         transactions: { orderBy: { createdAt: 'desc' }, take: 50 },
@@ -225,7 +225,7 @@ export class WalletService {
       throw new ForbiddenError('فقط المدير يمكنه ترحيل الديون إلى المحفظة');
     }
 
-    const guest = await prisma.guest.findUnique({ where: { id: params.guestId } });
+    const guest = await prisma.guest.findFirst({ where: { id: params.guestId, hotelId: params.hotelId } });
     if (!guest) throw new NotFoundError('النزيل غير موجود');
     if (!guest.allowCredit) {
       throw new ForbiddenError('هذا النزيل غير مصرح له بالحصول على رصيد دائن. قم بتفعيل "السماح بالائتمان" من ملف النزيل');
@@ -270,12 +270,12 @@ export class WalletService {
     });
   }
 
-  async toggleFreeze(walletId: string, userRole: Role) {
+  async toggleFreeze(walletId: string, hotelId: string, userRole: Role) {
     if (!['ADMIN', 'MANAGER'].includes(userRole)) {
       throw new ForbiddenError('فقط المدير يمكنه تجميد أو إلغاء تجميد المحفظة');
     }
 
-    const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    const wallet = await prisma.wallet.findFirst({ where: { id: walletId, hotelId } });
     if (!wallet) throw new NotFoundError('المحفظة غير موجودة');
 
     return prisma.wallet.update({
@@ -286,9 +286,10 @@ export class WalletService {
 
   async getTransactions(
     walletId: string,
+    hotelId: string,
     options?: { skip?: number; take?: number }
   ) {
-    const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    const wallet = await prisma.wallet.findFirst({ where: { id: walletId, hotelId } });
     if (!wallet) throw new NotFoundError('المحفظة غير موجودة');
 
     return prisma.walletTransaction.findMany({

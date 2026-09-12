@@ -32,8 +32,9 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
 
 async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const user = (request as any).user;
     const body = await request.json();
-    const guest = await guestService.update(params.id, body);
+    const guest = await guestService.update(params.id, user.hotelId, body);
 
     return successResponse(guest);
   } catch (error: any) {
@@ -43,7 +44,8 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
 
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await guestService.remove(params.id);
+    const user = (request as any).user;
+    await guestService.remove(params.id, user.hotelId);
 
     return successResponse({ deleted: true });
   } catch (error: any) {

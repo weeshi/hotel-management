@@ -8,15 +8,18 @@ interface Service {
   name: string;
   nameAr?: string | null;
   price: number;
+  capacityIncrease: number;
   category?: { nameAr?: string | null; name: string } | null;
 }
 
 interface Props {
   selectedServices: Record<string, number>;
   onServicesChange: (services: Record<string, number>) => void;
+  onTotalServicePriceChange?: (total: number) => void;
+  onCapacityIncreaseChange?: (totalIncrease: number) => void;
 }
 
-export function ServicesCard({ selectedServices, onServicesChange }: Props) {
+export function ServicesCard({ selectedServices, onServicesChange, onTotalServicePriceChange, onCapacityIncreaseChange }: Props) {
   const [services, setServices] = useState<Service[]>([]);
 
   useEffect(() => {
@@ -29,6 +32,19 @@ export function ServicesCard({ selectedServices, onServicesChange }: Props) {
     const svc = services.find(s => s.id === id);
     return sum + (svc ? svc.price * qty : 0);
   }, 0);
+
+  const totalCapacityIncrease = Object.entries(selectedServices).reduce((sum, [id, qty]) => {
+    const svc = services.find(s => s.id === id);
+    return sum + (svc ? (svc.capacityIncrease || 0) * qty : 0);
+  }, 0);
+
+  useEffect(() => {
+    onTotalServicePriceChange?.(totalServicePrice);
+  }, [totalServicePrice, onTotalServicePriceChange]);
+
+  useEffect(() => {
+    onCapacityIncreaseChange?.(totalCapacityIncrease);
+  }, [totalCapacityIncrease, onCapacityIncreaseChange]);
 
   function toggleService(svc: Service) {
     onServicesChange({

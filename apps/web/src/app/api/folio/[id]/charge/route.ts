@@ -13,14 +13,14 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
     const user = (request as any).user;
     const body = await request.json();
 
-    const transaction = await folioService.addCharge(params.id, {
+    const transaction = await folioService.addCharge(params.id, user.hotelId, {
       description: body.description,
       amount: body.amount,
       category: body.category,
       createdById: user.userId,
     });
 
-    const folio = await prisma.folio.findUnique({ where: { id: params.id }, include: { booking: true } });
+    const folio = await prisma.folio.findFirst({ where: { id: params.id, booking: { hotelId: user.hotelId } }, include: { booking: true } });
 
     createAuditLog({
       hotelId: user.hotelId,

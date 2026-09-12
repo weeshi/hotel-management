@@ -17,7 +17,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
       return errorResponse('المبلغ مطلوب', 400);
     }
 
-    const refund = await paymentService.processRefund(params.id, {
+    const refund = await paymentService.processRefund(params.id, user.hotelId, {
       amount: body.amount,
       reason: body.reason,
       createdById: user.userId,
