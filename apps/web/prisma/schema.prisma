@@ -58,6 +58,7 @@ model Hotel {
   apiKeys              ApiKey[]
   channelMappings      ChannelMapping[]
   channelPriceSnapshots ChannelPriceSnapshot[]
+  vccAuditLogs        VCCAuditLog[]
 }
 
 // ============================================================
@@ -683,12 +684,23 @@ model Payment {
   status           String   @default("PENDING")
   createdAt        DateTime @default(now())
 
+  // VGS / VCC fields (PCI-DSS compliant — no PAN/CVV stored)
+  vccToken         String?  // Tokenized card number (e.g., tok_visa_...)
+  vccExpiryToken   String?  // Tokenized expiry date
+  vccCVVToken      String?  // Tokenized CVV
+  vccProvider      String?  // Tokenization provider (e.g., 'vgs')
+  vgsVaultId       String?  // VGS Vault ID reference
+  vccHolderName    String?  // Cardholder name (non-sensitive)
+  vccPurgedAt      DateTime? // When VCC data was purged (retention policy)
+
   refunds Refund[]
 
   @@index([bookingId])
   @@index([folioId])
   @@index([status])
   @@index([hotelId, status])
+  @@index([vccToken])
+  @@index([vccPurgedAt])
 }
 
 model Refund {
@@ -702,6 +714,30 @@ model Refund {
   createdAt       DateTime @default(now())
 
   @@index([paymentId])
+}
+
+// ============================================================
+//  VCC Audit Log (PCI-DSS compliance tracking)
+// ============================================================
+model VCCAuditLog {
+  id            String   @id @default(uuid())
+  hotelId       String
+  hotel         Hotel    @relation(fields: [hotelId], references: [id])
+  paymentId     String?
+  bookingId     String?
+  action        String   // 'tokenized' | 'revealed' | 'purged' | 'charge_attempted' | 'charge_succeeded' | 'charge_failed'
+  vccTokenRef   String?  // Reference to token (not the token itself)
+  vgsVaultId    String?
+  performedBy   String?  // User ID or 'system' for automated jobs
+  ipAddress     String?
+  userAgent     String?
+  metadata      String?  // JSON with additional context
+  createdAt     DateTime @default(now())
+
+  @@index([hotelId, createdAt])
+  @@index([paymentId])
+  @@index([bookingId])
+  @@index([action])
 }
 
 // ============================================================
