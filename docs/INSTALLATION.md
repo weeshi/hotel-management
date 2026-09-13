@@ -1,6 +1,6 @@
 # دليل التثبيت والتشغيل — نظام إدارة الفنادق
 
-> الإصدار: **v8.4** (الفرع: `feature/channel-manager-integration`)
+> الإصدار: **v8.5** (الفرع: `release/V3.12-Updates`)
 > البوابة: **http://localhost:3210**
 > قاعدة البيانات: **PostgreSQL** `localhost:5432/hotel_management` + **Redis** `localhost:6379`
 
@@ -163,6 +163,8 @@ npm run lint
 - `typecheck`: بصفر أخطاء
 - `test`: **240 اختبارًا تمر** (24 ملف)
 - `lint`: بدون أخطاء حاسمة
+
+> **ملاحظة VCC/PCI-DSS:** النظام يدعم الآن استقبال البطاقات الافتراضية (VCC) من OTAs عبر VGS Tokenization Proxy. لا يتم تخزين أي PAN/CVV في قاعدة البيانات — فقط Tokens. يتطلب الإنتاج حساب VGS وإعداد Forward Proxy.
 
 ---
 

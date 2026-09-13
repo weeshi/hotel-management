@@ -27,6 +27,20 @@ export interface InboundBooking {
   paymentAmount?: number | null;
   currency?: string;
   status?: string;
+
+  // VCC fields (optional - for tokenized virtual credit cards via VGS)
+  vccTokens?: {
+    cardToken: string;
+    expiryToken: string;
+    cvvToken: string;
+    holderName: string;
+  };
+  vgsMetadata?: {
+    vaultId?: string;
+    tokenizedAt?: string;
+    proxyVersion?: string;
+    originalProvider: string;
+  };
 }
 
 export type ChannelResult =
@@ -272,6 +286,7 @@ export class ChannelManagerService {
 
         let paymentId: string | null = null;
         if (data.paymentAmount && data.paymentAmount > 0) {
+          const isVCC = !!data.vccTokens && !!data.vgsMetadata;
           const payment = await tx.payment.create({
             data: {
               hotelId,
@@ -279,12 +294,34 @@ export class ChannelManagerService {
               folioId: folio.id,
               amount: data.paymentAmount,
               currency: data.currency || 'LYD',
-              method: 'EXTERNAL',
-              gateway: provider,
+              method: isVCC ? 'VCC' : 'EXTERNAL',
+              gateway: isVCC ? 'vgs' : provider,
+              gatewayPaymentId: isVCC ? data.vccTokens!.cardToken : undefined,
               externalRef: data.externalRef,
               idempotencyKey: `ota_${hotelId}_${data.externalRef}`,
               status: 'SUCCEEDED',
-              metadata: JSON.stringify({ provider }),
+              metadata: JSON.stringify({
+                provider,
+                ...(isVCC ? {
+                  vccToken: data.vccTokens!.cardToken,
+                  vccExpiryToken: data.vccTokens!.expiryToken,
+                  vccCVVToken: data.vccTokens!.cvvToken,
+                  vccProvider: data.vgsMetadata!.originalProvider || provider,
+                  vgsVaultId: data.vgsMetadata!.vaultId,
+                  vccHolderName: data.vccTokens!.holderName,
+                  tokenizedAt: data.vgsMetadata!.tokenizedAt,
+                  proxyVersion: data.vgsMetadata!.proxyVersion,
+                } : {}),
+              }),
+              // VCC-specific fields
+              ...(isVCC ? {
+                vccToken: data.vccTokens!.cardToken,
+                vccExpiryToken: data.vccTokens!.expiryToken,
+                vccCVVToken: data.vccTokens!.cvvToken,
+                vccProvider: data.vgsMetadata!.originalProvider || provider,
+                vgsVaultId: data.vgsMetadata!.vaultId,
+                vccHolderName: data.vccTokens!.holderName,
+              } : {}),
             },
           });
           paymentId = payment.id;
@@ -293,7 +330,7 @@ export class ChannelManagerService {
               folioId: folio.id,
               type: 'PAYMENT',
               category: 'PAYMENT',
-              description: `دفعة إلكترونية (${provider})`,
+              description: isVCC ? `دفعة بطاقة افتراضية (${provider})` : `دفعة إلكترونية (${provider})`,
               amount: -data.paymentAmount,
             },
           });
