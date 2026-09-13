@@ -16,7 +16,17 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
         folio: {
           include: {
             transactions: { orderBy: { createdAt: 'asc' } },
-            payments: true,
+            payments: {
+              select: {
+                id: true,
+                method: true,
+                status: true,
+                amount: true,
+                currency: true,
+                gateway: true,
+                createdAt: true,
+              },
+            },
             discounts: true,
           },
         },
