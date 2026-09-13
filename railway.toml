@@ -1,0 +1,16 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/api/health/workers"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "web"
+startCommand = "npm run start"
+
+[[services]]
+name = "worker-cm"
+startCommand = "npm run worker:cm"

@@ -60,7 +60,7 @@ npm install
 docker compose up -d
 ```
 - `postgres` → `5432` (مستخدم `hotel`, كلمة سر `hotel_dev_2026`, قاعدة `hotel_management`)
-- `redis` → `6379` (اختياري)
+- `redis` → `6379` (**مطلوب لـ BullMQ**)
 - `pgadmin` → `5050` (يتطلب `--profile dev`)
 
 ---
@@ -99,6 +99,11 @@ npm run dev
 ```
 ثم افتح المتصفح على: **http://localhost:3210**
 
+**تشغيل عامل BullMQ (في ترمينال منفصل):**
+```bash
+npm run worker:cm
+```
+
 **وضع الإنتاج:**
 ```bash
 npm run build
@@ -119,6 +124,7 @@ npm run lint
 
 ## 8) (اختياري) تشغيل دائم عبر `launchd`
 
+**الويب:**
 أنشئ `~/Library/LaunchAgents/com.hotel.web.plist`:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -138,9 +144,37 @@ npm run lint
 </dict>
 </plist>
 ```
+
+**عامل BullMQ:**
+أنشئ `~/Library/LaunchAgents/com.hotel.worker.plist`:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.hotel.worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/npm</string>
+        <string>run</string>
+        <string>worker:cm</string>
+    </array>
+    <key>WorkingDirectory</key><string>/path/to/hotel-management</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>REDIS_URL</key><string>redis://:hotel_redis_2026@localhost:6379</string>
+        <key>NODE_ENV</key><string>production</string>
+    </dict>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+</dict>
+</plist>
+```
+
 ثم:
 ```bash
 launchctl load ~/Library/LaunchAgents/com.hotel.web.plist
+launchctl load ~/Library/LaunchAgents/com.hotel.worker.plist
 ```
 
 ---

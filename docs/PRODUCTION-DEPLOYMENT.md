@@ -7,13 +7,13 @@
 
 ## نظرة عامة
 
-التطبيق هو **Next.js 14 (تطبيق مُصَدَّر)**. خطوة الإنتاج المعتادة:
+التطبيق هو **Next.js 14 (تطبيق مُصَدَّر)** مع **خدمة عامل BullMQ مستقلة**. خطوة الإنتاج المعتادة:
 ```
-build → start
+build → start (web) + worker-cm (background)
 ```
-يعمل `next build` على تجميع التطبيق، ويشغّله `next start` كخادم Node حقيقي (وليس dev).
+يعمل `next build` على تجميع التطبيق، ويشغّله `next start` كخادم Node حقيقي (وليس dev). عامل BullMQ يعمل كعملية منفصلة `npm run worker:cm` ويستهلك طوابير Redis.
 
-> لا توجد حاجة لـ Redis في وقت التشغيل. PostgreSQL مطلوب.
+> **Redis مطلوب في وقت التشغيل** (لطوابير BullMQ). PostgreSQL مطلوب.
 
 ---
 
@@ -29,6 +29,15 @@ build → start
 | `PAYMENT_CRYPTO_KEY` | 64 حرف hex (32 بايت) — لتشفير مفاتيح تكامل النظام |
 | `RESEND_API_KEY` | مفتاح بريدك الفعلي (لإشعارات الدعوات/الحجوزات) |
 | `NEXT_PUBLIC_APP_URL` | العنوان العام الفعلي (مثال `https://hotel.example.com`) |
+| `REDIS_URL` | `redis://:PASSWORD@host:6379` (مطلوب لـ BullMQ) |
+| `WORKER_CONCURRENCY_SNAPSHOT` | `2` (اختياري — حد التزامن لطابور snapshot) |
+| `WORKER_CONCURRENCY_PUBLISH` | `3` (اختياري — حد التزامن لطابور publish) |
+| `WORKER_CONCURRENCY_INGEST` | `5` (اختياري — حد التزامن لطابور ingest) |
+| `WORKER_CONCURRENCY_RATES` | `2` (اختياري — حد التزامن لطابور rates) |
+| `WORKER_CONCURRENCY_RECONCILE` | `1` (اختياري — حد التزامن لطابور reconcile) |
+| `VGS_PROXY_URL` | `https://tntxxx.verygoodproxy.com` (VGS Forward Proxy URL) |
+| `VGS_VAULT_ID` | `vlt_xxxxx` (VGS Vault ID for tokenization) |
+| `VGS_REVEAL_DOMAIN` | `reveal.verygoodsecurity.com` (VGS Reveal Iframe domain) |
 
 > **قاعدة ذهبية:** `NEXT_PUBLIC_*` تُبنى داخل الحزمة وقت `build`، لذلك لا تغيّرها بعد البناء — حدّدها قبل `next build`.
 
@@ -96,6 +105,68 @@ server {
 
 ---
 
+## 4.5) تشغيل عامل BullMQ (Worker)
+
+عامل BullMQ الوحيد (`worker-cm`) يستهلك جميع طوابير `cm-*` ويجب تشغيله كخدمة دائمة بجانب الويب:
+
+**PM2 (موصى به):**
+```bash
+npm i -g pm2
+pm2 start npm --name hotel-worker -- run worker:cm
+pm2 save
+pm2 startup
+```
+
+**systemd (Linux):**
+```ini
+# /etc/systemd/system/hotel-worker.service
+[Unit]
+Description=Hotel Management BullMQ Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hotel-management
+Environment=NODE_ENV=production
+Environment=REDIS_URL=redis://:PASSWORD@localhost:6379
+ExecStart=/usr/bin/npm run worker:cm
+Restart=always
+RestartSec=10
+User=hotel
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+systemctl daemon-reload
+systemctl enable --now hotel-worker
+```
+
+**Docker Compose (prod profile):**
+```yaml
+# docker-compose.prod.yml
+services:
+  worker-cm:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker   # أو استخدم نفس image الويب
+    command: npm run worker:cm
+    environment:
+      - REDIS_URL=redis://:PASSWORD@redis:6379
+      - NODE_ENV=production
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+```
+
+> **Healthcheck:** العامل يعرض `/api/health/workers` على المنفذ `PORT` (افتراضي 3211) — استخدمه في systemd/PM2/Docker `healthcheck` للشفاء الذاتي.
+
+---
+
 ## 5) مصادقة TLS/SSL
 
 - استخدم **Caddy** (يحصل على شهادات تلقائيًا):
@@ -121,13 +192,20 @@ pg_dump -U hotel hotel_management | gzip > /backup/hotel_$(date +%F).sql.gz
 
 ## 7) مراقبة الصحة
 
-نقطة صحية سريعة (محمية للداخل):
+**الويب (Next.js):**
 ```bash
 curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3210/api/health
 ```
+
+**عامل BullMQ (Worker):**
+```bash
+curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3211/api/health/workers
+```
+يعيد JSON `{ status: "ok", redis: "connected", queues: {...} }` — يفيد في systemd/PM2/Docker healthcheck للشفاء الذاتي.
+
 أو تحقق من أي مسار عام (`/`, `/rooms`) يعيد 200.
 
-**أدوات مفيدة:** PM2 (`pm2 logs`), systemd (`journalctl -u hotel-web`), ومراقبات مثل UptimeRobot/Nagios.
+**أدوات مفيدة:** PM2 (`pm2 logs`), systemd (`journalctl -u hotel-web` / `journalctl -u hotel-worker`), ومراقبات مثل UptimeRobot/Nagios.
 
 ---
 
@@ -140,3 +218,17 @@ curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3210/api/health
 - [ ] تقييد الوصول إلى `/api` الإدارية عبر المصادقة والصلاحيات.
 - [ ] مراجعة أدوار المستخدمين ونفي افتراضي.
 - [ ] عزل مجلد `apps/web/storage` (وثائق النزلاء) بأذونات صارمة.
+
+---
+
+## امتثال VCC / PCI-DSS (SAQ A) — Checklist الإنتاج
+
+- [ ] **VGS Proxy**: تم إعداد Forward Proxy على `vgs-proxy.yourdomain.com` مع field mappings صحيحة لـ Booking.com/Expedia
+- [ ] **VGS Vault**: تم إنشاء Vault، تم تعيين `VGS_VAULT_ID` في البيئة
+- [ ] **Reveal Domain**: `VGS_REVEAL_DOMAIN` مضبوط (افتراضي: `reveal.verygoodsecurity.com`)
+- [ ] **No PAN/CVV in DB**: تحقق أن قاعدة البيانات لا تحتوي على حقول PAN/CVV — فقط `vccToken`/`vccExpiryToken`/`vccCVVToken`
+- [ ] **Audit Log**: `VCCAuditLog` يسجل `tokenized`/`revealed`/`purged` لكل عملية
+- [ ] **Purge Job**: Job يومي يعمل 03:30، يحذف tokens بعد `checkOut + 7 أيام` عبر VGS API
+- [ ] **SAQ A Attestation**: نموذج SAQ A مكتمل وموقع (VGS يتحمل مسؤولية Vault)
+- [ ] **Network Segmentation**: VGS Proxy هو الجهة الوحيدة التي تلمس PAN — خوادم التطبيق لا ترى PAN أبداً
+- [ ] **Backup Exclusion**: استبعاد جداول VCC من النسخ الاحتياطية أو تشفير منفصل

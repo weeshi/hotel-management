@@ -25,7 +25,9 @@ services:
     restart: unless-stopped
     ports:
       - '6379:6379'
-    command: redis-server --requirepass hotel_redis_2026
+    volumes:
+      - redis_data:/data
+    command: redis-server --requirepass hotel_redis_2026 --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -48,3 +50,4 @@ services:
 
 volumes:
   pgdata:
+  redis_data:
