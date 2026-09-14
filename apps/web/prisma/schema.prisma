@@ -54,8 +54,9 @@ model Hotel {
   invitations          Invitation[]
   payments             Payment[]
   integrationConfigs   IntegrationConfig[]
-  gatewayWebhooks      GatewayWebhook[]
-  apiKeys              ApiKey[]
+  gatewayWebhooks       GatewayWebhook[]
+  paymentSessions       PaymentSession[]
+  apiKeys               ApiKey[]
   channelMappings      ChannelMapping[]
   channelPriceSnapshots ChannelPriceSnapshot[]
   vccAuditLogs        VCCAuditLog[]
@@ -161,6 +162,8 @@ enum PaymentMethod {
   MOBICASH
   SADAD
   TADAWUL
+  PLUTU
+  TLYNC
   BANK_TRANSFER
   IDFA3LY
   YASERPAY
@@ -210,6 +213,7 @@ model Guest {
 
   bookings  Booking[]
   wallets   Wallet[]
+  paymentSessions PaymentSession[]
   documents GuestDocument[]
 
   @@unique([hotelId, email])
@@ -450,6 +454,7 @@ model Booking {
   folio            Folio?
   bookingServices  BookingService[]
   payments         Payment[]
+  paymentSessions  PaymentSession[]
   notifications    Notification[]
   auditLogs        AuditLog[]
   restaurantOrders RestaurantOrder[]
@@ -586,6 +591,7 @@ model Folio {
 
   transactions       FolioTransaction[]
   payments           Payment[]
+  paymentSessions    PaymentSession[]
   invoices           Invoice[]
   discounts          FolioDiscount[]
   scheduledCharges   ScheduledCharge[]
@@ -694,6 +700,8 @@ model Payment {
   vccPurgedAt      DateTime? // When VCC data was purged (retention policy)
 
   refunds Refund[]
+  gatewayWebhooks GatewayWebhook[]
+  paymentSessions PaymentSession[]
 
   @@index([bookingId])
   @@index([folioId])
@@ -714,6 +722,47 @@ model Refund {
   createdAt       DateTime @default(now())
 
   @@index([paymentId])
+}
+
+// ============================================================
+//  جلسات الدفع عبر البوابات المحلية (Local Payment Gateways)
+// ============================================================
+// PaymentSession يتبع محاولة دفع واحدة في الحجز المباشر: (ضيف → بوابة → دفعة).
+// الجلسة لا تمسّ الـ Ledger إطلاقاً — فقط عند تأكيد الـ Webhook ننشئ الـ Payment
+// المكتمل ثم نطبقه على الـ Folio عبر applyPayment. الجلسات لا تُحذف أبداً
+// (أرشيف تدقيق مرحلة PCI، بنفس روح VCCAuditLog).
+model PaymentSession {
+  id                   String   @id @default(uuid())
+  hotelId              String
+  hotel                Hotel    @relation(fields: [hotelId], references: [id])
+  bookingId            String
+  booking              Booking  @relation(fields: [bookingId], references: [id])
+  folioId              String?
+  folio                Folio?   @relation(fields: [folioId], references: [id])
+  guestId              String?
+  guest                Guest?   @relation(fields: [guestId], references: [id])
+  method               String // PLUTU | TLYNC | CASH | BANK_TRANSFER
+  gateway              String // plutu | tlync | bank_transfer | cash
+  amount               Float
+  currency             String   @default("LYD")
+  status               String   @default("PENDING") // PENDING | SUCCEEDED | FAILED | EXPIRED
+  merchantTxId         String? // معرّف المعاملة لدينا (مرسل للبوابة عند الإنشاء)
+  gatewayTransactionId String? // أيد البوابة الرسمي (يعود في الـ webhook)
+  gatewayReference     String? // رقم المرجع/الفاتورة من البوابة
+  signature            String?
+  idempotencyKey       String?  @unique
+  returnUrl            String?
+  paymentId            String?
+  payment              Payment? @relation(fields: [paymentId], references: [id])
+  expiresAt            DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  gatewayWebhooks GatewayWebhook[]
+
+  @@index([hotelId, status, createdAt])
+  @@index([gateway, gatewayTransactionId])
+  @@index([bookingId])
 }
 
 // ============================================================
@@ -771,8 +820,15 @@ model GatewayWebhook {
   processedAt DateTime?
   createdAt   DateTime  @default(now())
 
+  paymentId        String?
+  payment          Payment?        @relation(fields: [paymentId], references: [id])
+  paymentSessionId String?
+  paymentSession   PaymentSession? @relation(fields: [paymentSessionId], references: [id])
+
   @@unique([provider, hotelId, eventId])
   @@index([hotelId])
+  @@index([paymentId])
+  @@index([paymentSessionId])
 }
 
 // ============================================================
