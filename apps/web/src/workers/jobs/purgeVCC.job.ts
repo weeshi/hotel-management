@@ -98,6 +98,8 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
   if (result.ok) {
     await markTokenPurged(paymentId, tokenType);
 
+    const is404 = result.status === 404;
+
     await prisma.vCCAuditLog.create({
       data: {
         hotelId: payment.hotelId,
@@ -112,6 +114,7 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
         metadata: JSON.stringify({
           tokenType,
           vgsResponseStatus: result.status,
+          ...(is404 ? { reason: 'token_not_found_in_vgs' } : {}),
           attempt,
           purgedAt: new Date().toISOString(),
         }),

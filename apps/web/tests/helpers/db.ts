@@ -41,6 +41,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 export async function resetDb() {
   await prisma.$transaction([
+    prisma.vCCAuditLog.deleteMany(),
     prisma.auditLog.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.invitation.deleteMany(),
