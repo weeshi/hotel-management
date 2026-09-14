@@ -36,6 +36,7 @@ export const QUEUE_CONFIGS: QueueConfig[] = [
   { key: 'ingest', name: 'cm-booking-ingest', concurrency: getConcurrency('ingest', 3) },
   { key: 'rates', name: 'cm-rates-push', concurrency: getConcurrency('rates', 1) },
   { key: 'reconcile', name: 'cm-inventory-reconcile', concurrency: getConcurrency('reconcile', 1) },
+  { key: 'purge', name: 'cm-vcc-purge', concurrency: getConcurrency('purge', 2) },
 ];
 
 export const JOB_PRIORITY = {

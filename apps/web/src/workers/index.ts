@@ -8,6 +8,7 @@ import { pushToOTAProcessor } from './jobs/pushToOTA.job';
 import { processInboundBookingProcessor } from './jobs/processInboundBooking.job';
 import { pushRatePlanProcessor } from './jobs/pushRatePlan.job';
 import { reconcileInventoryProcessor } from './jobs/reconcileInventory.job';
+import { processPurgeVCCProcessor } from './jobs/purgeVCC.job';
 
 const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
   snapshot: buildSnapshotProcessor,
@@ -15,6 +16,7 @@ const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
   ingest: processInboundBookingProcessor,
   rates: pushRatePlanProcessor,
   reconcile: reconcileInventoryProcessor,
+  purge: processPurgeVCCProcessor,
 };
 
 function startHealthServer(port: number): void {
@@ -37,7 +39,7 @@ function startHealthServer(port: number): void {
 
 async function main() {
   const port = parseInt(process.env.PORT || '3001', 10);
-  const targets: QueueKey[] = ['snapshot', 'publish', 'ingest', 'rates', 'reconcile'];
+  const targets: QueueKey[] = ['snapshot', 'publish', 'ingest', 'rates', 'reconcile', 'purge'];
 
   console.log(`[Worker] Starting worker | NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
   console.log(`[Worker] Consuming queues: ${targets.join(', ')}`);
