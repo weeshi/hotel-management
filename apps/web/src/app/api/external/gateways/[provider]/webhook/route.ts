@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { headers } from 'next/headers';
 import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported } from '@/lib/integrations/gateways';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
@@ -19,7 +18,7 @@ export async function POST(
   const config = adapter.config;
 
   const rawBody = await request.text();
-  const signatureHeader = headers().get('x-signature') || headers().get('x-plutu-signature') || headers().get('x-tlync-signature') || '';
+  const signatureHeader = request.headers.get('x-signature') || request.headers.get('x-plutu-signature') || request.headers.get('x-tlync-signature') || '';
 
   const webhookParse = adapter.parseWebhook(rawBody);
   if (!webhookParse.ok || !webhookParse.data) {
@@ -37,7 +36,7 @@ export async function POST(
   const validSignature = adapter.verifyWebhookSignature(payload, secretKey);
   if (!validSignature) {
     console.warn(`[${provider.toUpperCase()} Webhook] Invalid signature`, { provider, transactionId: 'transaction_id' in payload ? (payload as any).transaction_id : (payload as any).tran_id });
-    return errorResponse('توقيع غير صالح', 401);
+    return errorResponse('توقيع غير صالح', 401, 'UNAUTHORIZED');
   }
 
   const transactionId = 'transaction_id' in payload ? (payload as any).transaction_id : (payload as any).tran_id;
@@ -159,7 +158,6 @@ export async function POST(
           data: {
             status: 'SETTLED',
             settledAt: new Date(),
-            settledById: 'SYSTEM_WEBHOOK',
           },
         });
       }

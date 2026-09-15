@@ -1,13 +1,45 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported, CreatePaymentSessionRequest } from '@/lib/integrations/gateways';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
+
+const paymentSessionRateLimit = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(key: string, limit = 5, windowMs = 60000): { allowed: boolean } {
+  const now = Date.now();
+  const record = paymentSessionRateLimit.get(key);
+
+  if (!record || now > record.resetTime) {
+    paymentSessionRateLimit.set(key, { count: 1, resetTime: now + windowMs });
+    return { allowed: true };
+  }
+
+  if (record.count >= limit) {
+    return { allowed: false };
+  }
+
+  record.count++;
+  return { allowed: true };
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: bookingId } = await params;
+
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const rateLimitKey = `payment-session:${bookingId}:${ip}`;
+  const rateLimitResult = checkRateLimit(rateLimitKey);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { message: 'طلبات كثيرة جداً لإنشاء جلسة دفع. حاول بعد دقيقة', code: 'RATE_LIMITED' },
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     const body = await request.json();
