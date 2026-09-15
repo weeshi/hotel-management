@@ -275,7 +275,37 @@ Worker Service (cm-availability-snapshot, cm-availability-publish,
 | محفظة داخلية (Wallet) | ✅ تحويل مباشر عبر `WalletService` |
 | حقن محرك خارجي | ✅ SUCCEEDED تلقائياً مع `externalRef` و `gateway` |
 
-> تعداد `PaymentMethod` موحّد بين `schema.prisma` و `@hotel/shared` (v8.1) — أي إضافة طريقة دفع جديدة يجب أن تحدّث الطرفين معاً.
+> تعداد `PaymentMethod` موحّد بين `schema.prisma` و `@hotel/shared` (v8.1) — أي إضافة طريقة دفع جديدة يجب أن حدّث الطرفين معاً.
+
+### 🏦 بوابات الدفع المحلية للحجوزات المباشرة (Local Gateways — v8.7+)
+
+> **السيناريو:** حجوزات الأفراد المباشرة من موقع الفندق (Public Booking) بالدفع الإلكتروني عبر بوابات ليبية (Plutu / T-Lync). الـ PMS لا يتواصل مع البوابة مباشرة — الجلسة تبدأ عبر API، المستخدم يُوجّه لصفحة الدفع، والـ Webhook يعيد التأكيد ليسوي الـ Ledger.
+
+**النماذج الجديدة:**
+| النموذج | الوظيفة |
+|---------|----------|
+| `PaymentSession` | تتبع جلسة دفع واحدة (PENDING → SUCCEEDED/FAILED/EXPIRED). لا تمس الـ Ledger حتى تأكيد الـ Webhook. |
+| `GatewayWebhook` | دفتر Idempotency للـ Webhooks (`@@unique([provider, hotelId, eventId])`). |
+
+**مسارات API الجديدة:**
+
+| الطريقة | المسار | الوصف |
+|--------|--------|-------|
+| POST | `/api/public/bookings/[id]/payment-session` | بدء جلسة دفع لحجز عام (يتطلب `gateway: "plutu"|"tlync"` و `returnUrl`). يعيد `paymentUrl` للتوجيه. محمي بـ Rate Limit (5 req/min/booking+IP). |
+| POST | `/api/external/gateways/[provider]/webhook` | استقبال إشعار الدفع من Plutu/T-Lync. يتحقق من التوقيت (timingSafeEqual)، Zod validation، Idempotency. عند SUCCESS: ينشئ `Payment` SUCCEEDED، يطبق على `Folio` (Atomic transaction)، يحدّث `PaymentSession` → SUCCEEDED. |
+
+**مصنع البوابات (Factory Pattern):**
+```typescript
+import { getGatewayAdapter } from '@/lib/integrations/gateways';
+const adapter = getGatewayAdapter('plutu'); // أو 'tlync'
+await adapter.createPaymentSession({ amount, currency, orderId, ... });
+```
+
+**مجالات الاستخدام الحالية:**
+- Plutu: `createPlutuPaymentSession` + `verifyPlutuSignature` (SHA-256)
+- T-Lync: `createTLyncPaymentSession` + `verifyTLyncSignature` (HMAC-SHA256)
+
+> **ملاحظة هندسية:** التوقيعات الحالية Placeholders — ستُحدّث عند ورود وثائق Sandbox الرسمية. الـ Factory يسمح بإضافة بوابات جديدة دون تعديل مسارات الـ Webhook.
 
 ### 🔐 طبقات الأمان
 
