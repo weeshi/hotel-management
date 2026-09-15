@@ -2,11 +2,8 @@ import { NextRequest } from 'next/server';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported } from '@/lib/integrations/gateways';
-import { FolioRepository } from '@/lib/repositories/folio.repository';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { createAuditLog } from '@/lib/services';
-
-const folioRepo = new FolioRepository();
 
 export async function POST(
   request: NextRequest,
@@ -138,7 +135,34 @@ export async function POST(
     });
 
     if (paymentSession!.folioId) {
-      await folioRepo.applyPayment(paymentSession!.folioId, payment.id, amount, 'SYSTEM_WEBHOOK');
+      const folioTx = await tx.folioTransaction.create({
+        data: {
+          folioId: paymentSession!.folioId,
+          type: 'PAYMENT',
+          category: 'PAYMENT',
+          description: `دفعة إلكترونية (${provider})`,
+          amount: -amount,
+        },
+      });
+
+      const updatedFolio = await tx.folio.update({
+        where: { id: paymentSession!.folioId },
+        data: {
+          totalPaid: { increment: amount },
+          balance: { decrement: amount },
+        },
+      });
+
+      if (Number(updatedFolio.balance) <= 0 && updatedFolio.status !== 'SETTLED') {
+        await tx.folio.update({
+          where: { id: paymentSession!.folioId },
+          data: {
+            status: 'SETTLED',
+            settledAt: new Date(),
+            settledById: 'SYSTEM_WEBHOOK',
+          },
+        });
+      }
     }
 
     await createAuditLog({
