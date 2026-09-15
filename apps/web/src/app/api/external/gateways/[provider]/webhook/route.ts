@@ -4,6 +4,36 @@ import { getGatewayAdapter, isGatewaySupported } from '@/lib/integrations/gatewa
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { createAuditLog } from '@/lib/services';
 
+const GATEWAY_ALLOWED_IPS: Record<string, string[]> = {
+  plutu: (process.env.PLUTU_WEBHOOK_IPS || '').split(',').map(ip => ip.trim()).filter(Boolean),
+  tlync: (process.env.TLYNC_WEBHOOK_IPS || '').split(',').map(ip => ip.trim()).filter(Boolean),
+};
+
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')?.trim()
+    || 'unknown';
+}
+
+function isIpAllowed(provider: string, clientIp: string): boolean {
+  const allowedIps = GATEWAY_ALLOWED_IPS[provider] || [];
+  if (allowedIps.length === 0) {
+    console.warn(`[${provider.toUpperCase()} Webhook] IP whitelist not configured — allowing all (dev mode)`);
+    return true;
+  }
+  return allowedIps.some(allowed => {
+    if (allowed.includes('/')) {
+      const [base, prefix] = allowed.split('/');
+      const prefixLen = parseInt(prefix, 10);
+      const mask = ~0 << (32 - prefixLen);
+      const ipNum = clientIp.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+      const baseNum = base.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+      return (ipNum & mask) === (baseNum & mask);
+    }
+    return allowed === clientIp;
+  });
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
@@ -14,11 +44,15 @@ export async function POST(
     return errorResponse(`بوابة غير مدعومة: ${provider}`, 400, 'UNSUPPORTED_GATEWAY');
   }
 
+  const clientIp = getClientIp(request);
+  if (!isIpAllowed(provider, clientIp)) {
+    console.warn(`[${provider.toUpperCase()} Webhook] IP rejected: ${clientIp}`);
+    return errorResponse('عنوان IP غير مسموح', 403, 'IP_NOT_ALLOWED');
+  }
+
   const adapter = getGatewayAdapter(provider);
-  const config = adapter.config;
 
   const rawBody = await request.text();
-  const signatureHeader = request.headers.get('x-signature') || request.headers.get('x-plutu-signature') || request.headers.get('x-tlync-signature') || '';
 
   const webhookParse = adapter.parseWebhook(rawBody);
   if (!webhookParse.ok || !webhookParse.data) {
@@ -27,26 +61,20 @@ export async function POST(
   }
 
   const payload = webhookParse.data;
-  const secretKey = 'secretKey' in config ? config.secretKey : (config as any).secretKey;
-  if (!secretKey) {
-    console.error(`[${provider.toUpperCase()} Webhook] Secret key not configured`);
-    return errorResponse('إعداد البوابة غير مكتمل', 500);
-  }
-
-  const validSignature = adapter.verifyWebhookSignature(payload, secretKey);
-  if (!validSignature) {
-    console.warn(`[${provider.toUpperCase()} Webhook] Invalid signature`, { provider, transactionId: 'transaction_id' in payload ? (payload as any).transaction_id : (payload as any).tran_id });
-    return errorResponse('توقيع غير صالح', 401, 'UNAUTHORIZED');
-  }
 
   const transactionId = 'transaction_id' in payload ? (payload as any).transaction_id : (payload as any).tran_id;
   const orderId = 'order_id' in payload ? (payload as any).order_id : (payload as any).order_id;
 
-  const status = (payload as any).status;
-  const isSuccess = status === 'SUCCESS';
-
   let hotelId: string | null = null;
-  let paymentSession = null;
+  let paymentSession: {
+    id: string;
+    hotelId: string;
+    bookingId: string;
+    folioId: string | null;
+    gatewayConfig: string | null;
+    method: string;
+    gateway: string;
+  } | null = null;
 
   try {
     paymentSession = await prisma.paymentSession.findFirst({
@@ -68,10 +96,37 @@ export async function POST(
     return errorResponse('فشل البحث عن جلسة الدفع', 500);
   }
 
-  if (!hotelId) {
+  if (!hotelId || !paymentSession) {
     console.warn(`[${provider.toUpperCase()} Webhook] No matching PaymentSession found`, { transactionId, orderId });
     return successResponse({ received: true, matched: false });
   }
+
+  let secretKey = '';
+  if (paymentSession.gatewayConfig) {
+    try {
+      const storedConfig = JSON.parse(paymentSession.gatewayConfig);
+      secretKey = storedConfig.secretKey || '';
+    } catch {
+      secretKey = '';
+    }
+  }
+  if (!secretKey) {
+    const config = adapter.config;
+    secretKey = 'secretKey' in config ? config.secretKey : (config as any).secretKey || '';
+  }
+  if (!secretKey) {
+    console.error(`[${provider.toUpperCase()} Webhook] Secret key not configured`);
+    return errorResponse('إعداد البوابة غير مكتمل', 500);
+  }
+
+  const validSignature = adapter.verifyWebhookSignature(payload, secretKey);
+  if (!validSignature) {
+    console.warn(`[${provider.toUpperCase()} Webhook] Invalid signature`, { provider, transactionId, clientIp });
+    return errorResponse('توقيع غير صالح', 401, 'UNAUTHORIZED');
+  }
+
+  const status = (payload as any).status;
+  const isSuccess = status === 'SUCCESS';
 
   const webhookRecord = await prisma.gatewayWebhook.create({
     data: {
