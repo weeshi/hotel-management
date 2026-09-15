@@ -30,9 +30,12 @@ TLYNC_CALLBACK_URL=https://yourdomain.com/api/external/gateways/tlync/webhook
 
 # Redis (للـ Rate Limiter + BullMQ)
 REDIS_URL=redis://:password@host:6379
+
+# تجاوز اختياري للـ IP Whitelist (للاختبار فقط — لا تستخدم في الإنتاج!)
+# DANGER_BYPASS_WEBHOOK_IP_CHECK=true
 ```
 
-> **ملاحظة:** في بيئة التطوير (`NODE_ENV !== 'production'`)، إذا كانت `*_WEBHOOK_IPS` فارغة، يسمح النظام بكل الـ IPs مع تحذير في اللوج — **يجب تكوينها في الإنتاج**.
+> **ملاحظة أمنية:** في بيئة الإنتاج، **يجب** تكوين `*_WEBHOOK_IPS` بقوائم IPs رسمية من البوابات. النظام يعمل بـ **Fail-Closed** — إذا كانت القائمة فارغة ولم يُضبط `DANGER_BYPASS_WEBHOOK_IP_CHECK=true`، يرفض جميع الطلبات بـ 403. متغير `DANGER_BYPASS_WEBHOOK_IP_CHECK=true` للاختبار فقط ولا يجب تفعيله في الإنتاج.
 
 ---
 
@@ -41,29 +44,38 @@ REDIS_URL=redis://:password@host:6379
 ### المشكلة
 إذا قام الفندق بتحديث `IntegrationConfig` (تغيير `secretKey` مثلًا) أثناء وجود جلسة دفع `PENDING`، سيفشل التحقق من الـ Webhook لأن التوقيع سيُحسب بالمفتاح الجديد بينما البوابة أرسلته بالمفتاح القديم.
 
-### الحل: **Snapshot في `PaymentSession.gatewayConfig`**
+### الحل: **Encrypted Snapshot في `PaymentSession.gatewayConfig`**
 
 عند إنشاء جلسة الدفع (`POST /api/public/bookings/[id]/payment-session`):
 
 ```typescript
-gatewayConfig: JSON.stringify({
+const sensitiveConfig = {
   merchantId: config.merchantId,
-  secretKey: config.secretKey,        // المفتاح المستخدم وقت الإنشاء
+  secretKey: config.secretKey,
   baseUrl: config.baseUrl,
   returnUrl: config.returnUrl,
   callbackUrl: config.callbackUrl,
   capturedAt: new Date().toISOString(),
-})
+};
+
+// تشفير AES-256-GCM باستخدام مفتاح المنصة (PAYMENT_CRYPTO_KEY)
+const encryptedConfig = encryptSecret(JSON.stringify(sensitiveConfig));
+
+// التخزين مشفراً — لا يوجد plaintext في قاعدة البيانات
+gatewayConfig: encryptedConfig,
 ```
 
 في الـ Webhook handler:
-1. يحاول قراءة `secretKey` من `paymentSession.gatewayConfig` أولاً
-2. إذا فشل (JSON غير صالح أو مفتاح مفقود) → يرجع للإعدادات الحالية (`adapter.config`)
-3. هذا يضمن أن الجلسات المفتوحة قبل تغيير الإعدادات تظل تعمل
+1. يحاول قراءة وفك تشفير `gatewayConfig` من الجلسة أولاً
+2. `decryptSecret()` يعيد الـ JSON الأصلي → يستخرج `secretKey`
+3. إذا فشل الفك (مفتاح تالف، تنسيق غير صالح) → يرجع للإعدادات الحالية (`adapter.config`)
+3. هذا يضمن أن الجلسات المفتوحة قبل تغيير الإعدادات تظل تعمل، **بدون تخزين أي secret كنص مكشوف**
+
+> **ملاحظة أمنية:** التشفير يستخدم `PAYMENT_CRYPTO_KEY` (مفتاح المنصة، 32 بايت hex) مع AES-256-GCM — نفس الآلية المستخدمة في `IntegrationConfig.apiKeyEnc`.
 
 ---
 
-## 4. Rate Limiting — التنفيذ الذري (Atomic Sliding Window)
+## 4. Rate Limiting — التنفيذ الذري (Atomic Sliding Window) مع NOSCRIPT Fallback
 
 ### الكود: `src/lib/rate-limiter.ts`
 
@@ -87,6 +99,7 @@ return {1, current + 1, window}
 - **`crypto.randomUUID()`**: يضمن تفرد الـ member داخل الـ Sorted Set (لا `Math.random()`)
 - **Sliding Window دقيق**: يحذف الإدخالات المنتهية ثم يعد الحاليين
 - **TTL تلقائي**: المفتاح ينظف نفسه بعد `window + 1` ثانية
+- **NOSCRIPT Fallback**: إذا فُقد السكريبت من ذاكرة Redis (إعادة تشغيل، Flush)، الكود يلتقط خطأ `NOSCRIPT` وينفذ السكريبت مباشرة عبر `redis.eval` — لا ينهار النظام أبداً
 
 ### الاستخدام:
 ```typescript
@@ -130,7 +143,10 @@ if (!result.allowed) {
 - [ ] `TLYNC_WEBHOOK_IPS` مضبوط بقائمة IPs رسمية من T-Lync
 - [ ] مفاتيح `SECRET_KEY` مخزنة بشكل آمن (ليس في الكود)
 - [ ] `REDIS_URL` يشير لRedis إنتاجي مع كلمة مرور
+- [ ] `PAYMENT_CRYPTO_KEY` مضبوط (32 بايت hex) — مطلوب لتشفير `gatewayConfig`
 - [ ] اختبار Webhook يدوي من sandbox لكل بوابة
 - [ ] اختبار Rate Limit: إرسال 6 طلبات سريعة → يتوقع 429 في الطلب السادس
 - [ ] اختبار IP Whitelist: طلب من IP غير مصرح → يتوقع 403
 - [ ] اختبار Config Mutation: إنشاء جلسة → تحديث IntegrationConfig → إرسال Webhook → يتوقع نجاح
+- [ ] اختبار NOSCRIPT Fallback: إعادة تشغيل Redis → إرسال طلبات → لا ينهار الـ Rate Limiter
+- [ ] التحقق أن `DANGER_BYPASS_WEBHOOK_IP_CHECK` **غير مضبوط** في الإنتاج

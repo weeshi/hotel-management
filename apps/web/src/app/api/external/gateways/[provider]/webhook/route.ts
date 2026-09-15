@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported } from '@/lib/integrations/gateways';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { createAuditLog } from '@/lib/services';
+import { decryptSecret } from '@/lib/utils/crypto';
 
 const GATEWAY_ALLOWED_IPS: Record<string, string[]> = {
   plutu: (process.env.PLUTU_WEBHOOK_IPS || '').split(',').map(ip => ip.trim()).filter(Boolean),
@@ -18,8 +19,12 @@ function getClientIp(request: NextRequest): string {
 function isIpAllowed(provider: string, clientIp: string): boolean {
   const allowedIps = GATEWAY_ALLOWED_IPS[provider] || [];
   if (allowedIps.length === 0) {
-    console.warn(`[${provider.toUpperCase()} Webhook] IP whitelist not configured — allowing all (dev mode)`);
-    return true;
+    if (process.env.DANGER_BYPASS_WEBHOOK_IP_CHECK === 'true') {
+      console.warn(`[${provider.toUpperCase()} Webhook] IP whitelist empty — bypassed via DANGER_BYPASS_WEBHOOK_IP_CHECK`);
+      return true;
+    }
+    console.error(`[${provider.toUpperCase()} Webhook] IP whitelist not configured and bypass not enabled — rejecting`);
+    return false;
   }
   return allowedIps.some(allowed => {
     if (allowed.includes('/')) {
@@ -104,9 +109,11 @@ export async function POST(
   let secretKey = '';
   if (paymentSession.gatewayConfig) {
     try {
-      const storedConfig = JSON.parse(paymentSession.gatewayConfig);
+      const decrypted = decryptSecret(paymentSession.gatewayConfig);
+      const storedConfig = JSON.parse(decrypted);
       secretKey = storedConfig.secretKey || '';
-    } catch {
+    } catch (err) {
+      console.warn(`[${provider.toUpperCase()} Webhook] Failed to decrypt gatewayConfig: ${err instanceof Error ? err.message : 'unknown'}`);
       secretKey = '';
     }
   }

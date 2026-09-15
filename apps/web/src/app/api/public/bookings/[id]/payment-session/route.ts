@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported, CreatePaymentSessionRequest } from '@/lib/integrations/gateways';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { checkRateLimit } from '@/lib/rate-limiter';
+import { encryptSecret } from '@/lib/utils/crypto';
 
 export async function POST(
   request: NextRequest,
@@ -87,6 +88,17 @@ export async function POST(
       return errorResponse(`فشل إنشاء جلسة الدفع: ${gatewayResult.error}`, 502);
     }
 
+    const sensitiveConfig = {
+      merchantId: 'merchantId' in config ? config.merchantId : undefined,
+      secretKey: 'secretKey' in config ? config.secretKey : undefined,
+      baseUrl: config.baseUrl,
+      returnUrl: config.returnUrl,
+      callbackUrl: config.callbackUrl,
+      capturedAt: new Date().toISOString(),
+    };
+
+    const encryptedConfig = encryptSecret(JSON.stringify(sensitiveConfig));
+
     const paymentSession = await prisma.paymentSession.create({
       data: {
         hotelId: booking.hotelId,
@@ -103,14 +115,7 @@ export async function POST(
         returnUrl,
         idempotencyKey: merchantTxId,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        gatewayConfig: JSON.stringify({
-          merchantId: 'merchantId' in config ? config.merchantId : undefined,
-          secretKey: 'secretKey' in config ? config.secretKey : undefined,
-          baseUrl: config.baseUrl,
-          returnUrl: config.returnUrl,
-          callbackUrl: config.callbackUrl,
-          capturedAt: new Date().toISOString(),
-        }),
+        gatewayConfig: encryptedConfig,
       },
     });
 

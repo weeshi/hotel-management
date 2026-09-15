@@ -3,6 +3,8 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { prisma } from '@/lib/utils/prisma';
 
+process.env.DANGER_BYPASS_WEBHOOK_IP_CHECK = 'true';
+
 const TEST_DB_URL = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
 
 const mockPlutuAdapter = {

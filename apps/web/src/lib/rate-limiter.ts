@@ -89,7 +89,27 @@ export async function checkRateLimit(
   } catch (err: any) {
     if (err.message?.includes('NOSCRIPT')) {
       scriptShaCache.clear();
-      return checkRateLimit(key, limit, windowSec);
+      const redis = getRedis();
+      const result = await redis.eval(
+        RATE_LIMITER_SCRIPT,
+        1,
+        key,
+        String(now),
+        String(windowSec),
+        String(limit),
+        String(member)
+      ) as [number, number, number];
+
+      const [allowed, current, ttlOrWindow] = result;
+      const resetAt = allowed ? now + windowSec : now + ttlOrWindow;
+
+      return {
+        allowed: allowed === 1,
+        current,
+        limit,
+        remaining: allowed === 1 ? limit - current : 0,
+        resetAt,
+      };
     }
     throw err;
   }
