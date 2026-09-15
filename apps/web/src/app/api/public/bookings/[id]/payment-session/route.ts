@@ -56,7 +56,7 @@ export async function POST(
       orderId: merchantTxId,
       customerName: booking.guestName || booking.guest?.name || 'ضيف',
       customerEmail: booking.guestEmail || booking.guest?.email || '',
-      customerPhone: (booking.guestPhone || booking.guest?.phone) ?? undefined,
+      customerPhone: (booking.guestPhone ?? booking.guest?.phone ?? undefined) as string | undefined,
       description: `دفعة حجز #${booking.bookingNo} — ${booking.hotel.name}`,
       returnUrl,
       callbackUrl: config.callbackUrl,
