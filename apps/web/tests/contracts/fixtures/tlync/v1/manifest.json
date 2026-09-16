@@ -1,0 +1,31 @@
+{
+  "provider": "tlync",
+  "apiVersion": "tlync@2024-11",
+  "baseUrl": "https://sandbox.tlync.ly/api/v1",
+  "env": {
+    "merchantId": "TLYNC_MERCHANT_ID",
+    "secretKey": "TLYNC_SECRET_KEY",
+    "baseUrlOverride": "TLYNC_BASE_URL"
+  },
+  "create": {
+    "method": "POST",
+    "path": "/api/v1/payment/initiate",
+    "signed": false
+  },
+  "webhook": {
+    "delivery": "POST <app>/api/external/gateways/tlync/webhook",
+    "signature": {
+      "algorithm": "hmac-sha256",
+      "excluded": ["signature"],
+      "suffix": ""
+    },
+    "idFields": ["tran_id"],
+    "fields": ["tran_id", "order_id", "amount", "currency", "status", "payment_method", "paid_at"]
+  },
+  "fixtures": [
+    "webhook.success.json",
+    "webhook.failed.json",
+    "webhook.pending.json",
+    "create.request.json"
+  ]
+}

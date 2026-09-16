@@ -56,9 +56,10 @@ export function getTLyncConfig(): TLyncConfig {
   const merchantId = process.env.TLYNC_MERCHANT_ID || process.env.TLYNC_MERCHANT_ID_DEV || '';
   const secretKey = process.env.TLYNC_SECRET_KEY || process.env.TLYNC_SECRET_KEY_DEV || '';
   const isSandbox = process.env.NODE_ENV !== 'production';
-  const baseUrl = isSandbox
+  const overrideBaseUrl = process.env.TLYNC_BASE_URL || process.env.TLYNC_BASE_URL_DEV || '';
+  const baseUrl = overrideBaseUrl || (isSandbox
     ? 'https://sandbox.tlync.ly/api/v1'
-    : 'https://api.tlync.ly/api/v1';
+    : 'https://api.tlync.ly/api/v1');
   const returnUrl = process.env.TLYNC_RETURN_URL || 'https://example.com/payment/return';
   const callbackUrl = process.env.TLYNC_CALLBACK_URL || 'https://example.com/api/external/gateways/tlync/webhook';
 

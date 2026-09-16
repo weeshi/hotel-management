@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "provider": "plutu",
+    "apiVersion": "plutu@2025-sandbox",
+    "scenario": "create-request",
+    "signedWith": "sec_key_test_plutu_9e3f",
+    "note": "Canonical documented template. Runtime assertions validate the schema + recomputed signature of the actually-sent request."
+  },
+  "payload": {
+    "merchant_id": "mer_test_plutu_0001",
+    "amount": "500",
+    "currency": "LYD",
+    "order_id": "ord_golden_plutu_00001",
+    "customer_name": "AHMED AL-OBEIDI",
+    "customer_email": "guest@example.ly",
+    "customer_phone": "+218910000000",
+    "description": "Test booking payment",
+    "return_url": "https://example.com/payment/return",
+    "callback_url": "https://example.com/api/external/gateways/plutu/webhook",
+    "signature": "e18197aec4571594dadf2139d0c02692f06fd91dc0f02b0a62464a80d6f763cd"
+  }
+}

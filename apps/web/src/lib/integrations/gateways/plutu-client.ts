@@ -56,9 +56,10 @@ export function getPlutuConfig(): PlutuConfig {
   const merchantId = process.env.PLUTU_MERCHANT_ID || process.env.PLUTU_MERCHANT_ID_DEV || '';
   const secretKey = process.env.PLUTU_SECRET_KEY || process.env.PLUTU_SECRET_KEY_DEV || '';
   const isSandbox = process.env.NODE_ENV !== 'production';
-  const baseUrl = isSandbox
+  const overrideBaseUrl = process.env.PLUTU_BASE_URL || process.env.PLUTU_BASE_URL_DEV || '';
+  const baseUrl = overrideBaseUrl || (isSandbox
     ? 'https://sandbox.plutu.ly/api/v1'
-    : 'https://api.plutu.ly/api/v1';
+    : 'https://api.plutu.ly/api/v1');
   const returnUrl = process.env.PLUTU_RETURN_URL || 'https://example.com/payment/return';
   const callbackUrl = process.env.PLUTU_CALLBACK_URL || 'https://example.com/api/external/gateways/plutu/webhook';
 

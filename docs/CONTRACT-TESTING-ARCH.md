@@ -1,6 +1,6 @@
-# وثيقة المعمارية المقترحة — اختبار العقود المصغّر (M7: Contract-Driven Gateway Testing)
+# وثيقة معماريّة — اختبار العقود (Contract-Driven Gateway Testing) — M7
 
-> **الحالة:** 🔵 مقترح معماري (خطة اعتماد) — **لا كود تنفيذي بعد**. وفق دستور AGENTS، يُمنع كتابة الكود حتى اعتماد هذا المستند. يعالج ثغرة كاملة كشفتها مراجعة M6/M2: اختباراتنا الحالية (Unit/Integration) تتحقق من **منطقنا** بعقود **مفترضة**، ولا يمكنها اكتشاف أي تغيير مفاجئ في عقد البوابة الخارجية (الحمولات، الرؤوس، التوقيعات، توقيت العودة/webhook).
+> **الحالة:** ✅ **مُنفَّذ (M7.1 As-Built)** — وثيقة حيّة تُحدَّث مع كل تغيير وفق الدستور. تعالج ثغرة كانت اختباراتنا (Unit/Integration) تتحقق من **منطقنا** بعقود **مفترضة**؛ الآن طبقة `tests/contracts` تُشغّل بوابات Plutu/T-Lync على شبكة HTTP حقيقية داخل CI، فتكتشف أي تغيّر في العقد الخارجي فوراً (الحمولات، الرؤوس، التوقيعات، تأخّر webhook) كفشل محدّد لا كخلل غامض في الإنتاج.
 
 ---
 
@@ -12,33 +12,34 @@
 
 ---
 
-## 🏗️ المعمارية المقترحة (المكوّنات)
+## 🏗️ الهيكل المُنفَّذ (M7.1)
 
 ```
 apps/web/tests/contracts/
-├── dummy-gateway/            # خادم HTTP صغير يقلّد بوابة Plutu/T-Lync على الشبكة
-│   ├── server.ts             # node:http — endpoints: create-session / redirect / webhook
-│   ├── hmac.ts               # توليد توقيعات مطابقة لصيغة HMAC للبوابة (مقلّدة)
-│   └── logs.ts               # تسجيل كل طلب (رؤوس+جسم) للفحص
+├── dummy-gateway/server.ts        # node:http على منفذ ephemeral — endpoints فعلية للبوابتين
+│                                  # POST /payment/create (plutu) — POST /payment/initiate (tlync)
+│                                  # GET /pay/:id — تسجيل كل طلب (method/url/headers/body)
+│                                  # behavior.failCreate لتوليد رفض من طرف البوابة
+│                                  # scheduleDelivery(delayMs) لبوابة تأخير webhook
+├── shared/signer.ts               # نسخة مطابقة لخوارزميتي التوقيع (plutu=sha256+suffix | tlync=HMAC)
+│                                  # + CONTRACT_SECRETS الثابتة للاختبار + buildSignedWebhook
 ├── fixtures/
-│   ├── plutu/v1/*.json       # Golden files: الحمولة + الرؤوس + التوقيع (إصدار مُثبَّت)
-│   └── tlync/v1/*.json
+│   ├── plutu/v1/manifest.json     # apiVersion + create/webhook contract + list of fixtures
+│   │   └── webhook.{success,failed,pending}.json / create.request.json  (توقيعات ذهبية مضمّنة)
+│   └── tlync/v1/…                 # نفس البنية (tran_id بدل transaction_id، غياب توقيع create)
 ├── schemas/
-│   ├── plutu.contract.schema.ts   # zod — «العقد» القابل للتنفيذ
-│   └── tlync.contract.schema.ts
-└── scenarios/                # رحلات كاملة على مستوى النظام
-    ├── return-then-webhook.test.ts
-    ├── webhook-before-return.test.ts
-    ├── declined-and-expired.test.ts
-    ├── duplicate-and-signature.test.ts
-    └── gateway-down-delay.test.ts
+│   ├── plutu.contract.schema.ts   # zod: create-request/response + إعادة تصدير plutuWebhookSchema
+│   └── tlync.contract.schema.ts   # من adapters المصدر (مصدر حقيقة واحد — لا ازدواج)
+└── scenarios/gateway-contract.test.ts  # 7 اختبارات: المتجهات + رحلة كاملة + رفض التوقيع
+                                       # + رفض الإنشاء + تأخّر webhook
 ```
 
-**دورة التشغيل في أي سيناريو:**
-1. الاختبار يشغّل `dummy-gateway` على منفذ (ephemeral) `127.0.0.1`.
-2. `BASE_URL` الخاص بـ adapter البوابة يُوجَّه إلى الـ sandbox (حقن بيئة وقت الاختبار — نفس نمط mock الموجود في `gateway-webhook.test.ts`).
-3. الضيف «الافتراضي»: `POST payment-session` → عودة عبر `returnUrl` → / وصول الـ Webhook متأخراً (مع **قابلية تأخير محاكاة عبر fixture**) → تأكيد التسوية وإنشاء الـ `Payment` وتطبيقه على `Folio` (SETTLED).
-4. تأكيد نهائي على مستوى الصفحة: استدعاء `page.tsx` يعرض `SuccessView` بعد اكتمال الـ Webhook (التحقق في وقت الطلب).
+**دورة التشغيل (كما بُنيت):**
+1. `beforeAll` يشغّل Dummy Gateway على منفذ عشوائي ثم يحقن بيئة الـ adapters (`PLUTU_BASE_URL`/`TLYNC_BASE_URL` + مفاتيح `_DEV` + `PAYMENT_CRYPTO_KEY`) **قبل** الاستيراد الديناميكي للـ routes (محامل الوحدات طازجة لكل ملف test).
+2. `POST payment-session` الحقيقي يعبر عبر **adapter الحقيقي** نحو Dummy Gateway عبر fetch (لا mock) — يُلتقط الطلب ويدقق على Schema + إعادة حساب التوقيع + `Content-Type`.
+3. تسليم webhook عبر استدعاء route الـ webhook الحقيقي (بنفس مسار `gateway-webhook.test.ts`) لكن **بتوقيع حقيقي** وفحص `DANGER_BYPASS_WEBHOOK_IP_CHECK`.
+4. النهاية: تأكيد Status endpoint (`verified`) + التسوية على `Folio` (SETTLED) + **SSR لـ `page.tsx`** ينتج `SuccessView` (تحقق حقيقي على مستوى الصفحة).
+5. سيناريو «تأخّر webhook»: عبور بوابة الـ 3 ثوانٍ عبر `vi.useFakeTimers({ toFake: ['setTimeout'] })` بلا نوم حقيقي.
 
 ---
 
@@ -97,8 +98,27 @@ apps/web/tests/contracts/
 
 ---
 
-## ❓ أسئلة مطلوب حسمها قبل التنفيذ
+## ✅ قرارات CTO المعتمدة (M7.1)
 
-1. هل يُكدّس الـ `dummy-gateway` داخل `apps/web/tests/contracts/` أولاً، أم نخرجه حزمة مستقلة منذ البداية؟ (اقتراحي: داخل مجلد الاختبارات أولاً — طبقة واحدة قابلة لإعادة الاستخدام لاحقاً.)
-2. هل نعتمد مهاة «تأخر الـ Webhook» (fixtures ذات مهلة) ضمن الـ CI اليومي أم فقط في تشغيل مخصص؟ (اقتراحي: مهاة التأخير في الوضع اليدوي لألّا تطيل زمن الـ suite.)
-3. هل نطلق `Live Contract Smoke Probe` في هذه النسخة أم بعد استقرار الـ Sandbox؟ (اقتراحي: بعد استقراره — أي في M7.2.)
+1. **YAGNI:** Dummy Gateway يُكدَّس داخل `apps/web/tests/contracts/` — لا حزمة مستقلة حتى ظهور مستهلك ثانٍ.
+2. **زمن CI:** تأخير webhook يُحاكى عبر `vi.useFakeTimers()` بدل النوم الحقيقي — مُحسَّن التطبيق (أدناه).
+3. **Live Contract Smoke Probe → مؤجّل إلى M7.2** (غير حاجب للـ PR).
+
+## 🛠️ تحسينات طرأت أثناء التنفيذ (وثّقت كجزء من الكود)
+
+- **`vi.useFakeTimers` مُضيَّق:** لا نصنع `toFake` عريض ولا ننفّذ عمليات `prisma` داخل `advanceTimersByTimeAsync`. التوقيت المزوّر يختبر **عبور بوابة التأخير فقط** (الخطاف يشتغل) ثم يُعاد العمل بالتوقيت الحقيقي قبل تسليم الـ webhook — يمنع deadlocks/flakes البيئة المختلطة التي ظهرت فعلياً أثناء التطوير.
+- **Override بيئة Base URL:** أُضيف `PLUTU_BASE_URL`/`TLYNC_BASE_URL` (و `_DEV`) إلى `getPlutuConfig`/`getTLyncConfig` — كان `baseUrl` سابقاً صيغة hardcoded فقط، فلا يمكن لأي اختبار وصلي أن يوجّه الـ adapter الحقيقي لخادم محلي. مفيدة أيضاً لاستبدال sandbox عبر البيئة في النشر.
+- **مصدر حقيقة واحد للـ webhook schemas:** `schemas/*.contract.schema.ts` تعيد تصدير `plutuWebhookSchema`/`tlyncWebhookSchema` من الـ adapters نفسها — لا نسخة مكررة في الاختبار حتى لا تزدوج وتتباعد.
+- **`vitest.config.ts`:** أُعلّق oxc (`oxc: false`) مع `esbuild: { jsx: 'automatic' }` حتى نستطيع استيراد صفحات `.tsx` (فحص SuccessView على مستوى الصفحة). لا أثر على باقي الـ suite.
+- **7 اختبارات Contract جديدة** فوق الـ 266 الحالية، صفر تبعيات جديدة، تعمل بلا Redis (rate-limiter يُقلَّد).
+
+## ⏳ مؤجل إلى M7.2
+
+- **Live Contract Smoke Probe:** job دوري غير حاجب تجاه Sandbox البوابات الفعلية (قراءة فحسب) ينتج تقرير Drift مقابل الـ fixtures.
+- تسجيل VCR اختياري (record/replay) ضد sandbox الحقيقي لجعل الـ fixtures وثائق حيّة فعلياً.
+
+## قواعد الحوكمة (سارية)
+
+- أي إشعار رسمي بتغيير API → PR مخصص يحدّث الـ fixtures + الـ zod + `manifest.json`؛ يستحيل تجاوز اختبار فاشل.
+- Golden fixtures توقيعية: التوقيع المضمّن يجب أن يطابق إعادة الحساب في كل شوط (كشف تلاعب أو انحراف في الخوارزمية).
+- كل تغيير لاحق في هذه الطبقة يُوثَّق في هذا الملف فوراً.

@@ -1,0 +1,32 @@
+{
+  "provider": "plutu",
+  "apiVersion": "plutu@2025-sandbox",
+  "baseUrl": "https://sandbox.plutu.ly/api/v1",
+  "env": {
+    "merchantId": "PLUTU_MERCHANT_ID",
+    "secretKey": "PLUTU_SECRET_KEY",
+    "baseUrlOverride": "PLUTU_BASE_URL"
+  },
+  "create": {
+    "method": "POST",
+    "path": "/api/v1/payment/create",
+    "signed": true,
+    "signatureAlgorithm": "sha256 over sorted `k=v` joined by `&` with `&secret=<key>` appended"
+  },
+  "webhook": {
+    "delivery": "POST <app>/api/external/gateways/plutu/webhook",
+    "signature": {
+      "algorithm": "sha256",
+      "excluded": ["signature"],
+      "suffix": "&secret=<key>"
+    },
+    "idFields": ["transaction_id"],
+    "fields": ["transaction_id", "order_id", "amount", "currency", "status", "payment_method", "paid_at"]
+  },
+  "fixtures": [
+    "webhook.success.json",
+    "webhook.failed.json",
+    "webhook.pending.json",
+    "create.request.json"
+  ]
+}

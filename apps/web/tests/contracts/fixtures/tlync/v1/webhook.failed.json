@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "provider": "tlync",
+    "apiVersion": "tlync@2024-11",
+    "scenario": "webhook-failed",
+    "signedWith": "sec_key_test_tlync_7a2b",
+    "updatedAt": "2026-09-17"
+  },
+  "payload": {
+    "tran_id": "tln_tran_golden_2026_00002",
+    "order_id": "ord_golden_tlync_00002",
+    "amount": 250,
+    "currency": "LYD",
+    "status": "FAILED",
+    "payment_method": "wallet",
+    "paid_at": "2026-09-17T11:00:00Z",
+    "signature": "2092f2e71f9995b99e45fab6d4707a9a50791e62a15174fad0250401fb0175d3"
+  }
+}
