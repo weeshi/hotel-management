@@ -1,157 +1,158 @@
-# مقترح معماري — واجهة الدفع المباشر (Frontend Checkout Flow)
+# وثيقة المعمارية التنفيذية — واجهة الدفع المباشر (Frontend Checkout Flow)
+
+> **الحالة:** حيّة (As-Built) — تعكس ما تم برمجته فعلياً في M0/M1/M2 (Hotfixes)، وليست مجرد مقترح.
 
 ## 🎯 الهدف
-بناء واجهة دفع سلسة وآمنة للضيوف على صفحة الحجز المباشر، تدعم:
-- Plutu / T-Lync (إعادة توجيه للخارج)
-- Card (في المستقبل)
-- Bank Transfer / Cash (دفع يدوي عند الوصول)
+واجهة دفع آمنة للضيوف على صفحة الحجز المباشر، تدعم:
+- **Plutu / T-Lync** (إعادة توجيه لبوابة خارجية عبر جلسة `PaymentSession`)
+- **Bank Transfer / Cash** (تعليمات دفع يدوي عند الوصول — بدون إنشاء جلسة)
 
 ---
 
-## 1️⃣ استراتيجية إدارة الحالة (State Management)
+## 1️⃣ استراتيجية إدارة الحالة (State Management) — كما نُفّذت
 
-### القرار: **URL State (Search Params) + React Context محدود + useState محلي**
+### القرار: **URL = مصدر الحقيقة للخطوات، Context محدود = جلسة الدفع فقط**
 
 | الطبقة | الأداة | المسؤولية |
 |--------|--------|-----------|
-| **Navigation / Step** | `next/navigation` + URL Search Params | الخطوة الحالية (`?step=select-gateway`)، `bookingId`، `gateway` |
-| **بيانات الجلسة العالمية** | `React.createContext` (PaymentSessionContext) | `paymentSessionId`، `paymentUrl`، `amount`، `currency`، `expiresAt` |
-| **نموذج الدفع (Form)** | `useState` / `React Hook Form` | بيانات البطاقة، الحساب البنكي، إلخ |
-| **UI State** | `useState` محلي | `loading`، `error`، `selectedGateway` |
+| **الخطوة (Step)** | `next/navigation` + URL Search Params | `?step=select-gateway\|redirecting\|bank-transfer\|cash\|success\|failed`، `?gateway=...` |
+| **جلسة الدفع** | `React.createContext` (`CheckoutContext`) | `sessionData` + `loading` + `error` + setters |
+| **التنقل الكتابي** | `router.replace(..., { scroll: false })` | تحديث `?step=` بدون تمرير سجلّات Back غير مرغوبة |
 
-### لماذا هذا الاختيار؟
-1. **URL State** = قابلية مشاركة الرابط، عمل Back/Forward في المتصفح، لا فقدان للحالة عند Refresh
-2. **React Context** محدود = فقط للبيانات المشتركة بين مكونات متعددة (PaymentSession data) — تجنب Prop Drilling دون Over-engineering
-3. **useState / RHF** = للعزل التام للحقول الحساسة (بطاقة، بنك) — لا تلوث للسياق العام
-4. **Zero Dependencies** = لا Zustand / Jotai / Redux — يقلل Bundle Size، يعتمد على React primitives
+### القرارات الهندسية الملزمة (عُدّلت بعد المراجعة التقنية):
+1. **الـ Context لا يحمل `step`**: الخطوة تُقرأ حصرياً من الـ URL (ناجٍ من Refresh/مشاركة/Back-Forward).
+2. **الـ Context لا يحمل `booking`/`hotel` كبيانات قابلة للتعديل**: قيمة ثابتة تُمرَّر من الـ Server Component؛ المحرّك (CheckoutClientInner) يمتلك الـ handlers.
+3. **لا مكتبة State خارجية** (Zustand/Redux): primitives من React تكفي.
 
-### تنفيذ URL State:
+### التقسيم المقصود بين URL و Context:
+- **URL** = «في أي خطوة أنا» (السلطة الوحيدة لمسار الدفع).
+- **Context** = «ما الجلسة التي أنشأتها؟» (بيانات `PaymentSession` الفعلية الموسومة بـ `paymentSessionId`) + حالة التحميل والخطأ.
+
 ```tsx
-// app/(public)/booking/[id]/checkout/page.tsx
-// قراءة من URL:
-const searchParams = useSearchParams();
-const step = searchParams.get('step') || 'select-gateway'; // 'select-gateway' | 'redirecting' | 'success' | 'failed'
-const gateway = searchParams.get('gateway'); // 'plutu' | 'tlync' | 'bank-transfer' | 'cash'
+// CheckoutClient.tsx — القراءة من الـ URL
+const step = (searchParams.get('step') as CheckoutStep) ?? 'select-gateway';
+const urlGateway = searchParams.get('gateway') as Gateway | null;
 
-// كتابة في URL:
-const router = useRouter();
-router.push(`/booking/${bookingId}/checkout?step=redirecting&gateway=plutu`);
+// الكتابة إلى الـ URL
+goToStep('redirecting', gateway); // → router.replace(`?step=redirecting&gateway=${gateway}`, { scroll: false })
 ```
 
 ---
 
-## 2️⃣ هندسة المكونات (Component Composition)
+## 2️⃣ هندسة المكونات (نُفّذت فعلاً)
 
-### شجرة المكونات:
 ```
-CheckoutPage (Server Component)
-├── CheckoutLayout (Client) — Layout ثابت: Header، Progress Steps، Footer
-├── CheckoutProvider (Client Context) — يجلب/يحتفظ ببيانات PaymentSession
-│   ├── StepWrapper (Client) — يدير العرض الشرطي للخطوة الحالية
-│   │   ├── GatewaySelector (Client) — بطاقات اختيار البوابة
-│   │   ├── RedirectingView (Client) — شاشة "جاري التوجيه..." مع Countdown
-│   │   ├── BankTransferView (Client) — عرض بيانات التحويل البنكي (IBAN، مبلغ، مرجع)
-│   │   ├── CashView (Client) — تعليمات الدفع النقدي عند الوصول
-│   │   └── ResultView (Client) — نجاح / فشل مع إجراءات
-│   └── PaymentSessionFetcher (Client) — استدعاء API مرة واحدة عند التحميل
+checkout/
+├── page.tsx                # Server Component — يجلب Booking+Folio+Hotel+Guest (select فقط) + بوابة نجاح أمنية
+├── CheckoutClient.tsx      # 'use client' — CheckoutProvider + CheckoutClientInner (قراءة/كتابة الـ URL، handlers)
+├── context/PaymentSessionContext.tsx  # الأنواع المشتركة + CheckoutContextValue
+└── components/
+    ├── CheckoutLayout.tsx      # RTL Header + المبلغ المستحق + ProgressSteps + Footer
+    ├── ProgressSteps.tsx       # مؤشر الخطوات
+    ├── GatewaySelector.tsx     # بطاقات الاختيار (Plutu/T-Lync/Bank/Cash) + Overlay تحميل
+    ├── GatewaySelectorCard.tsx # بطاقة واحدة (memo) — استدعاء onSelect(gateway.id)
+    ├── RedirectingView.tsx     # زر توجيه صريح (بدون Countdown) + حالة «جلسة غير متوفرة»
+    ├── BankTransferView.tsx    # IBAN/SWIFT/مرجع ثابت (useState initializer) + نسخ + طباعة
+    ├── CashView.tsx            # تعليمات دفع نقدي عند الوصول
+    ├── SuccessView.tsx         # (تُعرض من الـ Server فقط بعد التحقق) — بدون confetti
+    └── FailedView.tsx          # إعادة المحاولة / تغيير الطريقة
 ```
 
-### مبادئ منع Re-renders:
-1. **Server Components أولاً**: `CheckoutPage` يجلب `booking` و `hotel` من DB، يمررها كـ Props — لا Client-side fetch للبيانات الثابتة
-2. **Context مفصول**: `PaymentSessionContext` يحتوي فقط على بيانات الجلسة (`paymentSessionId`, `paymentUrl`, `amount`, `expiresAt`) — لا يحتوي على `loading` أو `error` أو `step`
-3. **Memoization**:
-   ```tsx
-   const GatewayCard = memo(function GatewayCard({ gateway, onSelect, selected }) { ... });
-   const AmountDisplay = memo(function AmountDisplay({ amount, currency }) { ... });
-   ```
-3. **Event Handlers مستقرة**:
-   ```tsx
-   const handleGatewaySelect = useCallback((g: Gateway) => {
-     router.push(`/booking/${bookingId}/checkout?step=redirecting&gateway=${g}`);
-   }, [router, bookingId]);
-   ```
-4. **Fragments للحشو**: تجنب `div` wrapper غير الضروري — استخدم `<>` للـ layout-only components
+**ملاحظات تنفيذ:** `CheckoutProvider` يحتفظ بالحالة، و`CheckoutClientInner` يملك كل الـ handlers (`createPaymentSession`, `handleGatewaySelect`, `handleRetry`, `handleBackToGatewaySelect`) ويستهلكها من الـ Context — لا تكرار ولا `useState` مُراوغ.
 
 ---
 
-## 3️⃣ تدفق الخطوات (Checkout Flow Steps)
+## 3️⃣ تدفق الخطوات (النُهج الفعلي)
 
-| الخطوة | URL | الوصف | المكون |
-|--------|-----|---------|--------|
-| **1. اختيار البوابة** | `?step=select-gateway` | عرض بطاقات: Plutu، T-Lync، Bank Transfer، Cash | `GatewaySelector` |
-| **2. التوجيه** | `?step=redirecting&gateway=plutu` | عد تنازلي 10 ثوانٍ → `window.location.href = paymentUrl` | `RedirectingView` |
-| **3أ. نجاح (Webhook)** | `?step=success&sessionId=xxx` | صفحة نجاح مع رقم الحجز، تعليمات | `SuccessView` |
-| **3ب. فشل / إلغاء** | `?step=failed&reason=cancelled` | خيار إعادة المحاولة / تغيير البوابة | `FailedView` |
-| **Bank Transfer** | `?step=bank-transfer` | عرض IBAN، مبلغ، مرجع، QR Code (اختياري) | `BankTransferView` |
-| **Cash** | `?step=cash` | تعليمات الدفع عند الوصول، مهلة | `CashView` |
+| الخطوة | URL | الوصف |
+|--------|-----|-------|
+| اختيار البوابة | `?step=select-gateway` (افتراضي) | `GatewaySelector` |
+| توجيه إلكتروني | `?step=redirecting&gateway=plutu` | إنشاء جلسة **أولاً** ثم التوجيه بضغطة صريحة |
+| بنكي / نقدي | `?step=bank-transfer` / `?step=cash` | بدون أي استدعاء API — تعليمات فقط |
+| نجاح | `?step=success` | **مغلقة بالخادم** — لا تُعرض إلا بجلسة `SUCCEEDED` موثّقة (انظر §5) |
+| فشل | `?step=failed` | `FailedView` — `onRetry` يعيد إنشاء الجلسة بنفس البوابة |
 
-### معالجة Redirect لـ Plutu/T-Lync:
 ```tsx
-function RedirectingView({ paymentUrl, expiresAt, onCancel }) {
-  const [secondsLeft, setSecondsLeft] = useState(10);
-
-  useEffect(() => {
-    const id = setInterval(() => setSecondsLeft(s => s - 1), 1000);
-    const timer = setTimeout(() => window.location.href = paymentUrl, 10000);
-    return () => { clearInterval(id); clearTimeout(timer); };
-  }, [paymentUrl]);
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <Spinner className="h-12 w-12 text-[var(--gold)]" />
-      <p className="mt-4 text-[var(--text-primary)]">جاري توجيهك لبوابة الدفع الآمنة...</p>
-      <p className="text-sm text-[var(--text-muted)]">التوجيه خلال <strong>{secondsLeft}</strong> ثوانٍ</p>
-      <Button variant="ghost" onClick={onCancel} className="mt-4">إلغاء</Button>
-    </div>
-  );
+// CheckoutClient.tsx — فرع اختيار البوابة
+if (gateway === 'plutu' || gateway === 'tlync') {
+  createPaymentSession(gateway);          // POST → 201 → goToStep('redirecting')
+} else {
+  goToStep(gateway, gateway);             // 'bank-transfer' | 'cash' — بدون جلسة
 }
 ```
 
----
-
-## 4️⃣ مكتبات UI وتفضيلات (UX Libraries)
-
-| الحاجة | الاختيار | السبب |
-|--------|----------|-------|
-| **Design System** | **الشادن/UI (shadcn/ui) الحالي** | موجود بالفعل، متوافق مع Tailwind، يدعم RTL، قابل للتخصيص عبر CSS Variables |
-| **Forms** | **React Hook Form + Zod** | موجود في `@hotel/shared`، validation مشارك مع Backend، أداء أفضل من useState للحقول الكثيرة |
-| **Toast/Notifications** | **Sonner** (خفيف، يعتمد على shadcn) | بديل أخف لـ react-hot-toast، يدعم Promise API (`toast.promise`) |
-| **Loading Skeletons** | shadcn/ui `Skeleton` | متاح بالفعل، تصميم متسق |
-| **Countdown/Timer** | **مخصص (useEffect + setInterval)** | لا حاجة لمكتبة — منطق بسيط، صفر اعتماد |
-| **QR Code (Bank Transfer)** | **qrcode.react** (إذا طُلب) | خفيف، SSR-compatible، يولد QR لـ IBAN/Merchant Reference |
-| **Confetti/Success Animation** | **canvas-confetti** (Lazy-loaded) | فقط في SuccessView — `dynamic(() => import('canvas-confetti'), { ssr: false })` |
-
-### إضافات مقترحة (Package.json):
-```json
-{
-  "dependencies": {
-    "react-hook-form": "^7.51.0",     // موجود في shared
-    "@hookform/resolvers": "^3.3.4",  // لـ Zod resolver
-    "sonner": "^1.4.0",               // Toast notifications
-    "qrcode.react": "^3.1.0",         // QR للبنك (اختياري)
-    "canvas-confetti": "^1.9.2"       // احتفال النجاح (Lazy)
-  },
-  "devDependencies": {
-    "@types/canvas-confetti": "^1.6.4"
-  }
-}
-```
+**قرار الإدارة:** لا Countdown التلقائي — زر صريح «الانتقال للبوابة الآن»، مع رسالة «ستنتهي الجلسة خلال 30 دقيقة».
 
 ---
 
-## 5️⃣ أنواع TypeScript المشتركة
+## 4️⃣ مكتبات UI (القرار النهائي بعد مراجعة الإدارة)
 
-### في `@hotel/shared/src/types/checkout.ts`:
+> **تقيد مطلق بالمكتبات المعتمدة: `shadcn/ui` + `Tailwind` فقط.** أي إضافة تتطلب موافقة صريحة.
+
+| الحاجة | النهج الفعلي |
+|--------|--------------|
+| **Components** | `@/components/ui` (Button/Input/...) الحالية — بلا إضافات |
+| **Toast** | **لا Sonner** — أخطاء إنشاء الجلسة تذهب مباشرة إلى `?step=failed` (عرض inline) |
+| **Countdown** | لا عداد — زر صريح |
+| **QR Code / Confetti** | **لا `qrcode.react` ولا `canvas-confetti`** — مستبعدان نهائياً |
+| **الأيقونات/الـ SVG** | SVG مضمّن محلياً (لا مكتبة أيقونات) |
+
+**لا توجد أي `dependencies` جديدة** أُضيفت في M0/M1/M2.
+
+---
+
+## 5️⃣ الأمان — بوابة النجاح (Success Gate) [M2 — ثغرة UI Spoofing]
+
+### المشكلة:
+الاعتماد على `?step=success` في الـ Client يسمح للمستخدم بكتابة الرابط يدوياً فيظهر ناجحاً زوراً (رغم أن الـ Backend لا يحصّل أي شيء إلا عبر الـ Webhook).
+
+### الحل المعتمد: **تحقق Server-Side عند الطلب (Request-Time Verification)**
+
+لت لا تستخدم الـ Client لحكم الحالة (أي فحص Client-side — Polling أو Server Action بعد العرض — قابل للتجاوز من مستخدم يتحكم بالمتصفح). بدلاً من ذلك:
+
+1. `page.tsx` تقرأ `searchParams.step` **على الخادم** (خصيصة `searchParams` prop في App Router).
+2. عند `step === 'success'` تستعلم الـ DB:
+   ```ts
+   prisma.paymentSession.findFirst({
+     where: { bookingId, status: 'SUCCEEDED', ...(sessionId ? { id: sessionId } : {}) },
+     orderBy: { createdAt: 'desc' },
+     select: { amount: true, currency: true, method: true },
+   });
+   ```
+   - لا يمكن تزييف `SUCCEEDED` لأنه لا يُكتب إلا عبر الـ Webhook المحقّق (Signature + IP whitelist Fail-Closed).
+   - ربط `bookingId` بمعرّف الحجز في الرابط يمنع استخدام جلسة ناجحة تخص حجزاً آخر.
+3. إن وُجدت جلسة ناجحة → تُعرض `SuccessView` (من الخادم) بالمبلغ/العملة الفعليين للجلسة.
+4. إن لم تُوجد → تُعرض **`UnverifiedSuccessView`** (رسالة تعذّر التأكيد + إعادة تحقق/عودة).
+5. **الـ Client لا يملك أي مسار لعرض النجاح**: الفرع `step === 'success'` في `CheckoutClient` يعرض «حالة غير مؤكدة» فقط (Defense-in-Depth).
+
+### لماذا ليس Polling ولماذا ليست Server Action؟
+- **Polling (Client)**: قابل للتجاوز (المستخدم يستدعي الـ endpoint ويقرأ النتيجة بنفسه ثم يعدّل الـ DOM)، ويضيف شبكة زمنية دون فائدة أمنية.
+- **Server Action في `SuccessView`**: تبدأ العرض قبل التحقق (لحظة عرض زائفة)، والتحقق بعد العرض لا يمنع «تأكيداً زائفاً»، وهي موجهة للمتغيرات (Mutations) وليست للقراءة.
+- **Request-Time Server Verification**: الحسم يقع **قبل** أي عرض — لا نافذة للتزييف، وتعمل بنفس البنية مع أي بوابة تعيد التوجيه عبر `returnUrl`.
+
+### مع `returnUrl`
+`createPaymentSession` يمرر `returnUrl = ${origin}/booking/{id}/checkout?step=success` للبوابة. بعد نجاح الدفع يعود الضيف لهذا الرابط فتُحدَّد الحالة على الخادم فوراً. (معرّف الجلسة لا يمكن وضعه في `returnUrl` مسبقاً لأنه غير معروف قبل إنشائها — لذلك يتم الربط عبر `bookingId`، ومعيار `session` اختياري لمطابقة أدق.)
+
+---
+
+## 6️⃣ خصوصية البيانات (Server-First Fetching)
+
+- `page.tsx` تستخدم **`select` لكل علاقة** (لا `include`): folio `{totalCharges,totalPaid,balance,status}`، hotel `{name,nameAr,currency,timezone}`، guest `{name,email,phone}`، rooms `{checkIn,checkOut}`.
+- **لا** تمرير لإيرادات الفندق، دفتر الأستاذ، الأسعار الداخلية، بيانات ضيوف/جهات أخرى.
+- المبلغ الوحيد المكشوف هو `balance` و `totalAmount` و (في النجاح) `paymentSession.amount`.
+- **`balance <= 0` → `notFound()`**: الحجوزات المدفوعة لا تُعرض أصلاً.
+- `export const dynamic = 'force-dynamic'` يمنع الترجمة الساكنة عند البناء (استعلام DB + `searchParams`).
+
+**تنبيه معماري اكتُشف أثناء التنفيذ:** حقول `checkIn/checkOut` ليست على `Booking` بل على `BookingRoom` — تُشتق في `page.tsx` عبر `min`/`max` على غرف الحجز.
+
+---
+
+## 7️⃣ الأنواع المشتركة (`context/PaymentSessionContext.tsx` — محلي وليست في `@hotel/shared`)
+
 ```ts
 export type Gateway = 'plutu' | 'tlync' | 'bank-transfer' | 'cash';
-
-export type CheckoutStep =
-  | 'select-gateway'
-  | 'redirecting'
-  | 'bank-transfer'
-  | 'cash'
-  | 'success'
-  | 'failed';
+export type CheckoutStep = 'select-gateway' | 'redirecting' | 'bank-transfer'
+  | 'cash' | 'success' | 'failed';
 
 export interface PaymentSessionData {
   paymentSessionId: string;
@@ -159,105 +160,65 @@ export interface PaymentSessionData {
   gatewayTransactionId: string;
   amount: number;
   currency: 'LYD';
-  expiresAt: string; // ISO 8601
+  expiresAt: string;
 }
 
 export interface CheckoutContextValue {
   sessionData: PaymentSessionData | null;
-  booking: PublicBookingSummary;
+  booking: PublicBookingSummary;    // غير nullable — تُمرَّر من الـ Server دائماً
   hotel: PublicHotelInfo;
-  refetch: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
+  setSessionData: (d: PaymentSessionData | null) => void;
+  setLoading: (b: boolean) => void;
+  setError: (e: string | null) => void;
+  refetch: () => Promise<void>;     // حجز للأطوار القادمة
 }
 ```
 
----
-
-## 6️⃣ الأمان والخصوصية (Security)
-
-1. **لا تخزين أسرار في Frontend**: `secretKey`، `merchantId` لا تصل للمتصفح — فقط `paymentUrl` و `paymentSessionId`
-2. **CSP Headers**: في `next.config.js`:
-   ```js
-   async headers() {
-     return [{
-       source: '/booking/:path*',
-       headers: [
-         { key: 'Content-Security-Policy', value: "frame-src 'self' https://*.plutu.ly https://*.tlync.ly;" },
-         { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-       ],
-     }];
-   }
-   ```
-3. **HTTPS Only**: جميع مسارات `/booking/*` تفرض HTTPS عبر Middleware
-4. **No Sensitive Data in URL**: `paymentSessionId` في URL مقبول (UUID)، لكن لا `amount` أو `guestData`
+**قرار:** الأنواع محلية في مسار الـ checkout لأنها خاصة بوجهة الدفع ولا تشارك مع الـ Backend (عقد الـ API موثّق بالـ `route.ts`).
 
 ---
 
-## 6️⃣ ملفات ومسارات مقترحة (File Structure)
-
-```
-apps/web/src/
-├── app/(public)/booking/[id]/checkout/
-│   ├── page.tsx                    # Server Component — يجلب Booking + Hotel
-│   ├── layout.tsx                  # Layout مع CheckoutProvider
-│   ├── components/
-│   │   ├── CheckoutLayout.tsx      # Steps indicator, header, footer
-│   │   ├── GatewaySelector.tsx     # بطاقات اختيار البوابة
-│   │   ├── RedirectingView.tsx     # Countdown + Redirect
-│   │   ├── BankTransferView.tsx    # IBAN + Amount + QR + Copy buttons
-│   │   ├── CashView.tsx            # تعليمات الدفع النقدي
-│   │   ├── SuccessView.tsx         # Confetti + Booking details
-│   │   ├── FailedView.tsx          # Retry / Change gateway
-│   │   └── ProgressSteps.tsx       # مؤشر الخطوات (1-2-3)
-│   └── context/
-│       └── PaymentSessionContext.tsx
-├── components/ui/                  # shadcn/ui components (موجود)
-├── lib/
-│   ├── api-client.ts               # apiPost/get مع error handling (موجود)
-│   └── validations/
-│       └── checkout.ts             # Zod schemas للـ forms
-└── hooks/
-    └── useCheckout.ts              # منطق مشترك (redirect, poll, cancel)
-```
-
----
-
-## 7️⃣ سيناريوهات الحافة (Edge Cases)
+## 8️⃣ سيناريوهات الحافة
 
 | السيناريو | المعالجة |
 |-----------|----------|
-| **انتهاء صلاحية الجلسة** (`expiresAt` passed) | إظهار `FailedView` مع زر "إنشاء جلسة جديدة" يستدعي API مجدداً |
-| **إغلاق تبويب التوجيه** | عند العودة للصفحة، Polling على حالة `PaymentSession` → إذا `SUCCEEDED` → SuccessView، إذا `PENDING` → RedirectingView |
-| **فشل Netzwerk أثناء Redirect** | زر "إعادة المحاولة" يعيد استدعاء `createPaymentSession` |
-| **تغيير البوابة بعد التحديد** | زر "تغيير طريقة الدفع" يعيد لـ `step=select-gateway`، يلغي الجلسة القديمة (اختياري: DELETE `/api/public/bookings/[id]/payment-session`) |
-| **Mobile Safari / In-App Browser** | تجنب `window.location.href` المباشر — استخدم `window.open(paymentUrl, '_self')` للتوافق |
+| الوصول إلى `?step=success` يدوياً | الخادم يستعلم ويُظهر الرسالة «تعذر التأكيد» (بلا نجاح زائف) |
+| العودة من البوابة قبل اكتمال تطبيق الـ Webhook | `?step=success` → غير موثّق → «إعادة التحقق» تعيد تحميل الصفحة (إعادة استعلام) |
+| الوصول إلى `?step=redirecting` بلا جلسة | `RedirectingView` يكتشف `paymentUrl` فارغاً → شاشة «جلسة غير متوفرة» + عودة |
+| فشل إنشاء الجلسة | `goToStep('failed', gateway)` + `error` → `FailedView` بـ `onRetry` يعيد الاستدعاء |
+| الحجز مدفوع/بلا رصيد | `balance <= 0` → `notFound()` |
+| انتهاء الجلسة (30 دقيقة) | تُعرض رسالة صلاحية في `RedirectingView`؛ إنشاء جلسة جديد عبر `?step=select-gateway` |
+| الغرض Reference للبنك | ثابت عبر `useState` initializer (لا يتغير بين الـ renders) |
 
 ---
 
-## 8️⃣ خطة التنفيذ المقترحة (Phased)
+## 9️⃣ حالة الأطوار (Phased Status)
 
-| الطور | المخرجات |
-|--------|----------|
-| **M0: Foundation** | `PaymentSessionContext`، `CheckoutLayout`، `ProgressSteps`، Types، Zod schemas |
-| **M1: Gateway Selection** | `GatewaySelector` مع بطاقات Plutu/T-Lync/Bank/Cash، URL State sync |
-| **M2: Redirect Flow** | `RedirectingView` مع Countdown، `window.location.href`، معالجة الأخطاء |
-| **M3: Bank Transfer** | `BankTransferView` مع IBAN، Copy to clipboard، QR Code (اختياري) |
-| **M4: Cash View** | `CashView` مع تعليمات، مهلة، رقم مرجع |
-| **M5: Result Views** | `SuccessView` (Confetti)، `FailedView` (Retry/Change) |
-| **M6: Polish** | Toast notifications، Skeleton loading، Accessibility (ARIA)، E2E tests |
-
----
-
-## 📋 قائمة التحقق (Definition of Done)
-
-- [ ] جميع المكونات `memo` حيث مناسب
-- [ ] لا `useEffect` غير ضروري — اعتماد على URL State
-- [ ] `loading` / `error` states لكل تفاعل
-- [ ] Accessibility: `aria-label`، `role="button"`، Focus management
-- [ ] RTL support كامل (Tailwind `rtl:` variants)
-- [ ] Toast notifications للنجاح/الخطأ (Sonner)
-- [ ] E2E test: Happy path (Plutu → Success)، Bank Transfer، Cash، Cancel/Back
-- [ ] Bundle size impact < 15KB gzipped للـ Checkout chunk
+| الطور | الحالة | الملاحظات |
+|--------|--------|-----------|
+| **M0: Foundation** | ✅ منجز | Context + Types + CheckoutLayout + ProgressSteps + page.tsx |
+| **M1: Gateway Selection** | ✅ منجز | GatewaySelector + URL sync + توجيه إلكتروني/تعليمات |
+| **M2: Redirect + Security** | ✅ منجز | RedirectingView صريح + **بوابة نجاح Server-Side** + تحديث هذه الوثيقة |
+| **M3/M4: Bank/Cash** | ✅ منجز (أساس) | BankTransferView + CashView (QR/مهلة لاحقاً إن طُلب) |
+| **M5: Result Views** | ✅ منجز (بدون confetti) | SuccessView (Server-gated) + FailedView |
+| **M6: Polish** | ⏳ لاحقاً | إعادة تحقق تلقائية، ARIA كامل، E2E |
 
 ---
 
-**القرار النهائي:** هذا المقترح جاهز للمراجعة. عند الموافقة، نبدأ بـ **M0: Foundation**.
+## 📋 قائمة التحقق (Done — كما نُفذت)
+
+- [x] `select` صريح في كل استعلامات `page.tsx` — لا تسريب بيانات
+- [x] لا تبعيات جديدة — shadcn/ui + Tailwind فقط (لا sonner/confetti/QR)
+- [x] لا Countdown — توجيه صريح
+- [x] `?step=success` مغلقة بالخادم عبر `PaymentSession.status === 'SUCCEEDED'`
+- [x] الـ Client لا يعرض نجاحاً أبداً (Defense-in-Depth)
+- [x] `useCallback` + `memo` حيث يلزم
+- [x] RTL كامل
+- [x] typecheck + lint نظيفان
+- [ ] E2E / اختبارات المتصفح (الأخير يعد إطاراً خلفياً: الـ Backend 262 اختباراً)
+
+---
+
+**القرار النهائي:** المعمارية قابلة للتوسع نحو بطاقة مدفوعة مستقبلاً بإضافة بوابة جديدة في `gateway-factory` و`PaymentSession.method` دون تغيير مسار الدفع.

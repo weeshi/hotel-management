@@ -3,6 +3,7 @@
 import { createContext, useContext, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { Button } from '@/components/ui';
 import type {
   CheckoutContextValue,
   CheckoutStep,
@@ -16,7 +17,6 @@ import { GatewaySelector } from './components/GatewaySelector';
 import { RedirectingView } from './components/RedirectingView';
 import { BankTransferView } from './components/BankTransferView';
 import { CashView } from './components/CashView';
-import { SuccessView } from './components/SuccessView';
 import { FailedView } from './components/FailedView';
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null);
@@ -97,10 +97,7 @@ function CheckoutClientInner({
       setLoading(true);
       setError(null);
       try {
-        const returnUrl = new URL(
-          `/booking/${bookingId}/checkout`,
-          window.location.origin,
-        ).toString();
+        const returnUrl = `${window.location.origin}/booking/${bookingId}/checkout?step=success`;
         const res = await fetch(`/api/public/bookings/${bookingId}/payment-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -196,11 +193,20 @@ function CheckoutClientInner({
       )}
 
       {step === 'success' && (
-        <SuccessView
-          bookingNo={booking.bookingNo}
-          amount={initialTotalAmount}
-          currency={hotel.currency}
-        />
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center" role="region" aria-label="تعذر تأكيد حالة الدفع">
+          <div className="w-20 h-20 rounded-full bg-[rgba(231,76,60,0.1)] flex items-center justify-center mb-6">
+            <svg className="h-10 w-10 text-[var(--red)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">حالة الدفع غير مؤكدة</h2>
+          <p className="text-[var(--text-secondary)] mb-6 max-w-md">
+            لا يتم عرض رسالة النجاح إلا بعد التحقق من الدفعة. أعد تحميل هذه الصفحة للتحقق مرة أخرى.
+          </p>
+          <Button variant="secondary" onClick={handleBackToGatewaySelect}>
+            العودة لاختيار طريقة الدفع
+          </Button>
+        </div>
       )}
 
       {step === 'failed' && (
