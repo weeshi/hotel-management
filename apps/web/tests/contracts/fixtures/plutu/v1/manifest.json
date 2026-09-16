@@ -17,11 +17,23 @@
     "delivery": "POST <app>/api/external/gateways/plutu/webhook",
     "signature": {
       "algorithm": "sha256",
-      "excluded": ["signature"],
+      "excluded": [
+        "signature"
+      ],
       "suffix": "&secret=<key>"
     },
-    "idFields": ["transaction_id"],
-    "fields": ["transaction_id", "order_id", "amount", "currency", "status", "payment_method", "paid_at"]
+    "idFields": [
+      "transaction_id"
+    ],
+    "fields": [
+      "transaction_id",
+      "order_id",
+      "amount",
+      "currency",
+      "status",
+      "payment_method",
+      "paid_at"
+    ]
   },
   "fixtures": [
     "webhook.success.json",

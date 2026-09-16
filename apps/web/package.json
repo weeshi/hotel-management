@@ -9,6 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "generate:contract-fixtures": "tsx scripts/generate-contract-fixtures.ts",
+    "generate:contract-fixtures:check": "tsx scripts/generate-contract-fixtures.ts --check",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:push": "prisma db push",

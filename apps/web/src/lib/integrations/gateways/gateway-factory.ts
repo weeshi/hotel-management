@@ -1,7 +1,6 @@
 import {
   PlutuConfig,
   PlutuPaymentRequest,
-  PlutuPaymentResponse,
   PlutuWebhookPayload,
   createPlutuPaymentSession,
   verifyPlutuSignature,
@@ -13,7 +12,6 @@ import {
 import {
   TLyncConfig,
   TLyncPaymentRequest,
-  TLyncPaymentResponse,
   TLyncWebhookPayload,
   createTLyncPaymentSession,
   verifyTLyncSignature,
@@ -69,53 +67,67 @@ export interface GatewayAdapter {
   parseWebhook(rawBody: string): ParsedWebhook;
 }
 
-const plutuAdapter: GatewayAdapter = {
-  providerName: getPlutuProviderName(),
-  config: getPlutuConfig(),
-  async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
-    return createPlutuPaymentSession(this.config as PlutuConfig, request as PlutuPaymentRequest);
-  },
-  verifyWebhookSignature(payload, secretKey): boolean {
-    return verifyPlutuSignature(payload as PlutuWebhookPayload, secretKey);
-  },
-  parseWebhook(rawBody): ParsedWebhook {
-    return parsePlutuWebhook(rawBody);
-  },
-};
+// Runtime config overrides merged over the env-derived config.
+// Both gateway configs share the same field shape, so callers can pass a
+// partial override (typically a test pointing the adapter at a local dummy).
+export interface GatewayAdapterOptions {
+  config?: Partial<PlutuConfig> & Partial<TLyncConfig>;
+}
 
-const tlyncAdapter: GatewayAdapter = {
-  providerName: getTLyncProviderName(),
-  config: getTLyncConfig(),
-  async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
-    return createTLyncPaymentSession(this.config as TLyncConfig, request as TLyncPaymentRequest);
-  },
-  verifyWebhookSignature(payload, secretKey): boolean {
-    return verifyTLyncSignature(payload as TLyncWebhookPayload, secretKey);
-  },
-  parseWebhook(rawBody): ParsedWebhook {
-    return parseTLyncWebhook(rawBody);
-  },
-};
+function buildPlutuAdapter(opts?: GatewayAdapterOptions): GatewayAdapter {
+  const config: PlutuConfig = { ...getPlutuConfig(), ...(opts?.config ?? {}) };
+  return {
+    providerName: getPlutuProviderName(),
+    config,
+    async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
+      return createPlutuPaymentSession(config, request as PlutuPaymentRequest);
+    },
+    verifyWebhookSignature(payload, secretKey): boolean {
+      return verifyPlutuSignature(payload as PlutuWebhookPayload, secretKey);
+    },
+    parseWebhook(rawBody): ParsedWebhook {
+      return parsePlutuWebhook(rawBody);
+    },
+  };
+}
 
-const ADAPTERS: Record<GatewayName, GatewayAdapter> = {
-  plutu: plutuAdapter,
-  tlync: tlyncAdapter,
-};
+function buildTLyncAdapter(opts?: GatewayAdapterOptions): GatewayAdapter {
+  const config: TLyncConfig = { ...getTLyncConfig(), ...(opts?.config ?? {}) };
+  return {
+    providerName: getTLyncProviderName(),
+    config,
+    async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
+      return createTLyncPaymentSession(config, request as TLyncPaymentRequest);
+    },
+    verifyWebhookSignature(payload, secretKey): boolean {
+      return verifyTLyncSignature(payload as TLyncWebhookPayload, secretKey);
+    },
+    parseWebhook(rawBody): ParsedWebhook {
+      return parseTLyncWebhook(rawBody);
+    },
+  };
+}
 
-export function getGatewayAdapter(gateway: GatewayName): GatewayAdapter {
-  const adapter = ADAPTERS[gateway];
-  if (!adapter) {
-    throw new Error(`Unsupported gateway: ${gateway}`);
+export function getGatewayAdapter(
+  gateway: GatewayName,
+  opts?: GatewayAdapterOptions,
+): GatewayAdapter {
+  switch (gateway) {
+    case 'plutu':
+      return buildPlutuAdapter(opts);
+    case 'tlync':
+      return buildTLyncAdapter(opts);
+    default:
+      throw new Error(`Unsupported gateway: ${String(gateway)}`);
   }
-  return adapter;
 }
 
 export function getSupportedGateways(): GatewayName[] {
-  return Object.keys(ADAPTERS) as GatewayName[];
+  return ['plutu', 'tlync'];
 }
 
 export function isGatewaySupported(gateway: string): gateway is GatewayName {
-  return gateway in ADAPTERS;
+  return gateway === 'plutu' || gateway === 'tlync';
 }
 
 export { getPlutuConfig, getTLyncConfig };

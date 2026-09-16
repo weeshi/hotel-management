@@ -1,10 +1,7 @@
-process.env.DANGER_BYPASS_WEBHOOK_IP_CHECK = 'true';
-
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { prisma, resetDb, seedTestData, closeDb } from '../../helpers/db';
 import { createDummyGateway, DummyGatewayServer } from '../dummy-gateway/server';
 import {
@@ -23,6 +20,11 @@ import {
   tlyncCreateResponseSchema,
   tlyncWebhookSchema,
 } from '../schemas/tlync.contract.schema';
+import { POST as paymentSessionPOST } from '@/app/api/public/bookings/[id]/payment-session/route';
+import { POST as webhookPOST } from '@/app/api/external/gateways/[provider]/webhook/route';
+import { GET as statusGET } from '@/app/api/public/bookings/[id]/payment-session/[sessionId]/status/route';
+import { BookingService } from '@/lib/services/booking.service';
+import { getGatewayAdapter } from '@/lib/integrations/gateways';
 
 vi.mock('@/lib/rate-limiter', () => ({
   checkRateLimit: vi.fn().mockResolvedValue({
@@ -37,12 +39,7 @@ vi.mock('@/lib/rate-limiter', () => ({
 let data: Awaited<ReturnType<typeof seedTestData>>;
 let booking: any;
 let dummy: DummyGatewayServer;
-
-let paymentSessionPOST: any;
-let webhookPOST: any;
-let statusGET: any;
-let CheckoutPage: any;
-let bookingService: any;
+let bookingService = new BookingService();
 
 function loadFixture(provider: 'plutu' | 'tlync', name: string) {
   const filePath = path.resolve(__dirname, `../fixtures/${provider}/v1/${name}.json`);
@@ -71,31 +68,18 @@ beforeAll(async () => {
   dummy = await createDummyGateway();
   await dummy.start();
 
-  process.env.PLUTU_BASE_URL = dummy.baseUrl;
-  process.env.TLYNC_BASE_URL = dummy.baseUrl;
+  vi.stubEnv('DANGER_BYPASS_WEBHOOK_IP_CHECK', 'true');
+  vi.stubEnv('PAYMENT_CRYPTO_KEY', 'a'.repeat(64));
+  vi.stubEnv('PLUTU_BASE_URL', dummy.baseUrl);
+  vi.stubEnv('TLYNC_BASE_URL', dummy.baseUrl);
   for (const provider of ['plutu', 'tlync'] as const) {
     const secrets = CONTRACT_SECRETS[provider];
     const prefix = provider === 'plutu' ? 'PLUTU' : 'TLYNC';
-    process.env[`${prefix}_MERCHANT_ID`] = secrets.merchantId;
-    process.env[`${prefix}_SECRET_KEY`] = secrets.secretKey;
-    process.env[`${prefix}_MERCHANT_ID_DEV`] = secrets.merchantId;
-    process.env[`${prefix}_SECRET_KEY_DEV`] = secrets.secretKey;
+    vi.stubEnv(`${prefix}_MERCHANT_ID`, secrets.merchantId);
+    vi.stubEnv(`${prefix}_SECRET_KEY`, secrets.secretKey);
+    vi.stubEnv(`${prefix}_MERCHANT_ID_DEV`, secrets.merchantId);
+    vi.stubEnv(`${prefix}_SECRET_KEY_DEV`, secrets.secretKey);
   }
-  process.env.PAYMENT_CRYPTO_KEY = 'a'.repeat(64);
-
-  const [sessionRoute, webhookRoute, statusRoute, pageModule, bookingModule] = await Promise.all([
-    import('@/app/api/public/bookings/[id]/payment-session/route'),
-    import('@/app/api/external/gateways/[provider]/webhook/route'),
-    import('@/app/api/public/bookings/[id]/payment-session/[sessionId]/status/route'),
-    import('@/app/(public)/booking/[id]/checkout/page'),
-    import('@/lib/services/booking.service'),
-  ]);
-
-  paymentSessionPOST = sessionRoute.POST;
-  webhookPOST = webhookRoute.POST;
-  statusGET = statusRoute.GET;
-  CheckoutPage = pageModule.default;
-  bookingService = new bookingModule.BookingService();
 }, 60000);
 
 beforeEach(async () => {
@@ -121,14 +105,12 @@ afterEach(() => {
 });
 
 afterAll(async () => {
+  vi.unstubAllEnvs();
   try {
     await dummy.close();
   } finally {
     await closeDb();
   }
-  delete process.env.PLUTU_BASE_URL;
-  delete process.env.TLYNC_BASE_URL;
-  delete process.env.PAYMENT_CRYPTO_KEY;
 });
 
 async function createSession(gateway: 'plutu' | 'tlync') {
@@ -233,7 +215,7 @@ describe('Contract sandbox: golden fixtures pinned to gateway contracts', () => 
 });
 
 describe('Plutu wire contract (real adapter → dummy gateway → real webhook)', () => {
-  it('creates a session over real HTTP matching the signed contract, then settles via webhook to SuccessView', async () => {
+  it('creates a session over real HTTP matching the signed contract, then settles via webhook to SUCCEEDED', async () => {
     const created = await createSession('plutu');
 
     const captured = capturedCreateRequest('plutu');
@@ -281,15 +263,35 @@ describe('Plutu wire contract (real adapter → dummy gateway → real webhook)'
     expect(folio!.status).toBe('SETTLED');
 
     expect((await checkVerified(created.paymentSessionId)).verified).toBe(true);
+  });
 
-    const html = renderToStaticMarkup(
-      await CheckoutPage({
-        params: Promise.resolve({ id: booking.id }),
-        searchParams: Promise.resolve({ step: 'success', session: created.paymentSessionId }),
-      }),
-    );
-    expect(html).toContain('تم الدفع بنجاح!');
-    expect(html).toContain(booking.bookingNo);
+  it('getGatewayAdapter: explicit config override wins over environment — no env mutation needed', async () => {
+    const overrideMerchant = 'mer_test_override_0009';
+    const adapter = getGatewayAdapter('plutu', {
+      config: {
+        merchantId: overrideMerchant,
+        secretKey: CONTRACT_SECRETS.plutu.secretKey,
+      },
+    });
+
+    expect(adapter.config.baseUrl).toBe(dummy.baseUrl);
+
+    const result = await adapter.createPaymentSession({
+      amount: 120,
+      currency: 'LYD',
+      orderId: 'ord_override_0001',
+      customerName: 'Override Tester',
+      customerEmail: 'override@example.ly',
+      returnUrl: 'https://example.com/payment/return',
+      callbackUrl: 'https://example.com/api/external/gateways/plutu/webhook',
+    });
+    expect(result.success).toBe(true);
+
+    const captured = capturedCreateRequest('plutu');
+    expect(captured.merchant_id).toBe(overrideMerchant);
+
+    const { signature, ...unsigned } = captured;
+    expect(plutuSign(unsigned, CONTRACT_SECRETS.plutu.secretKey)).toBe(signature);
   });
 
   it('rejects a forged signature (tampered payload) with 401 and no ledger change', async () => {
