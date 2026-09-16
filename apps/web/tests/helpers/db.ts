@@ -59,6 +59,7 @@ export async function resetDb() {
     prisma.invoice.deleteMany(),
     prisma.payment.deleteMany(),
     prisma.gatewayWebhook.deleteMany(),
+    prisma.paymentSession.deleteMany(),
     prisma.integrationConfig.deleteMany(),
     prisma.groupBooking.deleteMany(),
     prisma.folio.deleteMany(),

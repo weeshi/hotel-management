@@ -3,34 +3,76 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const AUTO_REFRESH_INTERVAL_MS = 3000;
-const MAX_AUTO_REFRESHES = 5;
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 5;
 
-export function UnverifiedSuccessView({ bookingId }: { bookingId: string }) {
+interface UnverifiedSuccessViewProps {
+  bookingId: string;
+  sessionId?: string;
+}
+
+async function fetchVerified(bookingId: string, sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `/api/public/bookings/${bookingId}/payment-session/${sessionId}/status`,
+      { cache: 'no-store' }
+    );
+    if (res.status === 404) return false;
+    if (!res.ok) return false;
+    const body = await res.json();
+    return body?.verified === true;
+  } catch {
+    return false;
+  }
+}
+
+export function UnverifiedSuccessView({ bookingId, sessionId }: UnverifiedSuccessViewProps) {
   const router = useRouter();
   const attempts = useRef(0);
   const [cycle, setCycle] = useState(0);
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(Boolean(sessionId));
 
   useEffect(() => {
-    const id = setInterval(() => {
+    if (!sessionId) {
+      setChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled) return;
       attempts.current += 1;
-      if (attempts.current > MAX_AUTO_REFRESHES) {
-        clearInterval(id);
+      if (attempts.current > MAX_POLL_ATTEMPTS) {
         setChecking(false);
         return;
       }
-      router.refresh();
-    }, AUTO_REFRESH_INTERVAL_MS);
+      const verified = await fetchVerified(bookingId, sessionId);
+      if (cancelled) return;
+      if (verified) {
+        setChecking(false);
+        router.refresh();
+      }
+    };
 
-    return () => clearInterval(id);
-  }, [router, cycle]);
+    const id = setInterval(() => {
+      void tick();
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [router, bookingId, sessionId, cycle]);
 
   const manualRetry = () => {
+    if (!sessionId) {
+      router.refresh();
+      return;
+    }
     attempts.current = 0;
     setChecking(true);
     setCycle((c) => c + 1);
-    router.refresh();
   };
 
   return (
@@ -51,7 +93,7 @@ export function UnverifiedSuccessView({ bookingId }: { bookingId: string }) {
         </h2>
         <p className="text-[var(--text-secondary)] mb-6">
           {checking
-            ? 'نعمل على التحقق من الدفعة تلقائياً... إذا أكملت الدفع للتو سيتأكد خلال لحظات.'
+            ? 'نتحقق من حالة الدفعة كل 3 ثوانٍ... إذا أكملت الدفع للتو سيتأكد خلال لحظات.'
             : 'لم نجد دفعة ناجحة مرتبطة بهذا الحجز. يمكنك إعادة المحاولة يدوياً.'}
         </p>
 
@@ -81,7 +123,7 @@ export function UnverifiedSuccessView({ bookingId }: { bookingId: string }) {
 
         <p className="mt-4 text-xs text-[var(--text-muted)]" aria-hidden={!checking}>
           {checking
-            ? 'يتم التحقق تلقائياً كل 3 ثوانٍ (بحد أقصى 5 محاولات)'
+            ? 'يتم التحقق من حالة الجلسة كل 3 ثوانٍ (بحد أقصى 5 محاولات)'
             : 'إذا استمر التأخير، تأكد من إتمام الدفع ثم عاود المحاولة.'}
         </p>
       </div>

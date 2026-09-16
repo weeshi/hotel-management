@@ -126,17 +126,20 @@ if (gateway === 'plutu' || gateway === 'tlync') {
 4. إن لم تُوجد → تُعرض **`UnverifiedSuccessView`** (رسالة تعذّر التأكيد + إعادة تحقق/عودة).
 5. **الـ Client لا يملك أي مسار لعرض النجاح**: الفرع `step === 'success'` في `CheckoutClient` يعرض «حالة غير مؤكدة» فقط (Defense-in-Depth).
 
-### التحقق التلقائي الذكي (Auto-revalidation) [M6]
+### التحقق التلقائي الذكي (Auto-revalidation) [M6 + Hotfix]
 
-`UnverifiedSuccessView` أصبح **مكوناً عميلاً** (`'use client'`) يعتمد على `router.refresh()` كآلية إعادة تحقق تلقائية خفيفة:
+`UnverifiedSuccessView` مكوّن عميل (`'use client'`). الجولة الأولى استخدمت `router.refresh()` داخل حلقة كل 3 ثوانٍ — **Anti-Pattern (RSC Spam Trap)**: كل نبضة تعيد حساب وإرسال كامل شجرة الـ RSC Payload (Self-DDoS). **التصحيح:** **Lightweight Polling** لنقطة نهاية ثقيلة-خفيفة، والتحديث المعماري يتم **مرة واحدة فقط** عند النجاح:
 
-- عند الهبوط على الصفحة يبدأ مؤقّت دوري كل **3 ثوانٍ** باستدعاء `router.refresh()` (بحد أقصى **5 محاولات**).
-- `router.refresh()` يعيد تنفيذ الـ Server Components فقط ويرسل دعائم جديدة مع **الحفاظ على حالة الـ Client Component** (React لا يفكك الشجرة) — لذلك لا يعيد عداد المحاولات نفسه بالضبط مع كل تحديث، ولا يحدث حلقة لا نهائية.
-- إذا نجح الخادم في التحقق خلال أي تحديث (أصبح `status === 'SUCCEEDED'`) → الشجرة تُستبدل تلقائياً بـ `SuccessView` (الخادم نفسه يرجع العرض الصحيح لا محاولة عميل تزوير).
-- بعد 5 محاولات فاشلة يتوقف المؤقّت، تتغير الحالة إلى «تعذر التأكيد»، ويظهر زر **«إعادة التحقق»** اليدوي بشكل بارز (يعيد ضبط العداد ويعيد تشغيل الدورة)، بجانب رابط العودة لصفحة الدفع.
-- **الأمان لم يتغير:** التحديث مجرد إعادة استعلام خادم نفس بوابة `Request-Time Verification`؛ لا يوجد أي منطق نجاح يَثِق بالعميل.
+- `page.tsx` (عند `?step=success` غير موثّق) تمرّر `sessionId` = أحدث جلسة دفع للحجز إلى `UnverifiedSuccessView`.
+- `UnverifiedSuccessView` يستعلم **`GET /api/public/bookings/{id}/payment-session/{sessionId}/status`** كل **3 ثوانٍ** (حد أقصى **5 محاولات**) — endpoint مصمم خصيصاً لهذا:
+  - استعلام واحد مفهرس على `PaymentSession` (`bookingId` + `id`) — لا جلب غرافات ولا أي RSCpayload.
+  - يعيد `{ verified: boolean }` فقط (المصدر الوحيد للـ `true` هو `status === 'SUCCEEDED'` المكتوب عبر الـ Webhook المحقّق).
+  - `404` لحالة غير موجودة/غير تابعة للحجز، وتقييد عبر **Rate Limit** `30/دقيقة` للحجز + IP (نفس بنية `payment-session POST` لكن بحد أرحب يسمح بالاستطلاع).
+- **عند `verified: true` → `router.refresh()` مرة واحدة فقط** لقلب الشجرة الخادمية إلى `SuccessView` (الخادم نفسه يعيد تقييم البوابة عند استلام الطلب مجدداً).
+- بعد 5 محاولات يتوقف الاستطلاع، يظهر زر **«إعادة التحقق»** اليدوي بارزاً (يعيد ضبط العداد ويعيد تشغيل الدورة)، بجانب رابط العودة لصفحة الدفع.
+- **الأمان لم يتغير:** الـ poll مجرد قراءة حالة، والحسم النهائي يبقى على الخادم وقت الطلب — الـ Client لا يملك مسار نجاح ولا يمكنه تزوير `SUCCEEDED`.
 
-**لماذا `router.refresh()` ولا `window.location.reload()`؟** يجب حفظ حالة المكوّن (عداد المحاولات + رسالة التحميل) عبر الدورات، وإعادة تحميل كاملة للمستند تُفقدها وتُهدر «التحقق التلقائي». كما أن `router.refresh()` يحافظ على `searchParams` نفسه — فلا شرط تحميل صفحة جديد عند تغيّر الرابط.
+**لماذا `GET status` ثم `refresh()` واحدة وليست دورة `refresh()`؟** الاستطلاع يقيس «هل تغيّرت الحالة؟» بحمولة صغيرة (بايتات معدودة)، بينما `router.refresh()` يعيد حساب كامل شجرة الصفحة (RSC). التكرار فقط على «سؤال الحالة» — الإجابات تتغير فقط مرة واحدة، وعندها فقط ندفع الثمن الكامل للتبديل.
 
 ### لماذا ليس Polling ولماذا ليست Server Action؟
 - **Polling (Client)**: قابل للتجاوز (المستخدم يستدعي الـ endpoint ويقرأ النتيجة بنفسه ثم يعدّل الـ DOM)، ويضيف شبكة زمنية دون فائدة أمنية.
@@ -198,7 +201,7 @@ export interface CheckoutContextValue {
 | السيناريو | المعالجة |
 |-----------|----------|
 | الوصول إلى `?step=success` يدوياً | الخادم يستعلم ويُظهر الرسالة «تعذر التأكيد» (بلا نجاح زائف) |
-| العودة من البوابة قبل اكتمال تطبيق الـ Webhook | `?step=success` → غير موثّق → **Auto-revalidation** كل 3ث ×5 عبر `router.refresh()`؛ ينجح → `SuccessView` تلقائياً، يفشل → زر يدوي |
+| العودة من البوابة قبل اكتمال تطبيق الـ Webhook | `?step=success` → غير موثّق → استطلاع خفيف `.../status` كل 3ث ×5؛ يتأكد → `router.refresh()` مرة واحدة → `SuccessView` automatically، يفشل → زر يدوي |
 | الوصول إلى `?step=redirecting` بلا جلسة | `RedirectingView` يكتشف `paymentUrl` فارغاً → شاشة «جلسة غير متوفرة» + عودة |
 | فشل إنشاء الجلسة | `goToStep('failed', gateway)` + `error` → `FailedView` بـ `onRetry` يعيد الاستدعاء |
 | الحجز مدفوع/بلا رصيد | `balance <= 0` → `notFound()` |
@@ -227,7 +230,7 @@ export interface CheckoutContextValue {
 - [x] لا Countdown — توجيه صريح
 - [x] `?step=success` مغلقة بالخادم عبر `PaymentSession.status === 'SUCCEEDED'`
 - [x] الـ Client لا يعرض نجاحاً أبداً (Defense-in-Depth)
-- [x] Auto-revalidation: `router.refresh()` كل 3 ثوانٍ (بحد أقصى 5) ثم زر يدوي — حفظ حالة العداد عبر `router.refresh()` (لا تفكيك للشجرة)
+- [x] Auto-revalidation (Hotfix): Lightweight Polling إلى `GET .../payment-session/[sessionId]/status` كل 3ث ×5 (معلم ثقيل-خفيف + Rate Limit) ثم `router.refresh()` **مرة واحدة** عند النجاح فقط — لا RSC Spam
 - [x] ARIA: `aria-current="step"` في `ProgressSteps`، `role="status"/"alert"` لنتائج الدفع، `aria-live` للنسخ والمبلغ، تركيز تلقائي على التحول بين الخطوات، `ol/li` دلالي
 - [x] `useCallback` + `memo` حيث يلزم
 - [x] RTL كامل

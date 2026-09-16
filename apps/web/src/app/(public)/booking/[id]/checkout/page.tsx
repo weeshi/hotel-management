@@ -153,7 +153,12 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
   if (step === 'success') {
     const session = await getVerifiedSucceededSession(bookingId, sessionId);
     if (!session) {
-      return <UnverifiedSuccessView bookingId={bookingId} />;
+      const latestSession = await prisma.paymentSession.findFirst({
+        where: { bookingId },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      return <UnverifiedSuccessView bookingId={bookingId} sessionId={latestSession?.id} />;
     }
     return (
       <SuccessView
