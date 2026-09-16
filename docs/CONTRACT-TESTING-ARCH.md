@@ -143,7 +143,7 @@ apps/web/
 
 - **Live Contract Smoke Probe:** job دوري غير حاجب تجاه Sandbox البوابات الفعلية (قراءة فحسب) ينتج تقرير Drift مقابل الـ fixtures.
 - تسجيل VCR اختياري (record/replay) ضد sandbox الحقيقي لجعل الـ fixtures وثائق حيّة فعلياً.
-- **E2E Playwright** لرحلة الدفع عبر المتصفح (قرار الأداة + طريقة تغذية بيانات Dummy Gateway قيد النقاش الهندسي).
+- **E2E Playwright** لرحلة الدفع عبر المتصفح — **اعتُمدت المعمارية**: راجع `docs/E2E-TESTING-ARCH.md` (خادم Dummy مستقل، صفحة `/pay/:sessionId`، خطّ التحكم `POST /__control/*`، وقاعدة `hotel_e2e` منفصلة).
 
 ## قواعد الحوكمة (سارية)
 
