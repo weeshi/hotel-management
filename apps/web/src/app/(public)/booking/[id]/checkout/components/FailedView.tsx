@@ -19,7 +19,7 @@ export function FailedView({ error, onRetry, onChangeGateway, onBack }: FailedVi
       </div>
 
       <h2 className="text-2xl font-bold text-[var(--text-primary)]">فشل إتمام الدفع</h2>
-      <p className="text-[var(--text-secondary)] max-w-md mx-auto">
+      <p className="text-[var(--text-secondary)] max-w-md mx-auto" role="alert">
         {error || 'حدث خطأ أثناء معالجة الدفع. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى.'}
       </p>
 

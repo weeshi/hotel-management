@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useCallback, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui';
@@ -78,9 +78,14 @@ function CheckoutClientInner({
     useCheckoutContext();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const step = (searchParams.get('step') as CheckoutStep) ?? 'select-gateway';
   const urlGateway = searchParams.get('gateway') as Gateway | null;
+
+  useEffect(() => {
+    contentRef.current?.focus?.();
+  }, [step]);
 
   const goToStep = useCallback(
     (nextStep: CheckoutStep, gateway?: Gateway) => {
@@ -154,7 +159,8 @@ function CheckoutClientInner({
       balance={initialBalance}
       totalAmount={initialTotalAmount}
     >
-      {step === 'select-gateway' && (
+      <div ref={contentRef} tabIndex={-1} className="outline-none">
+        {step === 'select-gateway' && (
         <GatewaySelector
           onSelect={handleGatewaySelect}
           loading={loading}
@@ -217,6 +223,7 @@ function CheckoutClientInner({
           onBack={handleBackToGatewaySelect}
         />
       )}
+      </div>
     </CheckoutLayout>
   );
 }

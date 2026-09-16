@@ -13,7 +13,7 @@ export function SuccessView({ bookingNo, amount, currency }: SuccessViewProps) {
     amt.toLocaleString('ar-LY', { minimumFractionDigits: 3 });
 
   return (
-    <div className="space-y-6 text-center" role="region" aria-label="نجح الدفع">
+    <div className="space-y-6 text-center" role="status" aria-live="polite" aria-label="نجح الدفع">
       <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[rgba(34,197,94,0.1)] flex items-center justify-center">
         <svg className="h-12 w-12 text-[var(--green)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

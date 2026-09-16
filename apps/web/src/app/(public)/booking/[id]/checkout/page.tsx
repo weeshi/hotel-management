@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { notFound } from 'next/navigation';
 import { CheckoutClient } from './CheckoutClient';
 import { SuccessView } from './components/SuccessView';
+import { UnverifiedSuccessView } from './components/UnverifiedSuccessView';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,39 +138,6 @@ async function getVerifiedSucceededSession(bookingId: string, sessionId?: string
   });
 }
 
-function UnverifiedSuccessView({ bookingId }: { bookingId: string }) {
-  const retryHref = `/booking/${bookingId}/checkout?step=success`;
-  return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4" dir="rtl">
-      <div className="max-w-md w-full rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[rgba(231,76,60,0.1)] flex items-center justify-center">
-          <svg className="h-10 w-10 text-[var(--red)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">تعذر تأكيد حالة الدفع</h2>
-        <p className="text-[var(--text-secondary)] mb-6">
-          لم نجد دفعة ناجحة مرتبطة بهذا الحجز. إذا قمت بالدفع للتو، فقد يستغرق التأكيد لحظات.
-        </p>
-        <div className="space-y-3">
-          <a
-            href={retryHref}
-            className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-[var(--gold)] text-black font-bold hover:brightness-110"
-          >
-            إعادة التحقق
-          </a>
-          <a
-            href={`/booking/${bookingId}/checkout`}
-            className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold hover:border-[var(--gold)] hover:text-[var(--gold)]"
-          >
-            العودة لصفحة الدفع
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default async function CheckoutPage({ params, searchParams }: PageProps) {
   const { id: bookingId } = await params;
   const sp = await searchParams;
@@ -178,7 +146,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
 
   const data = await getBookingData(bookingId);
 
-  if (!data || data.balance <= 0) {
+  if (!data) {
     notFound();
   }
 
@@ -194,6 +162,10 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
         currency={session.currency || data.booking.currency}
       />
     );
+  }
+
+  if (data.balance <= 0) {
+    notFound();
   }
 
   return (

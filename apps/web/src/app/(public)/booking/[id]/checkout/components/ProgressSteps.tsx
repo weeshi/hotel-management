@@ -67,8 +67,8 @@ export function ProgressSteps({ currentStep }: ProgressStepsProps) {
   const currentIndex = stepOrder.indexOf(currentStep);
 
   return (
-    <div className="mt-4 overflow-x-auto pb-2">
-      <div className="flex items-center min-w-max">
+    <nav className="mt-4 overflow-x-auto pb-2" aria-label="مراحل إتمام الدفع">
+      <ol className="flex items-center min-w-max">
         {steps.map((step, index) => {
           const isActive = index <= currentIndex && stepOrder[index] !== 'failed';
           const isCurrent = index === currentIndex;
@@ -79,8 +79,19 @@ export function ProgressSteps({ currentStep }: ProgressStepsProps) {
             return null;
           }
 
+          const liLabel = isCurrent
+            ? `${step.label} — الخطوة الحالية`
+            : isCompleted
+              ? `${step.label} — مكتملة`
+              : step.label;
+
           return (
-            <div key={step.key} className="flex items-center">
+            <li
+              key={step.key}
+              className="flex items-center"
+              aria-label={liLabel}
+              aria-current={isCurrent ? 'step' : undefined}
+            >
               <div className="relative flex flex-col items-center">
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${
@@ -108,12 +119,13 @@ export function ProgressSteps({ currentStep }: ProgressStepsProps) {
                   className={`w-16 h-0.5 mx-1 transition-colors ${
                     isCompleted ? 'bg-[var(--gold)]' : 'bg-[var(--border)]'
                   }`}
+                  aria-hidden="true"
                 />
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ol>
+    </nav>
   );
 }

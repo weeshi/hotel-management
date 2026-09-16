@@ -66,28 +66,35 @@ export const GatewaySelector = memo(function GatewaySelector({
   return (
     <div className="space-y-4" data-component="GatewaySelector">
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">المبلغ المستحق</h3>
-        <p className="text-2xl font-bold text-[var(--gold)]">
+        <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2" id="checkout-balance-heading">
+          المبلغ المستحق
+        </h3>
+        <p
+          className="text-2xl font-bold text-[var(--gold)]"
+          aria-labelledby="checkout-balance-heading"
+          aria-live="polite"
+        >
           {balance.toLocaleString('ar-LY', { minimumFractionDigits: 3 })} {currency}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4" role="list" aria-label="اختر طريقة الدفع">
         {gateways.map((gateway) => (
-          <GatewaySelectorCard
-            key={gateway.id}
-            gateway={gateway}
-            onSelect={onSelect}
-            loading={loading}
-            isElectronic={gateway.id === 'plutu' || gateway.id === 'tlync'}
-          />
+          <div key={gateway.id} role="listitem">
+            <GatewaySelectorCard
+              gateway={gateway}
+              onSelect={onSelect}
+              loading={loading}
+              isElectronic={gateway.id === 'plutu' || gateway.id === 'tlync'}
+            />
+          </div>
         ))}
       </div>
 
       {loading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="alert">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="alert" aria-live="assertive">
           <div className="bg-white rounded-xl p-6 text-center">
-            <div className="animate-spin h-10 w-10 border-4 border-[var(--gold)] border-t-transparent rounded-full mx-auto mb-3" />
+            <div className="animate-spin h-10 w-10 border-4 border-[var(--gold)] border-t-transparent rounded-full mx-auto mb-3" role="presentation" />
             <p className="text-[var(--text-primary)]">جاري إنشاء جلسة الدفع...</p>
           </div>
         </div>

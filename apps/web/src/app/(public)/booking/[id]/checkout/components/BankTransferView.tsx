@@ -31,8 +31,13 @@ export function BankTransferView({ amount, currency, onBack }: BankTransferViewP
 
   const [reference] = useState(() => `${bankInfo.referencePrefix}-${Date.now().toString(36).toUpperCase()}`);
 
+  const copiedLabel = copied === 'iban' ? 'رقم IBAN' : copied === 'swift' ? 'كود SWIFT' : copied === 'ref' ? 'مرجع الدفع' : '';
+
   return (
     <div className="space-y-6" role="region" aria-label="تعليمات التحويل البنكي">
+      <p className="sr-only" aria-live="polite">
+        {copied ? `تم نسخ ${copiedLabel} إلى الحافظة` : ''}
+      </p>
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
           <svg className="h-6 w-6 text-[var(--gold)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -60,6 +65,7 @@ export function BankTransferView({ amount, currency, onBack }: BankTransferViewP
                 variant="ghost"
                 size="sm"
                 onClick={() => copyToClipboard(bankInfo.iban, 'iban')}
+                aria-label="نسخ رقم IBAN إلى الحافظة"
               >
                 {copied === 'iban' ? (
                   <>
@@ -84,6 +90,7 @@ export function BankTransferView({ amount, currency, onBack }: BankTransferViewP
                 variant="ghost"
                 size="sm"
                 onClick={() => copyToClipboard(bankInfo.swift, 'swift')}
+                aria-label="نسخ كود SWIFT إلى الحافظة"
               >
                 {copied === 'swift' ? 'تم النسخ' : 'نسخ'}
               </Button>
@@ -99,6 +106,7 @@ export function BankTransferView({ amount, currency, onBack }: BankTransferViewP
                 variant="ghost"
                 size="sm"
                 onClick={() => copyToClipboard(reference, 'ref')}
+                aria-label="نسخ مرجع الدفع إلى الحافظة"
               >
                 {copied === 'ref' ? 'تم النسخ' : 'نسخ'}
               </Button>

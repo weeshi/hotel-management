@@ -28,7 +28,6 @@ export const GatewaySelectorCard = memo(function GatewaySelectorCard({
       onClick={() => !loading && onSelect(gateway.id)}
       disabled={loading}
       className="group relative flex flex-col p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--gold)] hover:bg-[rgba(201,168,76,0.04)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--gold)] focus:ring-offset-2 focus:ring-offset-[var(--bg)]"
-      role="listitem"
     >
       <div className="flex items-start gap-4">
         <div

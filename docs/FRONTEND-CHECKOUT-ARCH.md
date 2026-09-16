@@ -1,6 +1,6 @@
 # وثيقة المعمارية التنفيذية — واجهة الدفع المباشر (Frontend Checkout Flow)
 
-> **الحالة:** حيّة (As-Built) — تعكس ما تم برمجته فعلياً في M0/M1/M2 (Hotfixes)، وليست مجرد مقترح.
+> **الحالة:** حيّة (As-Built) — تعكس ما تم برمجته فعلياً في M0→M6، وليست مجرد مقترح.
 
 ## 🎯 الهدف
 واجهة دفع آمنة للضيوف على صفحة الحجز المباشر، تدعم:
@@ -55,6 +55,7 @@ checkout/
     ├── BankTransferView.tsx    # IBAN/SWIFT/مرجع ثابت (useState initializer) + نسخ + طباعة
     ├── CashView.tsx            # تعليمات دفع نقدي عند الوصول
     ├── SuccessView.tsx         # (تُعرض من الـ Server فقط بعد التحقق) — بدون confetti
+    ├── UnverifiedSuccessView.tsx # 'use client' — رسالة التعذر + Auto-revalidation (M6)
     └── FailedView.tsx          # إعادة المحاولة / تغيير الطريقة
 ```
 
@@ -125,6 +126,18 @@ if (gateway === 'plutu' || gateway === 'tlync') {
 4. إن لم تُوجد → تُعرض **`UnverifiedSuccessView`** (رسالة تعذّر التأكيد + إعادة تحقق/عودة).
 5. **الـ Client لا يملك أي مسار لعرض النجاح**: الفرع `step === 'success'` في `CheckoutClient` يعرض «حالة غير مؤكدة» فقط (Defense-in-Depth).
 
+### التحقق التلقائي الذكي (Auto-revalidation) [M6]
+
+`UnverifiedSuccessView` أصبح **مكوناً عميلاً** (`'use client'`) يعتمد على `router.refresh()` كآلية إعادة تحقق تلقائية خفيفة:
+
+- عند الهبوط على الصفحة يبدأ مؤقّت دوري كل **3 ثوانٍ** باستدعاء `router.refresh()` (بحد أقصى **5 محاولات**).
+- `router.refresh()` يعيد تنفيذ الـ Server Components فقط ويرسل دعائم جديدة مع **الحفاظ على حالة الـ Client Component** (React لا يفكك الشجرة) — لذلك لا يعيد عداد المحاولات نفسه بالضبط مع كل تحديث، ولا يحدث حلقة لا نهائية.
+- إذا نجح الخادم في التحقق خلال أي تحديث (أصبح `status === 'SUCCEEDED'`) → الشجرة تُستبدل تلقائياً بـ `SuccessView` (الخادم نفسه يرجع العرض الصحيح لا محاولة عميل تزوير).
+- بعد 5 محاولات فاشلة يتوقف المؤقّت، تتغير الحالة إلى «تعذر التأكيد»، ويظهر زر **«إعادة التحقق»** اليدوي بشكل بارز (يعيد ضبط العداد ويعيد تشغيل الدورة)، بجانب رابط العودة لصفحة الدفع.
+- **الأمان لم يتغير:** التحديث مجرد إعادة استعلام خادم نفس بوابة `Request-Time Verification`؛ لا يوجد أي منطق نجاح يَثِق بالعميل.
+
+**لماذا `router.refresh()` ولا `window.location.reload()`؟** يجب حفظ حالة المكوّن (عداد المحاولات + رسالة التحميل) عبر الدورات، وإعادة تحميل كاملة للمستند تُفقدها وتُهدر «التحقق التلقائي». كما أن `router.refresh()` يحافظ على `searchParams` نفسه — فلا شرط تحميل صفحة جديد عند تغيّر الرابط.
+
 ### لماذا ليس Polling ولماذا ليست Server Action؟
 - **Polling (Client)**: قابل للتجاوز (المستخدم يستدعي الـ endpoint ويقرأ النتيجة بنفسه ثم يعدّل الـ DOM)، ويضيف شبكة زمنية دون فائدة أمنية.
 - **Server Action في `SuccessView`**: تبدأ العرض قبل التحقق (لحظة عرض زائفة)، والتحقق بعد العرض لا يمنع «تأكيداً زائفاً»، وهي موجهة للمتغيرات (Mutations) وليست للقراءة.
@@ -140,7 +153,7 @@ if (gateway === 'plutu' || gateway === 'tlync') {
 - `page.tsx` تستخدم **`select` لكل علاقة** (لا `include`): folio `{totalCharges,totalPaid,balance,status}`، hotel `{name,nameAr,currency,timezone}`، guest `{name,email,phone}`، rooms `{checkIn,checkOut}`.
 - **لا** تمرير لإيرادات الفندق، دفتر الأستاذ، الأسعار الداخلية، بيانات ضيوف/جهات أخرى.
 - المبلغ الوحيد المكشوف هو `balance` و `totalAmount` و (في النجاح) `paymentSession.amount`.
-- **`balance <= 0` → `notFound()`**: الحجوزات المدفوعة لا تُعرض أصلاً.
+- **`balance <= 0` → `notFound()`**: الحجوزات المدفوعة لا تُعرض في مسار الدفع. **الترتيب مهم (M6):** حُسمت بوابة `step === 'success'` **قبل** فحص الرصيد — فالحجز الذي اكتمل سداده (رصيده صفر) يعود من البوابة لرؤية `SuccessView` وليس 404.
 - `export const dynamic = 'force-dynamic'` يمنع الترجمة الساكنة عند البناء (استعلام DB + `searchParams`).
 
 **تنبيه معماري اكتُشف أثناء التنفيذ:** حقول `checkIn/checkOut` ليست على `Booking` بل على `BookingRoom` — تُشتق في `page.tsx` عبر `min`/`max` على غرف الحجز.
@@ -185,7 +198,7 @@ export interface CheckoutContextValue {
 | السيناريو | المعالجة |
 |-----------|----------|
 | الوصول إلى `?step=success` يدوياً | الخادم يستعلم ويُظهر الرسالة «تعذر التأكيد» (بلا نجاح زائف) |
-| العودة من البوابة قبل اكتمال تطبيق الـ Webhook | `?step=success` → غير موثّق → «إعادة التحقق» تعيد تحميل الصفحة (إعادة استعلام) |
+| العودة من البوابة قبل اكتمال تطبيق الـ Webhook | `?step=success` → غير موثّق → **Auto-revalidation** كل 3ث ×5 عبر `router.refresh()`؛ ينجح → `SuccessView` تلقائياً، يفشل → زر يدوي |
 | الوصول إلى `?step=redirecting` بلا جلسة | `RedirectingView` يكتشف `paymentUrl` فارغاً → شاشة «جلسة غير متوفرة» + عودة |
 | فشل إنشاء الجلسة | `goToStep('failed', gateway)` + `error` → `FailedView` بـ `onRetry` يعيد الاستدعاء |
 | الحجز مدفوع/بلا رصيد | `balance <= 0` → `notFound()` |
@@ -203,7 +216,7 @@ export interface CheckoutContextValue {
 | **M2: Redirect + Security** | ✅ منجز | RedirectingView صريح + **بوابة نجاح Server-Side** + تحديث هذه الوثيقة |
 | **M3/M4: Bank/Cash** | ✅ منجز (أساس) | BankTransferView + CashView (QR/مهلة لاحقاً إن طُلب) |
 | **M5: Result Views** | ✅ منجز (بدون confetti) | SuccessView (Server-gated) + FailedView |
-| **M6: Polish** | ⏳ لاحقاً | إعادة تحقق تلقائية، ARIA كامل، E2E |
+| **M6: Polish** | ✅ منجز | Auto-revalidation للبوابة + ARIA كامل + إصلاح ترتيب بوابة النجاح قبل تحقق `balance<=0` (حجز مدفوع بالكامل لا يصبح 404) |
 
 ---
 
@@ -214,6 +227,8 @@ export interface CheckoutContextValue {
 - [x] لا Countdown — توجيه صريح
 - [x] `?step=success` مغلقة بالخادم عبر `PaymentSession.status === 'SUCCEEDED'`
 - [x] الـ Client لا يعرض نجاحاً أبداً (Defense-in-Depth)
+- [x] Auto-revalidation: `router.refresh()` كل 3 ثوانٍ (بحد أقصى 5) ثم زر يدوي — حفظ حالة العداد عبر `router.refresh()` (لا تفكيك للشجرة)
+- [x] ARIA: `aria-current="step"` في `ProgressSteps`، `role="status"/"alert"` لنتائج الدفع، `aria-live` للنسخ والمبلغ، تركيز تلقائي على التحول بين الخطوات، `ol/li` دلالي
 - [x] `useCallback` + `memo` حيث يلزم
 - [x] RTL كامل
 - [x] typecheck + lint نظيفان
