@@ -335,7 +335,7 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 - **`/superadmin/hotels`**: جدول الفنادق (الاسم، الدومين المخصص، عدد المستخدمين، الدعوات المعلقة، تاريخ الإنشاء) + نافذة "إنشاء فندق" تعرض رابط الدعوة مع زر نسخ فوري + نافذة "تعديل النطاق" (`PATCH /api/superadmin/hotels/[id]`)
 - **`/superadmin/invitations`**: كل الدعوات (معلقة/منتهية/مستخدمة) مع بطاقات ملخص + زر "إعادة إرسال" يجدّد التوكن والصلاحية ويعرض الرابط الجديد (إلغاء الرابط القديم فوراً)
 - **بنية 1:1 صارمة**: لا تعددية مستخدمين عبر فنادق ولا تجاوز للدومين — كل فندق مستأجر مستقل
-- **🛡️ تحوّل Gated-Control-Room (v9):** المنطقة تُنقَل إلى مجموعة توجيه معزولة `app/(superadmin)/` وتصبح محميةً بـ **2FA إلزامية عبر Email OTP** — كلمة المرور وحدها لا تصدر جلسة صالحة في هذه المنطقة؛ جلسة `accessToken` تُصدر فقط بعد طبقتين (باسورد + OTP) وتحمل ادعاء `tv` يفحصه الـ Middleware. **المسودة/المخطط** في `docs/SUPER-ADMIN-ARCH.md` — المرحلة SA.1 (وثيقة + Schema) منجزة، والتنفيذ يبدأ بعد الاعتماد.
+- **🛡️ تحوّل Gated-Control-Room (v9):** المنطقة ستُنقَل إلى مجموعة توجيه معزولة `app/(superadmin)/` وتصبح محميةً بـ **2FA إلزامية عبر Email OTP** — كلمة المرور وحدها لا تصدر جلسة صالحة في هذه المنطقة؛ جلسة `accessToken` تُصدر فقط بعد طبقتين (باسورد + OTP) وتحمل ادعاء `tv` يفحصه الـ Middleware. **المرجع:** `docs/SUPER-ADMIN-ARCH.md`. **منجز الآن (Backend):** `SA.1` (وثيقة + Schema) و`SA.2` (كود الخادم للمصادقة الثنائية — OTP Service + `/api/superadmin/auth/{login,verify-otp}` + شرط `tv` على الحافة + `withPlatformAuth`) مع اختبار تكاملي 20/20. **بقي:** الواجهة والعزل (SA.3..SA.6).
 
 ---
 
@@ -422,7 +422,7 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 - [x] **v3.6 لوحة التحكم العليا:** فنادق + دعوات + إعادة إرسال الدعوات + حماية مزدوجة
 - [x] **صفحات الحجز العامة (Public Booking):** `/book` (تواريخ → غرف → بيانات ضيف) + `/booking-confirmed` (رقم الحجز + ملخص + إرشادات الدفع) فوق `GET /api/public/availability` و `POST /api/public/bookings`
 - [x] **لوحة تحكم الموقع + حجز بنوع الغرفة (Phase 3 — قيد التطوير):** `WebsiteSetting` (تفعيل/ضريبة/رسوم/خصم/مهلة تأكيد) + `BookingRoom.roomId` أصبح nullable مع `roomTypeId` (حجز ويب بلا غرفة فيزيائية حتى تأكيد الاستقبال) + `RoomType` حقل `isWebVisible`/`webRoomLimit`/`webPrice` + `Booking` لقطة مالية ويب (`webTaxAmount`/`webFeesAmount`/`webDiscountAmount`/`webTotalAmount`) — **M0/M1/M2 مكتملون، M3/M4 قيد العمل**
-- [ ] **🛡️ Super Admin Control Room & 2FA (v9 — SA.1 التأسيس منجز):** تحويل منطقة السوبر أدمن إلى مجموعة معزولة `app/(superadmin)` محمية بـ **Email OTP 2FA إلزامية** + فصل الرموز (رمز تحدٍّ محدود النطاق ↔ جلسة تحمل `tv`) + تخزين OTP **مُهشَّراً** (HMAC بمفتاح `SUPERADMIN_OTP_SECRET`) + جدولا `OtpChallenge`/`PlatformAuditLog` + تصميم `api/superadmin/integrations` (مفاتيح بوابات الدفع/OTAs تُدار بالنيابة عن الفنادق، حصرياً لمالك النظام). **الوثيقة المعمارية:** `docs/SUPER-ADMIN-ARCH.md`. التنفيذ البرمجي (SA.2..SA.6) بانتظار الاعتماد.
+- [ ] **🛡️ Super Admin Control Room & 2FA (v9 — SA.1+SA.2 Backend منجز):** تحويل منطقة السوبر أدمن إلى مجموعة معزولة `app/(superadmin)` محمية بـ **Email OTP 2FA إلزامية** + فصل الرموز (رمز تحدٍّ محدود النطاق ↔ جلسة تحمل `tv`) + تخزين OTP **مُهشَّراً** (HMAC بمفتاح `SUPERADMIN_OTP_SECRET`) + جدولا `OtpChallenge`/`PlatformAuditLog` + تصميم `api/superadmin/integrations` (مفاتيح بوابات الدفع/OTAs تُدار بالنيابة عن الفنادق، حصرياً لمالك النظام). **منجز:** SA.1 (وثيقة + مخطّط) وSA.2 (كود الخادم) — الـ OTP يعمل فعلياً على `/api/superadmin/auth/{login,verify-otp}` بشرط `tv` على الحافة، ويتأكد منه `npm run test:superadmin-otp` (20/20). **المرجع:** `docs/SUPER-ADMIN-ARCH.md`. **بقي:** SA.3..SA.6 (الواجهة والعزل والتكامل).
 
 ---
 
@@ -446,9 +446,9 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 | PATCH | /api/superadmin/hotels/[id] | تحديث/مسح `customDomain` للفندق (SUPER_ADMIN + CSRF فقط) |
 | GET | /api/superadmin/invitations | قائمة كل الدعوات مع الحالة المحسوبة (معلقة/منتهية/مستخدمة) + الفندق + من أنشأها (SUPER_ADMIN فقط) |
 | POST | /api/superadmin/invitations/[id]/resend | إعادة إرسال دعوة معلقة: جدّد التوكن والصلاحية (7 أيام) وأبطل الرابط القديم، وأعِد الرابط الجديد على نطاق المنصة (SUPER_ADMIN + CSRF + Rate Limit) |
-| POST | /api/superadmin/auth/login | **(تصميم معتمد — قيد التنفيذ SA.2)** الطبقة الأولى: تحقق الباسورد لسوبر أدمن، يُصدر رمز تحدٍّ `sa_otp` ويرسل OTP ولا يصدر جلسة |
-| POST | /api/superadmin/auth/verify-otp | **(تصميم معتمد — قيد التنفيذ SA.2)** الطبقة الثانية: التحقق من الكود (HMAC + timing-safe) وبعدها يُصدر `accessToken` يحمل `tv=true` |
-| POST | /api/superadmin/auth/resend | **(تصميم معتمد — قيد التنفيذ SA.2)** إعادة إرسال OTP مع تهدئة 60 ثانية وإبطال التحديات السابقة |
+| POST | /api/superadmin/auth/login | 🟢 **SA.2 مُنجَز** — الطبقة الأولى: تحقق الباسورد لسوبر أدمن، يرفض الحسابات بلا 2FA (403)، يُصدر رمز تحدٍّ `sa_otp` ويرسل OTP ولا يصدر جلسة | 
+| POST | /api/superadmin/auth/verify-otp | 🟢 **SA.2 مُنجَز** — الطبقة الثانية: يُتحقق من الكود (HMAC + timing-safe) مع حد محاولات + إغلاق حساب عند النفاد، ثم يصدر `accessToken` يحمل `tv=true` |
+| POST | /api/superadmin/auth/resend | **(تصميم معتمد — بقي من SA.2)** إعادة إرسال OTP مع تهدئة 60 ثانية وإبطال التحديات السابقة |
 | GET | /api/superadmin/integrations?hotelId= | **(تصميم معتمد — قيد التنفيذ SA.4)** سرد تكاملات فندق (`hasKey` فقط، لا أسرار) |
 | POST | /api/superadmin/integrations | **(تصميم معتمد — قيد التنفيذ SA.4)** حفظ مفاتيح بوابة/OTA لفندق معيّن مشفّرة AES-256-GCM (حصرية SUPER_ADMIN + `tv`) |
 

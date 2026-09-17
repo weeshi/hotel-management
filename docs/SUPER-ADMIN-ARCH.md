@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
-> **الحالة:** 🟡 **التأسيس الأمني (Security Foundation) قيد التنفيذ.**
-> هذه المرحلة تُنتج **المستند + مخطط قاعدة البيانات فقط** (`schema.prisma`). لا يُكتب أي كود واجهات أمامية (UI) أو مسارات API في هذه الخطوة — بقرار صريح من الإدارة التقنية. التنفيذ البرمجي يبدأ بعد اعتماد هذا المستند.
+> **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) مُنجَزان.**
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -111,7 +111,9 @@
     payload.tv   === true                    ← أُثبتت 2FA لهذه الجلسة
 ```
 
-`/admin/queues` (Bull Board) يبقى محميّاً بـ SUPER_ADMIN كما هو اليوم (AGENTS/README)، ويُضاف إليه شرط `tv` أيضاً.
+`/admin/queues` (Bull Board) يبقى محميّاً بـ SUPER_ADMIN كما هو اليوم (AGENTS/README)، ويُضاف إليه شرط `tv` أيضاً — **تمّ تنفيذ ذلك فعلياً** في `src/middleware.ts` و`src/middlewares/superadmin-cookie.ts`.
+
+> **استثناءات الدخول:** صفحتَا `/superadmin/login` و`/superadmin/otp` ستُضافان إلى قائمة الاستثناءات عند بناء الواجهة في SA.3/SA.5. حالياً (بلا UI) لا يوجد أي مسار حقيقي يلبسهما، والمطلَق أنه لا شيء داخل `/superadmin` يجب أن يمرّ بدون `tv=true`.
 
 ---
 
@@ -190,8 +192,24 @@
    │                     │                       │── timingSafeEqual │            │
    │                     │                       │── consumedAt=now ─│───────────►│
    │◄─ accessToken(tv) ──│◄─ {user} ─────────────│── PlatformAudit ──│───────────►│
-   │── /superadmin ─────►│ (tv=true ⇒ مرور)      │                   │            │
-```
+│── /superadmin ─────►│ (tv=true ⇒ مرور)      │                   │            │
+   ```
+
+---
+
+### 5.6 نسبة معدَّلة (Rate-Limit) في `/verify-otp` — القرار المنفَّذ
+
+سؤال الإدارة التقنية: هل نكتفي بحقل `attempts` على التحدي أم نضيف مُقيّد Redis؟ **القرار: طبقات (Layered)** — كل طبقة تكمل الأخرى ولا تُثق بأي واحدة وحدها:
+
+| الطبقة | الآلية (كما نُفِّذت) | الدور | تُعدّ سقفاً موثوقاً؟ |
+|---|---|---|---|
+| 1. أرضية حسابية | `OtpChallenge.attempts` مقابل `maxAttempts` (5) | سقف صارم **لكل تحدٍّ** — يُحسب في نفس معاملة الـ DB | ✅ نعم (معتمد) |
+| 2. إغلاق الحساب | عند نفاد التحدي: `consumedAt=now` + `User.lockedUntil=15 دقيقة` | يقتل "إعادة التحدي" (إعادة الدخول ← 5 تخمينات ← تكرار) | ✅ نعم |
+| 3. سقف موزّع | `checkRateLimit('otp:verify:{ip}:{userId}', 10, 60)` بـ Redis | كبح التزامن الموزّع بين نسخ/عمليات متعددة | ⚠️ **Fail-open عمداً** |
+
+**لماذا fail-open للطبقة 3؟** الأرضية الحسابية (1+2) تبقى سارية حتى لو سقط Redis؛ والـ fail-closed سيمكّن انقطاع Redis من **قفل مالك المنصة خارج لوحته** (Self-DoS). لذلك نسجّل الخطأ ونواصل — الطبقة 2 هي التي توقف المهاجم فعلياً في كل الحالات.
+
+**لماذا `withRateLimit` وحده لا يكفي؟** إنه **في ذاكرة العملية** (`Map` داخلي) — أرضيّة لكل عملية، تُمسح عند إعادة التشغيل، وتُخدَع بتوزيع الحمل بين نسخ متعددة. صالح كتشحيم خام على `/login`، لكنه **ليس** حاجزاً أمنياً بذاته — ومن هنا دور الطبقة 1+2.
 
 ---
 
@@ -311,9 +329,9 @@
 | المرحلة | المخرجات | الحالة |
 |---|---|---|
 | **SA.1 — Foundation** | هذا المستند + تعديلات `schema.prisma` + Migration | 🟢 **مُنجَز** |
-| **SA.2 — Auth Core** | `OtpService`، مسارات `/api/superadmin/auth/{login,verify-otp,resend}`، تعديل `AccessTokenPayload` بـ`tv`، `withPlatformAuth` | ⏳ بانتظار الاعتماد |
-| **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، توسيع الـ`middleware.ts` بشرط `tv` + استثناءات الدخول، استبدال الحاجز العميلي | ⏳ |
-| **SA.4 — Integration API** | `api/superadmin/integrations` + Provider Registry + تطور `IntegrationConfig` | ⏳ |
+| **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارا `/api/superadmin/auth/{login,verify-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
+| **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | ⏳ (جزء الـ Middleware أُنجز ضمن SA.2) |
+| **SA.4 — Integration API** | `api/superadmin/integrations` + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | ⏳ |
 | **SA.5 — UI** | شاشة الدخول/OTP + لوحة مفاتيح التكامل (Schema-driven) | ⏳ (لاحقاً) |
 | **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | ⏳ |
 
@@ -331,11 +349,32 @@
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2)
+
+### SA.1 — Foundation
 
 | الملف | التغيير |
 |---|---|
 | `docs/SUPER-ADMIN-ARCH.md` | هذا المستند (مصدر الحقيقة) |
 | `apps/web/prisma/schema.prisma` | `TwoFactorMethod` + `OtpPurpose` · حقول 2FA على `User` · `OtpChallenge` · `PlatformAuditLog` |
-| `apps/web/prisma/migrations/<ts>_add_superadmin_2fa/` | Migration SQL (إن أمكن توليدها) |
+| `apps/web/prisma/migrations/<ts>_add_superadmin_2fa/` | Migration SQL (مطبَّقة + `migrate resolve`) |
 | `README.md` | مزامنة المخطط (AGENTS §13) |
+
+### SA.2 — Auth Core (Backend خالص)
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/src/lib/utils/otp.ts` | `generateOtpCode()` (randomInt) · `hashOtpCode()` (HMAC-SHA256 ببيبّر) · `safeEqualHex` (timingSafeEqual) · `maskEmail` · دوال إعدادات TTL/محاولات |
+| `apps/web/src/lib/utils/jwt.ts` | `tv?` في `AccessTokenPayload` **و**`RefreshTokenPayload` · `signOtpChallengeToken`/`verifyOtpChallengeToken` (نطاق `superadmin:otp`) بمفتاح خاص |
+| `apps/web/src/lib/services/superadmin-otp.service.ts` | `requestOtp` (إبطال التحدي السابق، توليد+هش+بريد، إرجاع البصمة لا الكود) · `verifyOtp` (انتهاء/استهلاك/محاولات + **إغلاق الحساب 15 دقيقة عند النفاد**) |
+| `apps/web/src/lib/services/platform-audit.service.ts` | `recordPlatformAudit()` → `PlatformAuditLog` |
+| `apps/web/src/lib/services/auth.service.ts` | `authenticateCredentials()` (عزل عامل الباسورد) · `issueSession(user,{tv})` · الحفاظ على `tv` عبر التجديد |
+| `apps/web/src/app/api/superadmin/auth/login/route.ts` | عامل1: فحص الباسورد فقط، رفض **الحسابات بلا 2FA** (403)، إرسال OTP + كوكي `sa_otp` (HttpOnly/strict/path-scoped) + تدقيق — `withRateLimit(10)` |
+| `apps/web/src/app/api/superadmin/auth/verify-otp/route.ts` | عامل2: `withCsrf` + سقف Redis (fail-open) + استهلاك التحدي → `issueSession({tv:true})` + مسح `sa_otp` + تدقيق |
+| `apps/web/src/middleware.ts` | `/superadmin` و`/admin/queues` تشترطان `role==='SUPER_ADMIN'` **و**`tv===true` |
+| `apps/web/src/middlewares/superadmin-cookie.ts` | الحاجز البكري ينضاف له شرط `tv` (Bull Board) |
+| `apps/web/src/middlewares/platform-auth.ts` | بوّابة API تحت `/api/superadmin/*` (Bearer أو كوكي الجلسة) + `tv` |
+| `apps/web/scripts/test-superadmin-otp.ts` | اختبار تكاملي شامل (20 فحصاً) — `npm run test:superadmin-otp` |
+| `.env.example` / `apps/web/package.json` | متغيرات OTP جديدة + سكربت `test:superadmin-otp` |
+
+**نتيجة الاختبار التكاملي:** 20/20 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 274/274 تمر.

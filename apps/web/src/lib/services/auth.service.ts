@@ -18,6 +18,16 @@ export class AuthService {
   // matches a registered hotel customDomain). The failure message stays uniform
   // so the host never leaks which accounts exist.
   async login(email: string, password: string, hotelId?: string) {
+    const user = await this.authenticateCredentials(email, password, hotelId);
+    return this.issueSession(user);
+  }
+
+  /**
+   * Verifies email + password (lockout, failed-attempt accounting) and returns
+   * the user WITHOUT issuing any token. Used by the Super-Admin 2FA flow, where
+   * the first factor must NOT grant a session (docs/SUPER-ADMIN-ARCH.md §5.1).
+   */
+  async authenticateCredentials(email: string, password: string, hotelId?: string) {
     let user = hotelId
       ? await prisma.user.findFirst({ where: { email, hotelId } })
       : await prisma.user.findUnique({ where: { email } });
@@ -55,7 +65,16 @@ export class AuthService {
       data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
 
-    return this.generateTokens(user);
+    return user;
+  }
+
+  /**
+   * Issues an access/refresh token pair for an already-authenticated user.
+   * `tv: true` marks the session as having cleared the 2FA gate; the Edge
+   * middleware requires it for /superadmin (docs/SUPER-ADMIN-ARCH.md §4.3).
+   */
+  async issueSession(user: any, opts?: { tv?: boolean }) {
+    return this.generateTokens(user, opts);
   }
 
   private async handleFailedLogin(userId: string) {
@@ -75,7 +94,7 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(user: any) {
+  private async generateTokens(user: any, opts?: { tv?: boolean }) {
     const family = randomBytes(16).toString('hex');
     const tokenId = uuidv4();
 
@@ -83,12 +102,14 @@ export class AuthService {
       userId: user.id,
       role: user.role,
       hotelId: user.hotelId || undefined,
+      ...(opts?.tv ? { tv: true } : {}),
     });
 
     const refreshToken = await signRefreshToken({
       userId: user.id,
       tokenId,
       family,
+      ...(opts?.tv ? { tv: true } : {}),
     });
 
     await prisma.refreshToken.create({
@@ -140,7 +161,7 @@ export class AuthService {
       data: { revoked: true },
     });
 
-    return this.generateTokens(stored.user);
+    return this.generateTokens(stored.user, { tv: payload.tv });
   }
 
   async logout(userId: string, family?: string) {

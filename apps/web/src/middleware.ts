@@ -33,13 +33,17 @@ export async function middleware(request: NextRequest) {
     if (BLOCKED_ROLES.includes(payload.role)) {
       return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
     }
-    // `/superadmin` is strictly reserved for the platform owner
-    if (pathname.startsWith('/superadmin') && payload.role !== 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
-    }
-    // `/admin/queues` (Bull Board) is reserved for SUPER_ADMIN only
-    if (pathname.startsWith('/admin/queues') && payload.role !== 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
+    // `/superadmin` and `/admin/queues` (Bull Board) are reserved for the
+    // platform owner AND require a session that passed the Email-OTP gate
+    // (`tv: true`, see docs/SUPER-ADMIN-ARCH.md §4.3). A first-factor-only
+    // session is sent back to login to complete 2FA.
+    if (pathname.startsWith('/superadmin') || pathname.startsWith('/admin/queues')) {
+      if (payload.role !== 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
+      }
+      if (payload.tv !== true) {
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+      }
     }
   } catch {
     return NextResponse.redirect(new URL('/auth/login', request.url));
