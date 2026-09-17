@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
-> **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) مُنجَزان.**
-> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
+> **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) مُنجَزة.**
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -251,16 +251,15 @@
 
 ## 7) 🔌 تصميم واجهة الربط (Integration API) — `api/superadmin/integrations`
 
-> **الحالة:** تصميم مُعتمد، يُنفَّذ في الخطوة التالية. لا كود في هذه المرحلة.
+> **الحالة:** 🟢 **مُنفَّذة (SA.4 — Backend).** لا واجهة في هذه المرحلة. أنظر §12/SA.4 لتفاصيل الملفات.
 
 ### 7.1 العقود (Contracts)
 
 | Method | المسار | الوصف |
 |---|---|---|
-| `GET` | `/api/superadmin/integrations?hotelId=<id>` | يسرد تكاملات فندق محدّد (مُقنّعة) |
-| `POST` | `/api/superadmin/integrations` | إنشاء/تحديث تكامل لفندق (`upsert` على `hotelId+engine`) |
-| `PATCH` | `/api/superadmin/integrations/[id]` | تفعيل/تعطيل (بلا تغيير الأسرار) |
-| `DELETE` | `/api/superadmin/integrations/[id]` | إبطال التكامل (Soft-delete/تعطيل) |
+| `GET` | `/api/superadmin/integrations?hotelId=<id>&kind=<kind>` | يسرد تكاملات فندق محدّد (مُقنّعة) — `kind` اختياري (`BOOKING_ENGINE`/`PAYMENT_GATEWAY`) |
+| `POST` | `/api/superadmin/integrations` | إنشاء/تحديث تكامل لفندق (`upsert` على `hotelId+engine`) — يكتب الأسرار + `config` + `isActive` |
+| `DELETE` | `/api/superadmin/integrations?hotelId=<id>&engine=<engine>` | **حذف دائم** لربط التكامل + إبطال المفاتيح (حذف Hard من الـ DB) |
 
 **نقطة جوهرية:** الـAPI **يشترط `hotelId`** — السوبر أدمن يختار الفندق **أولاً** ثم يُدخل مفاتيحه. لا تُقبل تكاملات بلا فندق (مفاتيح الدفع ملك الفندق، لا المنصة).
 
@@ -269,33 +268,50 @@
 ```jsonc
 {
   "hotelId": "uuid-of-hotel",
-  "provider": "plutu",          // أو tlync / ohd / otas...
-  "kind": "PAYMENT_GATEWAY",    // أو BOOKING_ENGINE / OTA_CHANNEL
+  "engine": "plutu",            // أو tlync / booking.com / expedia / website / custom
+  // "kind" يُشتق من Provider Registry تلقائياً — لا يُقبل في الجسم
   "secret": {                    // الحقول الحسّاسة (تُشفَّر كوحدة واحدة)
     "secretKey": "…",
     "merchantId": "…"
-  },
-  "config": { "baseUrl": "https://…", "isActive": true }  // حقول غير سرّية
+  },                             // لمحركات الحجز: { "apiKey": "…" } (توافق خلفي)
+  "config": { "baseUrl": "https://…", "isSandbox": true },  // حقول غير سرّية فقط
+  "isActive": true
 }
 ```
 
-### 7.3 قواعد إلزامية (تطابق AGENTS §9/§16)
+**شكل التخزين في `apiKeyEnc`:**
+- **بوابة دفع** (`PAYMENT_GATEWAY`): حزمة JSON مشفّرة `encryptSecret(JSON.stringify({merchantId, secretKey}))`.
+- **محرك حجز** (`BOOKING_ENGINE`): نصّ خام مشفّر `encryptSecret(apiKey)` — **مطابق للتخزين القديم** حرفياً حتى يبقى `withExternalAuth` (المقارنة timing-safe مع النص المُفكّك) يعمل بلا تغيير.
 
-1. **التشفير:** يُشفَّر `secret` كوحدة JSON بواسطة `encryptSecret()` (AES-256-GCM بمفتاح `PAYMENT_CRYPTO_KEY`) ويُخزَّن في `IntegrationConfig.apiKeyEnc`.
-2. **عدم الإرجاع:** لا يُعاد السرّ ولا جزء منه في **أي** استجابة أو سجل. يُعرض `hasKey: true|false` فقط.
+**قرار هندسي مُعتمد (CTO):** الحزمة المشفّرة **محصورة** في الحقول السرّية المعلنة فقط (`merchantId`/`secretKey`). **التوسّع مستقبلياً هو نقطة الـ Registry (سطر `secretFields` إضافي) وليس حقولاً متوقَّعة داخل البصمة** — `apiKeyEnc` بصمة معتمة تُضاف إليها حقول بلا جراحة Schema، والتنميط محمول في مترّيكات `kind+engine` المفهرسة. لا `version`/`webhookSecret` غير مستخدم حتى خطوة الربط الفعلي (SA.5+).
+
+### 7.3 قواعد إلزامية (تطابق AGENTS §9/§16) — كما نُفّذت
+
+1. **التشفير:** يُشفَّر السرّ بواسطة `encryptSecret()` (AES-256-GCM بمفتاح `PAYMENT_CRYPTO_KEY`) ويُخزَّن في `IntegrationConfig.apiKeyEnc`.
+2. **عدم الإرجاع (Zero-Leakage، قرار CTO):** لا يُعاد السرّ ولا جزء منه في **أي** استجابة أو سجل. يُعرض `hasKey: true|false` فقط — **لا `maskedKey` (حتى لا آخر 4 أحرف)** لاحترام §7.3/2 وتقليص سطح فك التشفير عند القراءة.
 3. **التحقق من الملكية:** التأكد أن `hotelId` موجود (`404` إن لم يكن) — لا نُنشئ تكاملاً لفندق وهمي.
-4. **السجلّ:** كل كتابة تُنتج `PlatformAuditLog` (القيم `oldValue/newValue` لأعلام غير حسّاسة فقط).
-5. **سلسلة وسطاء الطفرات (إلزامية):** `withPlatformAuth(withCsrf(withRateLimit(handler)))` — والاستعلامات القرائية تكتفي بـ`withPlatformAuth` + Rate-limit.
-6. **المنطقة الزمنية للقراءة:** `GET` لا يكشف الأسرار المشفّرة، فقط `{ provider, kind, isActive, hasKey, updatedAt }`.
+4. **السجلّ:** كل كتابة/حذف تُنتج `PlatformAuditLog` (القيم `oldValue/newValue` لأعلام غير حسّاسة فقط). `PlatformAuditLog.action/entity` عمودان نصّيّان — لا حاجة لتعديل Schema.
+5. **سلسلة وسطاء الطفرات (إلزامية):** `withPlatformAuth(withCsrf(withRateLimit(handler)))` — والاستعلامات القرائية تكتفي بـ`withPlatformAuth(withRateLimit(...))`.
+6. **المنطقة الزمنية للقراءة:** `GET` لا يكشف الأسرار المشفّرة، فقط `{ engine, kind, isActive, hasKey, config, updatedAt }` — مع `config` مُعاد تحليله (غير سرّي فقط).
 
-### 7.4 تطوّر `IntegrationConfig` المقترح (الخطوة التالية)
+### 7.4 تطوّر `IntegrationConfig` — ✅ مُنفَّذ (Migration `20260917140000_add_integration_kind`)
 
-`IntegrationConfig` الحالي يحمل `engine` (محركات حجز) و`apiKeyEnc` (سرّ واحد) و`config` (JSON). لتغطية بوابات الدفع نحتاج تجميع عدّة حقول سرّية. المقترح **دون كسر التوافق**:
+`IntegrationConfig` الحالي يحمل `engine` و`apiKeyEnc` و`config`. نُفّذ **دون كسر التوافق**:
 
-- الإبقاء على `apiKeyEnc` كـ**حزمة سرّية مشفّرة** (JSON) — السرّ النصّي القديم يبقى صالحاً (توافق خلفي).
-- إضافة `kind IntegrationKind @default(BOOKING_ENGINE)` لتصنيف التكامل.
-- إضافة `updatedById String?` لتتبّع من عدّل المفاتيح.
-- إنشاء **سجل مزوّدين (Provider Registry)** `src/lib/integrations/registry.ts` يربط كل `provider` بـ: `kind`، الحقول السرّية المطلوبة، حقول `config` المسموحة، وقاعدة التحقق. يُستخدم السجل في الـAPI وفي الواجهة (Schema-driven).
+- ✅ أُضيف `kind IntegrationKind @default(BOOKING_ENGINE)` (`enum IntegrationKind { BOOKING_ENGINE, PAYMENT_GATEWAY }`) — Backfill تلقائي: الصفوف القائمة `BOOKING_ENGINE`.
+- ✅ أُضيف `updatedById String?` لتتبّع من عدّل المفاتيح.
+- ✅ أُنشئ **سجل مزوّدين (Provider Registry)** `src/lib/integrations/registry.ts`: لكل `engine` ↦ `{ kind, secretFields, configFields, rawSecret }`؛ يُستخدم في الـAPI وفي الواجهة مستقبلاً (Schema-driven).
+
+| المزوّد | `kind` | `secretFields` | `configFields` | racking |
+|---|---|---|---|---|
+| `plutu` | PAYMENT_GATEWAY | `merchantId`·`secretKey` | `baseUrl`·`returnUrl`·`callbackUrl`·`isSandbox` | حزمة JSON |
+| `tlync` | PAYMENT_GATEWAY | `merchantId`·`secretKey` | `baseUrl`·`returnUrl`·`callbackUrl`·`isSandbox` | حزمة JSON |
+| `booking.com` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
+| `expedia` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
+| `website` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
+| `custom` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
+
+> **نطاق SA.4 (قرار CTO):** التخزين + الـAPI فقط. مفاتيح بوابات الدفع لا تُربط بعد بالتشغيل الفعلي (`payment-session`/`webhook` ما زالت تقرأ من `.env`) — الربط خطوة لاحقة موثّقة.
 
 ---
 
@@ -331,7 +347,7 @@
 | **SA.1 — Foundation** | هذا المستند + تعديلات `schema.prisma` + Migration | 🟢 **مُنجَز** |
 | **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارا `/api/superadmin/auth/{login,verify-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | ⏳ (جزء الـ Middleware أُنجز ضمن SA.2) |
-| **SA.4 — Integration API** | `api/superadmin/integrations` + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | ⏳ |
+| **SA.4 — Integration API** | `api/superadmin/integrations` (GET/POST/DELETE) + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.5 — UI** | شاشة الدخول/OTP + لوحة مفاتيح التكامل (Schema-driven) | ⏳ (لاحقاً) |
 | **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | ⏳ |
 
@@ -349,7 +365,7 @@
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2 + SA.4)
 
 ### SA.1 — Foundation
 
@@ -378,5 +394,25 @@
 | `.env.example` / `apps/web/package.json` | متغيرات OTP جديدة + سكربت `test:superadmin-otp` |
 
 **نتيجة الاختبار التكاملي:** 20/20 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 274/274 تمر.
+
+### SA.4 — Integration API (Backend خالص)
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/prisma/schema.prisma` | `enum IntegrationKind` + `kind` (default `BOOKING_ENGINE`) + `updatedById` على `IntegrationConfig` + فهرس `kind` |
+| `apps/web/prisma/migrations/20260917140000_add_integration_kind/` | Migration SQL (مطبَّقة عبر `db execute` + `migrate resolve`) |
+| `apps/web/src/lib/integrations/registry.ts` | **سجل المزودين**: `engine ↦ { kind, secretFields, configFields, rawSecret }` + دوال `validateSecretShape`/`pickConfigFields` — نقطة التوسّع الوحيدة للأسرار الجديدة |
+| `apps/web/src/app/api/superadmin/integrations/route.ts` | `GET` (مُقنّع، `hasKey` فقط، فلترة `kind`، 404 لفندق مجهول) · `POST` (upsert؛ بوابات → حزمة JSON مشفّرة، محركات حجز → نصّ خام مشفّر لتوافق `withExternalAuth`؛ `updatedById`؛ تدقيق) · `DELETE` (حذف دائم + إبطال مفاتيح + تدقيق). الحراسة `withPlatformAuth(withCsrf(withRateLimit()))` للطفرات، `withPlatformAuth(withRateLimit())` للقراءة |
+| `apps/web/scripts/test-superadmin-integrations.ts` | اختبار تكاملي شامل (26 فحصاً) — `npm run test:superadmin-integrations` |
+| `apps/web/package.json` | سكربت `test:superadmin-integrations` |
+
+> **القرارات المعتمدة من الإدارة التقنية (SA.4):**
+> 1. **الـ Masking في GET = `hasKey` فقط** (Zero-Leakage، لا `maskedKey` — §7.3/2).
+> 2. **تعديل Schema** (kind + updatedById + Backfill `BOOKING_ENGINE`) اعتمد.
+> 3. **نطاق SA.4 = التخزين + الـAPI فقط**؛ الربط بالتشغيل الفعلي (payment-session/webhook) خطوة لاحقة.
+> 4. **الحزمة المشفّرة محصورة** في `{merchantId, secretKey}` — التوسّع عبر الـ Registry لا داخل البصمة.
+> 5. حذف التكامل على **مستوى المجموعة** (`DELETE ?hotelId=&engine=`) بدل `/[id]` كما طلبت الإدارة.
+
+**نتيجة الاختبار التكاملي:** 26/26 فحص بلا أخطاء (توليد بوابة دفع → حزمة JSON مشفّرة مع جولة فكّ صحيحة، توافق المحركات الخام خلفياً، صفر تسريب في كل الاستجابات، أخطاء 400/404/422، رفض بدون `tv` (403) وبدون مصادقة (401)، حذف دائم مع سجل تدقيق). SA.2 20/20، الاختبارات الشاملة 274/274، `tsc --noEmit` نظيف.
 
 > **⚠️ ملاحظة انتقالية معروفة (UI):** بما أنّ جلسات السوبر أدمن الحالية (قبل SA.2) **بلا `tv`**، صارت الـ Middleware ترتد أي وصول لـ`/superadmin` إلى `/auth/login` — وصفحة `/auth/login` الحالية لا تدرك تدفق 2FA فتدفع المستخدم لـ`/superadmin` مجدداً (التحقق الكامل عبر API يعمل، لكن الواجهة بلا مسار OTP). **الحل مقصود في SA.3/SA.5**: بناء `/superadmin/login` + `/superadmin/otp` وربطهما بصفحة الدخول عند رصد دور `SUPER_ADMIN`. لا تعديل على الواجهة الآن (قرار الإدارة التقنية).

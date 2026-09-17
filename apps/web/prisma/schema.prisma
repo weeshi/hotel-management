@@ -857,19 +857,27 @@ model VCCAuditLog {
 // ============================================================
 //  تكاملات محركات الحجز الخارجية (Decoupled PMS Ledger)
 // ============================================================
+enum IntegrationKind {
+  BOOKING_ENGINE
+  PAYMENT_GATEWAY
+}
+
 model IntegrationConfig {
-  id        String   @id @default(uuid())
-  hotelId   String
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
-  engine    String
-  apiKeyEnc String?
-  isActive  Boolean  @default(false)
-  config    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String            @id @default(uuid())
+  hotelId     String
+  hotel       Hotel             @relation(fields: [hotelId], references: [id])
+  engine      String
+  kind        IntegrationKind   @default(BOOKING_ENGINE)
+  apiKeyEnc   String?
+  isActive    Boolean           @default(false)
+  config      String?
+  updatedById String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@unique([hotelId, engine])
   @@index([hotelId])
+  @@index([kind])
 }
 
 model GatewayWebhook {

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:superadmin-otp": "tsx scripts/test-superadmin-otp.ts",
+    "test:superadmin-integrations": "tsx scripts/test-superadmin-integrations.ts",
     "generate:contract-fixtures": "tsx scripts/generate-contract-fixtures.ts",
     "generate:contract-fixtures:check": "tsx scripts/generate-contract-fixtures.ts --check",
     "e2e:prepare-db": "tsx scripts/e2e-prepare-db.ts",
