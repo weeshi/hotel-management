@@ -335,6 +335,7 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 - **`/superadmin/hotels`**: جدول الفنادق (الاسم، الدومين المخصص، عدد المستخدمين، الدعوات المعلقة، تاريخ الإنشاء) + نافذة "إنشاء فندق" تعرض رابط الدعوة مع زر نسخ فوري + نافذة "تعديل النطاق" (`PATCH /api/superadmin/hotels/[id]`)
 - **`/superadmin/invitations`**: كل الدعوات (معلقة/منتهية/مستخدمة) مع بطاقات ملخص + زر "إعادة إرسال" يجدّد التوكن والصلاحية ويعرض الرابط الجديد (إلغاء الرابط القديم فوراً)
 - **بنية 1:1 صارمة**: لا تعددية مستخدمين عبر فنادق ولا تجاوز للدومين — كل فندق مستأجر مستقل
+- **🛡️ تحوّل Gated-Control-Room (v9):** المنطقة تُنقَل إلى مجموعة توجيه معزولة `app/(superadmin)/` وتصبح محميةً بـ **2FA إلزامية عبر Email OTP** — كلمة المرور وحدها لا تصدر جلسة صالحة في هذه المنطقة؛ جلسة `accessToken` تُصدر فقط بعد طبقتين (باسورد + OTP) وتحمل ادعاء `tv` يفحصه الـ Middleware. **المسودة/المخطط** في `docs/SUPER-ADMIN-ARCH.md` — المرحلة SA.1 (وثيقة + Schema) منجزة، والتنفيذ يبدأ بعد الاعتماد.
 
 ---
 
@@ -421,6 +422,7 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 - [x] **v3.6 لوحة التحكم العليا:** فنادق + دعوات + إعادة إرسال الدعوات + حماية مزدوجة
 - [x] **صفحات الحجز العامة (Public Booking):** `/book` (تواريخ → غرف → بيانات ضيف) + `/booking-confirmed` (رقم الحجز + ملخص + إرشادات الدفع) فوق `GET /api/public/availability` و `POST /api/public/bookings`
 - [x] **لوحة تحكم الموقع + حجز بنوع الغرفة (Phase 3 — قيد التطوير):** `WebsiteSetting` (تفعيل/ضريبة/رسوم/خصم/مهلة تأكيد) + `BookingRoom.roomId` أصبح nullable مع `roomTypeId` (حجز ويب بلا غرفة فيزيائية حتى تأكيد الاستقبال) + `RoomType` حقل `isWebVisible`/`webRoomLimit`/`webPrice` + `Booking` لقطة مالية ويب (`webTaxAmount`/`webFeesAmount`/`webDiscountAmount`/`webTotalAmount`) — **M0/M1/M2 مكتملون، M3/M4 قيد العمل**
+- [ ] **🛡️ Super Admin Control Room & 2FA (v9 — SA.1 التأسيس منجز):** تحويل منطقة السوبر أدمن إلى مجموعة معزولة `app/(superadmin)` محمية بـ **Email OTP 2FA إلزامية** + فصل الرموز (رمز تحدٍّ محدود النطاق ↔ جلسة تحمل `tv`) + تخزين OTP **مُهشَّراً** (HMAC بمفتاح `SUPERADMIN_OTP_SECRET`) + جدولا `OtpChallenge`/`PlatformAuditLog` + تصميم `api/superadmin/integrations` (مفاتيح بوابات الدفع/OTAs تُدار بالنيابة عن الفنادق، حصرياً لمالك النظام). **الوثيقة المعمارية:** `docs/SUPER-ADMIN-ARCH.md`. التنفيذ البرمجي (SA.2..SA.6) بانتظار الاعتماد.
 
 ---
 
@@ -444,6 +446,11 @@ await adapter.createPaymentSession({ amount, currency, orderId, ... });
 | PATCH | /api/superadmin/hotels/[id] | تحديث/مسح `customDomain` للفندق (SUPER_ADMIN + CSRF فقط) |
 | GET | /api/superadmin/invitations | قائمة كل الدعوات مع الحالة المحسوبة (معلقة/منتهية/مستخدمة) + الفندق + من أنشأها (SUPER_ADMIN فقط) |
 | POST | /api/superadmin/invitations/[id]/resend | إعادة إرسال دعوة معلقة: جدّد التوكن والصلاحية (7 أيام) وأبطل الرابط القديم، وأعِد الرابط الجديد على نطاق المنصة (SUPER_ADMIN + CSRF + Rate Limit) |
+| POST | /api/superadmin/auth/login | **(تصميم معتمد — قيد التنفيذ SA.2)** الطبقة الأولى: تحقق الباسورد لسوبر أدمن، يُصدر رمز تحدٍّ `sa_otp` ويرسل OTP ولا يصدر جلسة |
+| POST | /api/superadmin/auth/verify-otp | **(تصميم معتمد — قيد التنفيذ SA.2)** الطبقة الثانية: التحقق من الكود (HMAC + timing-safe) وبعدها يُصدر `accessToken` يحمل `tv=true` |
+| POST | /api/superadmin/auth/resend | **(تصميم معتمد — قيد التنفيذ SA.2)** إعادة إرسال OTP مع تهدئة 60 ثانية وإبطال التحديات السابقة |
+| GET | /api/superadmin/integrations?hotelId= | **(تصميم معتمد — قيد التنفيذ SA.4)** سرد تكاملات فندق (`hasKey` فقط، لا أسرار) |
+| POST | /api/superadmin/integrations | **(تصميم معتمد — قيد التنفيذ SA.4)** حفظ مفاتيح بوابة/OTA لفندق معيّن مشفّرة AES-256-GCM (حصرية SUPER_ADMIN + `tv`) |
 
 ### الحجوزات (Bookings)
 | الطريقة | المسار | الوصف |
@@ -849,6 +856,32 @@ This section documents critical bugs, race conditions, and systemic flaws discov
 **Architectural Solution/Prevention Mechanism:**
 1. M2 ships the quota check as a **pre-check** before the transaction — it eliminates the common oversell case (notable when combined with the availability endpoint using the same formula, so the UI and the API agree).
 2. **Prevention (M3):** move the PENDING re-count *inside* `BookingService.create`'s `prisma.$transaction` (or use a row lock / advisory lock on `roomTypeId`) so the count and insert are atomic, then run `expireUnconfirmedBookings` lazily to release stale PENDING slots.
+
+---
+
+### 10. `prisma migrate dev` Broken by a Non-Replayable Legacy Migration (Shadow DB)
+
+**Problem/Risk:**
+- `npx prisma migrate dev` fails on **every** run with `P3006` against the shadow database: migration `20260806000000_bookingroom_roomtype_nullable_roomid` executes `"roomTypeId" IS NOT NULL`-style casts where `column "roomTypeId" is of type uuid but expression is of type text` (the known legacy type mismatch, see Pitfall #8). This makes the shadow-DB drift check unusable — and blocks creating new migrations through the normal path.
+- Without a migration file, a schema change is "dangling" (AGENTS: undocumented/in-migrated code does not exist).
+
+**Architectural Solution/Prevention Mechanism:**
+1. Safe manual procedure (used for `add_superadmin_2fa`):
+   `prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script` → write SQL into `prisma/migrations/<timestamp>_<name>/migration.sql` → `prisma db execute --file <migration.sql>` → `prisma migrate resolve --applied <name>`.
+2. Verify afterwards with `prisma migrate status` (DB schema up to date).
+3. **Prevention:** the legacy migration must eventually be rewritten to be replayable on a fresh DB (align `roomTypeId` uuid cast), which unblocks `migrate dev` for the whole team.
+
+---
+
+### 11. Prisma Client Regeneration Fails with `EPERM` on Windows When `next dev` Holds the Engine Binary
+
+**Problem/Risk:**
+- After a schema change, `npx prisma generate` fails with `EPERM: operation not permitted, rename …\node_modules\.prisma\client\query-engine-windows.exe.tmp*`. A running `next dev` has the Prisma query-engine binary loaded/held, so Windows refuses the atomic rename of the generated engine.
+
+**Architectural Solution/Prevention Mechanism:**
+1. Identify the owner: `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where CommandLine -match 'next'`.
+2. Gracefully stop the `next dev` process tree, run `prisma generate`, then **restart the dev server on the same port** (for this repo: `node node_modules/next/dist/bin/next dev --port 3210` from `apps/web/` — note the `next` bin is hoisted to the **repo root** `node_modules` and the working directory must be `apps/web/`, otherwise Next fails with "Couldn't find any pages or app directory").
+3. **Prevention:** any schema change in this repo implies a Prisma-client regeneration; plan for a brief dev-server restart. Do not try to swap the binary while the server is live.
 
 ---
 
