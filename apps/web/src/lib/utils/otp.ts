@@ -24,6 +24,12 @@ export function getOtpMaxAttempts(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
 }
 
+/** Minimum seconds between two OTP emails for the same challenge (default 60). */
+export function getOtpResendCooldownSeconds(): number {
+  const parsed = Number(process.env.SUPERADMIN_OTP_RESEND_COOLDOWN_SECONDS);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 60;
+}
+
 /** Cryptographically-random 6-digit code, zero-padded. Never Math.random(). */
 export function generateOtpCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');

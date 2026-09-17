@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
 > **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) و SA.4.5 (ربط مفاتيح بوابات الدفع) مُنجَزة.**
-> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارات `login`/`verify-otp`/`resend-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -155,12 +155,12 @@
 |---|---|---|
 | صلاحية الكود | **10 دقائق** | كافٍ للإنسان، ضيّق على المهاجم |
 | عدد المحاولات | **5** | فضاء البحث 10⁶ — 5 محاولات ≈ 0.0005% |
-| تهدئة إعادة الإرسال | **60 ثانية** | منع الإغراق/التخمين عبر إعادة التوليد |
-| سقف إعادة الإرسال | **5/ساعة** لكل مستخدم | منع DoS على البريد/التكلفة |
+| تهدئة إعادة الإرسال | **60 ثانية** | منع الإغراق/التخمين عبر إعادة التوليد — أرضية DB حتمية (انظر §5.7) |
+| سقف إعادة الإرسال | **3/5 دقائق** لكل (IP، مستخدم) | منع DoS على البريد/التكلفة — سقف موزّع fail-open |
 | تحدٍّ نشط واحد | **واحد** لكل (مستخدم، غرض) | إبطال ما قبله عند التوليد |
 
-- إعادة الإرسال **تُبطل أي تحدٍّ نشط سابق** قبل إنشاء الجديد (منع التراكم).
-- Rate-limit على مستوى الـ IP أيضاً (عبر `withRateLimit`).
+- إعادة الإرسال **تُبطل التحدي النشط سابقاً** عند التوليد (منع التراكم). في `resend-otp` الإبطال **ذرّي وداخل الصف نفسه**: يُستبدل `codeHash` (الكود القديم يموت فوراً)، يُصفَّر `attempts`، ويُمدَّد `expiresAt` — دون إنشاء تحدٍّ جديد يُيتم رمز الكوكي.
+- Rate-limit على مستوى الـ IP أيضاً (عبر `withRateLimit`). انظر §5.7 للتفاصيل الكاملة لمسار إعادة الإرسال.
 
 ### 5.4 ⚖️ القرار: تخزين الكود **مُهشَّراً** لا صريحاً
 
@@ -211,6 +211,23 @@
 
 **لماذا `withRateLimit` وحده لا يكفي؟** إنه **في ذاكرة العملية** (`Map` داخلي) — أرضيّة لكل عملية، تُمسح عند إعادة التشغيل، وتُخدَع بتوزيع الحمل بين نسخ متعددة. صالح كتشحيم خام على `/login`، لكنه **ليس** حاجزاً أمنياً بذاته — ومن هنا دور الطبقة 1+2.
 
+### 5.7 إعادة إرسال الرمز — `POST /api/superadmin/auth/resend-otp` (SA.2.5)
+
+**قرار الهوية (نوقش مع الإدارة):** يُقرأ المستخدم من **كوكي التحدي `sa_otp`** — **لا** من إيميل في جسم الطلب.
+
+> **لماذا؟** الكوكي لا يُصدر إلا بعد نجاح كلمة المرور (عامل 1) وفحص تفعيل 2FA؛ أي أن إعادة الإرسال تتطلب مستعرضاً **دخل بكلمة المرور فعلاً**. لو قُبل الإيميل من الجسم لتحوّل المسار إلى بابٍ بلا مصادقة: **Spam/DoS على صندوق المالك** (أي غريب يشغّل إرسالاً حقيقياً) + **عدّاد وجود الحسابات (Enumeration)**. كما يحقق تطابقاً تاماً مع `verify-otp` (سلف التصميم) في نطاق الثقة نفسه.
+
+**دورة الحياة (مثيلة `verify-otp`):**
+1. قراءة كوكي `sa_otp` → إن غاب: `401 CHALLENGE_MISSING`.
+2. تحقق التوقيع بمفتاح `SUPERADMIN_OTP_SECRET` + فحص `scope==='superadmin:otp'` و`challengeId` و`sub` → إن تلف: **مسح الكوكي** + `401 CHALLENGE_INVALID`.
+3. **سقف موزّع fail-open:** `checkRateLimit('otp:resend:{ip}:{userId}', 3, 300)` — فشل-مفتوح تماماً كـ`verify-otp`؛ الأرضية الحتمية هي الـ CoolDown في الـ DB.
+4. `resendOtp({userId, challengeId, ip, userAgent})` بسقف `SUPERADMIN_OTP_RESEND_COOLDOWN_SECONDS` (افتراضي 60؛ أرضية المخزون = `lastCodeSentAt ?? createdAt` — أي أن **رسالة الدخول الأولى نفسها** تحسب ضمن فترة التهدئة). أسباب الرفض المنعكسة: `COOLDOWN` (429 + `Retry-After`) · `EXPIRED` (410 + مسح) · `CONSUMED` (409) · `INVALID_CHALLENGE` (401 + مسح) · `LOCKED` (423).
+5. **النجاح (نفس صف التحدي — بلا صف جديد):** استبدال `codeHash` (الكود القديم يموت فوراً · إبطال كود سابق) ← إعادة `attempts=0` ← `expiresAt = now + TTL` (تمديد الجلسة المعلّقة) ← `lastCodeSentAt = now`.
+6. **إعادة إصدار كوكي التحدي** بحمل `exp` الممدَّد (مدة `maxAge` من جديد `expiresAt`) ثم إرسال البريد.
+7. **تدقيق:** `SUPER_ADMIN_OTP_RESENT` عند النجاح، و`SUPER_ADMIN_OTP_RESEND_FAILED_<REASON>` عند الفشل — `recordPlatformAudit` (لا كود ولا سرّ في السجل). فشل الاستعراف (غياب/تلف الكوكي) **لا يُسجَّل** لئلا تُملأ الرسائل غير الموثّقة السجل.
+
+**الحراسة:** `withCsrf` (نفس `verify-otp`) — التغيّير حالة -وكوكي-موثوق يستلزم CSRF، والـ 429 لا تسرّب أي إشارة وجود حساب (الردود موحّدة).
+
 ---
 
 ## 6) 🗄️ تغييرات مخطط قاعدة البيانات (تمّت في هذه المرحلة)
@@ -236,6 +253,7 @@
 | `expiresAt` | `DateTime` | انتهاء الصلاحية |
 | `attempts` / `maxAttempts` | `Int` | عدّاد المحاولات |
 | `consumedAt` | `DateTime?` | استخدام لمرة واحدة (نجاح/إبطال) |
+| `lastCodeSentAt` | `DateTime?` | **SA.2.5 —** زمن آخر بريد OTP (أساس أرضية التهدئة؛ الأولمبي = `createdAt`) |
 | `ip` / `userAgent` | `String?` | سياق الطلب (كشف الشذوذ) |
 | `createdAt` | `DateTime` | زمن الإنشاء |
 
@@ -357,7 +375,7 @@
 | المرحلة | المخرجات | الحالة |
 |---|---|---|
 | **SA.1 — Foundation** | هذا المستند + تعديلات `schema.prisma` + Migration | 🟢 **مُنجَز** |
-| **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارا `/api/superadmin/auth/{login,verify-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
+| **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارات `/api/superadmin/auth/{login,verify-otp,resend-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | ⏳ (جزء الـ Middleware أُنجز ضمن SA.2) |
 | **SA.4 — Integration API** | `api/superadmin/integrations` (GET/POST/DELETE) + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.4.5 — Gateway Wiring** | `resolveGatewayConfig` (DB-first + env-fallback مشروط بلا Cache) في `payment-session` · بقاء الـ webhook على لقطة `gatewayConfig` · `tests/integration/gateway-wiring.test.ts` | 🟢 **مُنجَز** |
@@ -378,7 +396,7 @@
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2 + SA.4 + SA.4.5)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2/SA.2.5 + SA.4 + SA.4.5)
 
 ### SA.1 — Foundation
 
@@ -393,20 +411,22 @@
 
 | الملف | التغيير |
 |---|---|
-| `apps/web/src/lib/utils/otp.ts` | `generateOtpCode()` (randomInt) · `hashOtpCode()` (HMAC-SHA256 ببيبّر) · `safeEqualHex` (timingSafeEqual) · `maskEmail` · دوال إعدادات TTL/محاولات |
+| `apps/web/src/lib/utils/otp.ts` | `generateOtpCode()` (randomInt) · `hashOtpCode()` (HMAC-SHA256 ببيبّر) · `safeEqualHex` (timingSafeEqual) · `maskEmail` · دوال إعدادات TTL/محاولات/تهدئة إعادة الإرسال |
 | `apps/web/src/lib/utils/jwt.ts` | `tv?` في `AccessTokenPayload` **و**`RefreshTokenPayload` · `signOtpChallengeToken`/`verifyOtpChallengeToken` (نطاق `superadmin:otp`) بمفتاح خاص |
-| `apps/web/src/lib/services/superadmin-otp.service.ts` | `requestOtp` (إبطال التحدي السابق، توليد+هش+بريد، إرجاع البصمة لا الكود) · `verifyOtp` (انتهاء/استهلاك/محاولات + **إغلاق الحساب 15 دقيقة عند النفاد**) |
+| `apps/web/src/lib/services/superadmin-otp.service.ts` | `requestOtp` (إبطال التحدي السابق، توليد+هش+بريد، إرجاع البصمة لا الكود) · `verifyOtp` (انتهاء/استهلاك/محاولات + **إغلاق الحساب 15 دقيقة عند النفاد**) · **`resendOtp` (SA.2.5 —** هوية من الكوكي، CoolDown أرضي `lastCodeSentAt ?? createdAt`، إبطال الكود السابق + صفر محاولات + تمديد صلاحية **في نفس صف التحدي**)** |
 | `apps/web/src/lib/services/platform-audit.service.ts` | `recordPlatformAudit()` → `PlatformAuditLog` |
 | `apps/web/src/lib/services/auth.service.ts` | `authenticateCredentials()` (عزل عامل الباسورد) · `issueSession(user,{tv})` · الحفاظ على `tv` عبر التجديد |
 | `apps/web/src/app/api/superadmin/auth/login/route.ts` | عامل1: فحص الباسورد فقط، رفض **الحسابات بلا 2FA** (403)، إرسال OTP + كوكي `sa_otp` (HttpOnly/strict/path-scoped) + تدقيق — `withRateLimit(10)` |
 | `apps/web/src/app/api/superadmin/auth/verify-otp/route.ts` | عامل2: `withCsrf` + سقف Redis (fail-open) + استهلاك التحدي → `issueSession({tv:true})` + مسح `sa_otp` + تدقيق |
+| `apps/web/src/app/api/superadmin/auth/resend-otp/route.ts` | **SA.2.5 —** إعادة إرسال: هوية من الكوكي `sa_otp` لا من الجسم، `withCsrf` + سقف Redis `3/5min` (fail-open) + `resendOtp` + إعادة إصدار الكوكي بصلاحية ممدَّدة + `Retry-After` على التهدئة + تدقيق |
+| `apps/web/prisma/migrations/20260918000000_add_otp_resend_cooldown/` | **SA.2.5 —** `OtpChallenge.lastCodeSentAt` (أساس التهدئة) |
 | `apps/web/src/middleware.ts` | `/superadmin` و`/admin/queues` تشترطان `role==='SUPER_ADMIN'` **و**`tv===true` |
 | `apps/web/src/middlewares/superadmin-cookie.ts` | الحاجز البكري ينضاف له شرط `tv` (Bull Board) |
 | `apps/web/src/middlewares/platform-auth.ts` | بوّابة API تحت `/api/superadmin/*` (Bearer أو كوكي الجلسة) + `tv` |
-| `apps/web/scripts/test-superadmin-otp.ts` | اختبار تكاملي شامل (20 فحصاً) — `npm run test:superadmin-otp` |
-| `.env.example` / `apps/web/package.json` | متغيرات OTP جديدة + سكربت `test:superadmin-otp` |
+| `apps/web/scripts/test-superadmin-otp.ts` | اختبار تكاملي شامل (**30 فحصاً** — +10 لمسار إعادة الإرسال) — `npm run test:superadmin-otp` |
+| `.env.example` / `apps/web/package.json` | متغيرات OTP جديدة (`…_RESEND_COOLDOWN_SECONDS` ضمنها) + سكربت `test:superadmin-otp` |
 
-**نتيجة الاختبار التكاملي:** 20/20 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 274/274 تمر.
+**نتيجة الاختبار التكاملي:** 30/30 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، **نجاح إعادة الإرسال + تمديد الصلاحية + رفض التهدئة 429 مع `Retry-After` + إبطال الكود القديم + رفض بلا كوكي/كوكي تالف + سجل التدقيق**، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 284/284 تمر.
 
 ### SA.4 — Integration API (Backend خالص)
 

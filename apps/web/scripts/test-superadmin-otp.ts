@@ -45,6 +45,7 @@ const PASSWORD = process.env.SA_TEST_PASSWORD || 'superadmin123';
 const OTP_PATH = '/api/superadmin/auth';
 const LOGIN_PATH = `${OTP_PATH}/login`;
 const VERIFY_PATH = `${OTP_PATH}/verify-otp`;
+const RESEND_PATH = `${OTP_PATH}/resend-otp`;
 
 const KNOWN_CODE = '654321';
 const WRONG_CODE = '000000';
@@ -66,6 +67,7 @@ interface CallResult {
   status: number;
   body: any;
   setCookies: string[];
+  headers: Headers;
 }
 
 interface CallOptions {
@@ -99,7 +101,7 @@ async function call(path: string, options: CallOptions = {}): Promise<CallResult
       ? (res.headers as any).getSetCookie()
       : [];
 
-  return { status: res.status, body, setCookies };
+  return { status: res.status, body, setCookies, headers: res.headers };
 }
 
 function cookieFrom(setCookies: string[], name: string): string | undefined {
@@ -118,7 +120,9 @@ function rawCookie(setCookies: string[], name: string): string | undefined {
 }
 
 async function main() {
-  const { hashOtpCode } = await import('../src/lib/utils/otp');
+  const { hashOtpCode, getOtpResendCooldownSeconds } = await import(
+    '../src/lib/utils/otp'
+  );
   const { verifyOtpChallengeToken, verifyAccessToken, verifyRefreshToken } = await import(
     '../src/lib/utils/jwt'
   );
@@ -191,14 +195,14 @@ async function main() {
     'Phase 1 leaks no access/refresh token',
     !login.body?.data?.accessToken && !login.body?.data?.refreshToken
   );
-  const saCookie = cookieFrom(login.setCookies, 'sa_otp');
+  const saLoginCookie = cookieFrom(login.setCookies, 'sa_otp');
   const saRaw = rawCookie(login.setCookies, 'sa_otp');
   check(
     'sa_otp cookie is set HttpOnly and path-scoped',
     !!saRaw && /HttpOnly/i.test(saRaw) && /Path=\/api\/superadmin\/auth/i.test(saRaw),
     saRaw
   );
-  const decoded = saCookie ? await verifyOtpChallengeToken(saCookie) : null;
+  const decoded = saLoginCookie ? await verifyOtpChallengeToken(saLoginCookie) : null;
   const challengeId = decoded?.challengeId;
   check(
     'sa_otp decodes to a scoped challenge (scope superadmin:otp)',
@@ -213,7 +217,7 @@ async function main() {
     });
   }
   const verifyHeaders = { ...jsonHeaders, 'x-csrf-token': csrfToken as string };
-  const verifyCookies = `sa_otp=${saCookie}; csrf-token=${csrfToken}`;
+  const verifyCookies = `sa_otp=${saLoginCookie}; csrf-token=${csrfToken}`;
 
   const wrong = await call(VERIFY_PATH, {
     method: 'POST',
@@ -234,6 +238,165 @@ async function main() {
     afterWrong?.attempts === 1 && afterWrong?.consumedAt === null,
     `attempts=${afterWrong?.attempts}`
   );
+
+  // ====== 5. SA.2.5 — Resend OTP (/api/superadmin/auth/resend-otp) ======
+  let saCookie = saLoginCookie;
+  const resendCookies = () => `sa_otp=${saCookie}; csrf-token=${csrfToken}`;
+  const cooldownSeconds = getOtpResendCooldownSeconds();
+  const beforeHash = afterWrong?.codeHash;
+
+  // The cooldown floor counts the initial login email too (`?? createdAt`), so
+  // simulate that the first email is already older than the window.
+  if (challengeId) {
+    await prisma.otpChallenge.update({
+      where: { id: challengeId },
+      data: { createdAt: new Date(Date.now() - (cooldownSeconds + 5) * 1000) },
+    });
+  }
+
+  // 5.1 Fresh challenge (no cooldown yet) -> resend succeeds
+  const resend1 = await call(RESEND_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: resendCookies(),
+    body: '{}',
+  });
+  check(
+    'Resend OTP returns 200 + masked email + expiresIn',
+    resend1.status === 200 &&
+      /@/.test(resend1.body?.data?.email ?? '') &&
+      resend1.body?.data?.expiresIn > 0,
+    `got ${resend1.status} ${JSON.stringify(resend1.body)}`
+  );
+  const resend1Cookie = cookieFrom(resend1.setCookies, 'sa_otp');
+  const decResend1 = resend1Cookie ? await verifyOtpChallengeToken(resend1Cookie) : null;
+  check(
+    'Resend re-issues the sa_otp challenge cookie (same challenge, scoped)',
+    !!resend1Cookie &&
+      !!decResend1 &&
+      decResend1.scope === 'superadmin:otp' &&
+      decResend1.challengeId === challengeId &&
+      !!decResend1.exp,
+    `len=${resend1Cookie?.length ?? 'none'} exp=${decResend1?.exp}`
+  );
+  const rowAfterResend1 = challengeId
+    ? await prisma.otpChallenge.findUnique({ where: { id: challengeId } })
+    : null;
+  check(
+    'Old code invalidated (codeHash changed), attempts reset to 0, lastCodeSentAt set',
+    !!rowAfterResend1 &&
+      !!beforeHash &&
+      rowAfterResend1.codeHash !== beforeHash &&
+      rowAfterResend1.attempts === 0 &&
+      !!rowAfterResend1.lastCodeSentAt,
+    `attempts=${rowAfterResend1?.attempts}`
+  );
+  check(
+    'Resend extends expiresAt (pending session window)',
+    !!rowAfterResend1 && !!afterWrong && rowAfterResend1.expiresAt > afterWrong.expiresAt
+  );
+  if (resend1Cookie) {
+    saCookie = resend1Cookie;
+  }
+
+  // 5.2 Immediate second resend -> cooldown 429 (anti-email-spamming floor)
+  const resend2 = await call(RESEND_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: resendCookies(),
+    body: '{}',
+  });
+  const retryAfter = resend2.headers?.get?.('retry-after');
+  const cooldownCode = resend2.body?.error?.code;
+  check(
+    'Cooldown refuses immediate resend with 429 + Retry-After',
+    resend2.status === 429 && cooldownCode === 'COOLDOWN' && (Number(retryAfter) ?? 0) > 0,
+    `got ${resend2.status} code=${cooldownCode} retry-after=${retryAfter}`
+  );
+  const rowAfterResend2 = challengeId
+    ? await prisma.otpChallenge.findUnique({ where: { id: challengeId } })
+    : null;
+  check(
+    'Cooldown refusal mutates nothing (codeHash/lastCodeSentAt unchanged)',
+    !!rowAfterResend2 &&
+      !!rowAfterResend1 &&
+      rowAfterResend2.codeHash === rowAfterResend1.codeHash &&
+      rowAfterResend2.lastCodeSentAt?.getTime() === rowAfterResend1.lastCodeSentAt?.getTime()
+  );
+
+  // 5.3 Cooldown elapsed (simulated by back-dating lastCodeSentAt) -> 200 again
+  if (challengeId) {
+    await prisma.otpChallenge.update({
+      where: { id: challengeId },
+      data: {
+        lastCodeSentAt: new Date(Date.now() - (cooldownSeconds + 5) * 1000),
+      },
+    });
+  }
+  const resend3 = await call(RESEND_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: resendCookies(),
+    body: '{}',
+  });
+  const resend3Cookie = cookieFrom(resend3.setCookies, 'sa_otp');
+  check(
+    'Resend allowed again after the cooldown window',
+    resend3.status === 200 && !!resend3Cookie,
+    `got ${resend3.status}`
+  );
+  if (resend3Cookie) {
+    saCookie = resend3Cookie;
+  }
+
+  // 5.4 No challenge cookie -> refused before any work (CSRF cookie still sent)
+  const noCookie = await call(RESEND_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: `csrf-token=${csrfToken}`,
+    body: '{}',
+  });
+  check(
+    'Resend without sa_otp cookie returns 401 CHALLENGE_MISSING',
+    noCookie.status === 401 && noCookie.body?.error?.code === 'CHALLENGE_MISSING',
+    `got ${noCookie.status}`
+  );
+
+  // 5.5 Tampered / expired challenge cookie -> refused + cookie cleared
+  const tampered = await call(RESEND_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: `sa_otp=evil.invalid.token; csrf-token=${csrfToken}`,
+    body: '{}',
+  });
+  check(
+    'Tampered challenge cookie returns 401 CHALLENGE_INVALID + clearing set-cookie',
+    tampered.status === 401 &&
+      tampered.body?.error?.code === 'CHALLENGE_INVALID' &&
+      /max-age=0/i.test(rawCookie(tampered.setCookies, 'sa_otp') ?? ''),
+    `got ${tampered.status} ${JSON.stringify(tampered.setCookies)}`
+  );
+
+  // 5.6 Platform audit recorded both outcomes
+  const resendAudits = await prisma.platformAuditLog.findMany({
+    where: { entityId: challengeId, action: { in: ['SUPER_ADMIN_OTP_RESENT', 'SUPER_ADMIN_OTP_RESEND_FAILED_COOLDOWN'] } },
+    orderBy: { createdAt: 'asc' },
+  });
+  check(
+    'Resend success + cooldown refusal were both audit-logged',
+    resendAudits.some((a) => a.action === 'SUPER_ADMIN_OTP_RESENT') &&
+      resendAudits.some((a) => a.action === 'SUPER_ADMIN_OTP_RESEND_FAILED_COOLDOWN'),
+    `actions=${resendAudits.map((a) => a.action).join(',')}`
+  );
+
+  // Re-anchor: patch the live (post-resend) challenge back to the known code so
+  // the verify section below stays deterministic.
+  if (challengeId) {
+    await prisma.otpChallenge.update({
+      where: { id: challengeId },
+      data: { codeHash: hashOtpCode(user.id, 'SUPER_ADMIN_LOGIN', KNOWN_CODE), attempts: 0 },
+    });
+  }
 
   // 5. Correct code -> real session with tv=true
   const ok = await call(VERIFY_PATH, {

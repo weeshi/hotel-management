@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/gateways/email.gateway';
 import {
   generateOtpCode,
   getOtpMaxAttempts,
+  getOtpResendCooldownSeconds,
   getOtpTtlSeconds,
   hashOtpCode,
   maskEmail,
@@ -23,6 +24,17 @@ export type OtpVerifyReason =
 export type OtpVerifyResult =
   | { ok: true; user: any }
   | { ok: false; reason: OtpVerifyReason };
+
+export type OtpResendReason =
+  | 'INVALID_CHALLENGE'
+  | 'EXPIRED'
+  | 'CONSUMED'
+  | 'LOCKED'
+  | 'COOLDOWN';
+
+export type OtpResendResult =
+  | { ok: true; expiresAt: Date; email: string }
+  | { ok: false; reason: OtpResendReason; retryAfterSeconds?: number };
 
 interface RequestOtpParams {
   userId: string;
@@ -105,6 +117,86 @@ export class SuperAdminOtpService {
       subject: `رمز التحقق — ${maskEmail(params.to)}`,
       html,
     });
+  }
+
+  /**
+   * Re-issues the OTP for a live login challenge (SA.2.5 — docs §5.7).
+   *
+   * Identity is anchored to the `sa_otp` pending-challenge cookie: the caller
+   * must already possess the challenge that only password success mints, so this
+   * endpoint is NEVER an unauthenticated email-spam lookout. Enforcement layers:
+   *   1. challenge exists, unconsumed, unexpired, user unlocked;
+   *   2. per-challenge cooldown floor (DB-authoritative): the previous email is
+   *      at least `getOtpResendCooldownSeconds()` seconds old, else `COOLDOWN`;
+   *   3. a distributed per-{ip,user} ceiling (3/5 min, fail-open) lives in the
+   *      route — the DB cooldown remains the authoritative floor either way.
+   *
+   * Mutation is atomic on the SAME challenge row (no new row, no orphaned id):
+   * the old `codeHash` is overwritten (old code dies instantly), `attempts` is
+   * reset so the fresh code gets a full guess budget, `expiresAt` extends the
+   * pending-session window, and `lastCodeSentAt` feeds the next cooldown test.
+   */
+  async resendOtp(params: {
+    userId: string;
+    challengeId: string;
+    ip?: string;
+    userAgent?: string;
+  }): Promise<OtpResendResult> {
+    const { userId, challengeId } = params;
+
+    const challenge = await prisma.otpChallenge.findFirst({
+      where: { id: challengeId, userId, purpose: LOGIN_PURPOSE },
+    });
+
+    if (!challenge) return { ok: false, reason: 'INVALID_CHALLENGE' };
+    if (challenge.consumedAt) return { ok: false, reason: 'CONSUMED' };
+
+    if (challenge.expiresAt < new Date()) {
+      await prisma.otpChallenge.update({
+        where: { id: challenge.id },
+        data: { consumedAt: new Date() },
+      });
+      return { ok: false, reason: 'EXPIRED' };
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { ok: false, reason: 'INVALID_CHALLENGE' };
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      return { ok: false, reason: 'LOCKED' };
+    }
+
+    const cooldownSeconds = getOtpResendCooldownSeconds();
+    if (cooldownSeconds > 0) {
+      const lastSent = challenge.lastCodeSentAt ?? challenge.createdAt;
+      const elapsedMs = Date.now() - lastSent.getTime();
+      if (elapsedMs < cooldownSeconds * 1000) {
+        return {
+          ok: false,
+          reason: 'COOLDOWN',
+          retryAfterSeconds: Math.ceil((cooldownSeconds * 1000 - elapsedMs) / 1000),
+        };
+      }
+    }
+
+    const ttlSeconds = getOtpTtlSeconds();
+    const code = generateOtpCode();
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+    await prisma.otpChallenge.update({
+      where: { id: challenge.id },
+      data: {
+        codeHash: hashOtpCode(userId, LOGIN_PURPOSE, code),
+        attempts: 0,
+        expiresAt,
+        lastCodeSentAt: new Date(),
+        ip: params.ip ?? challenge.ip,
+        userAgent: params.userAgent ?? challenge.userAgent,
+      },
+    });
+
+    await this.deliverCode({ to: user.email, code, ttlSeconds });
+
+    return { ok: true, expiresAt, email: user.email };
   }
 
   /**

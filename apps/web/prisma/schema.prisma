@@ -163,10 +163,11 @@ model OtpChallenge {
   expiresAt   DateTime
   attempts    Int        @default(0)
   maxAttempts Int        @default(5)
-  consumedAt  DateTime?
-  ip          String?
-  userAgent   String?
-  createdAt   DateTime   @default(now())
+  consumedAt     DateTime?
+  lastCodeSentAt DateTime?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime   @default(now())
 
   @@index([userId, purpose, consumedAt])
   @@index([expiresAt])
