@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
-> **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) مُنجَزة.**
-> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
+> **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) و SA.4.5 (ربط مفاتيح بوابات الدفع) مُنجَزة.**
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارا `login`/`verify-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -311,7 +311,19 @@
 | `website` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
 | `custom` | BOOKING_ENGINE | `apiKey` | — | نصّ خام |
 
-> **نطاق SA.4 (قرار CTO):** التخزين + الـAPI فقط. مفاتيح بوابات الدفع لا تُربط بعد بالتشغيل الفعلي (`payment-session`/`webhook` ما زالت تقرأ من `.env`) — الربط خطوة لاحقة موثّقة.
+> **نطاق SA.4 (قرار CTO):** التخزين + الـAPI فقط.
+>
+> **نطاق SA.4.5 (قرار CTO):** ربط المفاتيح المخزّنة بالتشغيل الفعلي — `payment-session` يقرأ من `IntegrationConfig` أولاً، والـ `webhook` يبقى على لقطة `gatewayConfig` (انظر §7.5).
+
+### 7.5 ربط المفاتيح بالتشغيل (SA.4.5) — `resolveGatewayConfig`
+
+**ترتيب الحل (قراءة DB واحدة بلا Cache — قرار معتمد):**
+
+1. **الصف المخزَّن (`IntegrationConfig` بمرجع `hotelId+engine`, `kind=PAYMENT_GATEWAY`) هو المرجع:** فكّ `apiKeyEnc` → حزمة `{merchantId, secretKey}` تُصيغ الاعتماد، مع Overlay لحقول `baseUrl/returnUrl/callbackUrl` غير السرّية من `config`.
+2. **لا Cache ولا TTL:** `findUnique` على مفتاح فريد ≈ أقل من 1ms بينما نداء البوابة 100–500ms — والأسرار يجب أن تعكس آخر كتابة من السوبر أدمن فوراً (تدوير/إبطال بلا نافذة متقادمة).
+3. **حاجز أمني (لا عبور-مستأجر):** إن وُجد صف لكنه `isActive=false` أو `apiKeyEnc` مفقود/غير قابل للفك → **فشل** (400 `GATEWAY_CONFIG_UNAVAILABLE`) — **لا** عودة إلى `.env` أبداً في هذه الحالة (لا إعادة تفعيل لبوابة معطَّلة، ولا تسريب لمفاتيح هوية المنصة لفندق).
+4. **Env-Fallback مشروط:** فقط **عند غياب صف كلياً** (تطوير + عدم كسر اختبارات ما قبل SA.4.5) — يدل على ذلك `source: 'db'|'env'` في نتيجة الحل.
+5. **الـ Webhook يبقى على لقطة `PaymentSession.gatewayConfig`** (مفتاح التوقيع المحسوب لحظة الإنشاء) — تدوير المفتاح في منتصف جلسة `PENDING` لا يكسر الدفع؛ وهو مثبَّت باختبار `gateway-wiring` (§12/SA.4.5).
 
 ---
 
@@ -348,6 +360,7 @@
 | **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارا `/api/superadmin/auth/{login,verify-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | ⏳ (جزء الـ Middleware أُنجز ضمن SA.2) |
 | **SA.4 — Integration API** | `api/superadmin/integrations` (GET/POST/DELETE) + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | 🟢 **مُنجَز** (بلا واجهة) |
+| **SA.4.5 — Gateway Wiring** | `resolveGatewayConfig` (DB-first + env-fallback مشروط بلا Cache) في `payment-session` · بقاء الـ webhook على لقطة `gatewayConfig` · `tests/integration/gateway-wiring.test.ts` | 🟢 **مُنجَز** |
 | **SA.5 — UI** | شاشة الدخول/OTP + لوحة مفاتيح التكامل (Schema-driven) | ⏳ (لاحقاً) |
 | **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | ⏳ |
 
@@ -365,7 +378,7 @@
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2 + SA.4)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2 + SA.4 + SA.4.5)
 
 ### SA.1 — Foundation
 
@@ -414,5 +427,22 @@
 > 5. حذف التكامل على **مستوى المجموعة** (`DELETE ?hotelId=&engine=`) بدل `/[id]` كما طلبت الإدارة.
 
 **نتيجة الاختبار التكاملي:** 26/26 فحص بلا أخطاء (توليد بوابة دفع → حزمة JSON مشفّرة مع جولة فكّ صحيحة، توافق المحركات الخام خلفياً، صفر تسريب في كل الاستجابات، أخطاء 400/404/422، رفض بدون `tv` (403) وبدون مصادقة (401)، حذف دائم مع سجل تدقيق). SA.2 20/20، الاختبارات الشاملة 274/274، `tsc --noEmit` نظيف.
+
+### SA.4.5 — ربط مفاتيح بوابات الدفع (Gateway Wiring, Backend)
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/src/lib/integrations/gateways/gateway-config.ts` | **جديد**: `resolveGatewayConfig(gateway, { hotelId, override? })` — الصف المخزَّن مرجع (فكّ حزمة `{merchantId, secretKey}` + overlay حقول غير سرّية)، **بلا Cache**، رفض عند `isActive=false` أو سرّ ناقص (لا النجوع إلى `.env`)، و`env` فقط عند غياب الصف. `GatewayConfigReadError` + رسائل عربية |
+| `apps/web/src/lib/integrations/gateways/gateway-factory.ts` | `GatewayAdapterOptions` تُكسب `hotelId`؛ `createPaymentSession(request, resolvedConfig?)` — إن غاب config صريح يحلّ تلقائياً من الـ DB عبر الفندق، ويبقى التجاوز الصريح (`opts.config`) أولوية قصوى للاختبارات |
+| `apps/web/src/app/api/public/bookings/[id]/payment-session/route.ts` | حلّ الاعتماد عبر `resolveGatewayConfig(gateway, { hotelId: booking.hotelId })` قبل بناء الطلب واللقطة؛ 400 `GATEWAY_CONFIG_UNAVAILABLE` عند فشل الحل؛ تمرير الـ config المحلول نفسه لنداء البوابة ولقطة `gatewayConfig` (ذرة واحدة بلا نافذة تدوير بين التوقيع واللقطة) |
+| `apps/web/src/app/api/external/gateways/[provider]/webhook/route.ts` | **بلا تغيير معماري** — يبقى يتحقق من لقطة `PaymentSession.gatewayConfig` أولاً ثم `.env` كملاذ أخير (تصميم مثبت) |
+| `apps/web/tests/integration/gateway-wiring.test.ts` | **جديد**: 10 فحوص — الصف المخزَّن يتغلب على env (`source:'db'`)، غياب الصف → env، رفض عند `isActive=false`/سرّ ناقص، tlync يطابق السلوك، الـ Adapter بذاكرة `hotelId` يحلّ لوحده، التدفق الكامل (نداء + لقطة)، **تدوير المفتاح في منتصف الجلسة والـ Webhook بالمفتاح القديم يمر** (برهان الـ Snapshot)، رفض 400 بلا نداء ولا env-leak، ومسار env القديم يبقى |
+
+> **القرارات المعتمدة من الإدارة التقنية (SA.4.5):**
+> 1. **بلا Cache** — قراءة DB لكل استدعاء (فريد ≈1ms؛ الأسرار تعكس آخر كتابة فوراً؛ التردد دفعة/قرار حرِج).
+> 2. **الـ Webhook يبقى على اللقطة** — تدوير مفتاح أثناء `PENDING` يجب ألا يكسر دفعاً في العبور؛ الربط الحي بالـ `IntegrationConfig` يرفض توقيعاً موقَّعاً بالمفتاح القديم (حفرة Config Mutation الموثّقة في `SECURITY-LOCAL-GATEWAYS.md`).
+> 3. **Env-fallback مشروط بغياب الصف** — صف قائم معطَّل/ناقص = فشل وليس نجوعاً إلى `.env` (لا عبور-مستأجر ولا إعادة تفعيل صامتة).
+
+**نتيجة الاختبار التكاملي:** `tests/integration/gateway-wiring.test.ts` 10/10 بلا أخطاء (بما فيها برهان التدوير/اللقطة والرفض الأمني وإثبات وصول env creds للبوابة في مسار الإرث). SA.4 26/26، SA.2 20/20، الاختبارات الشاملة **284/284**، `tsc --noEmit` نظيف.
 
 > **⚠️ ملاحظة انتقالية معروفة (UI):** بما أنّ جلسات السوبر أدمن الحالية (قبل SA.2) **بلا `tv`**، صارت الـ Middleware ترتد أي وصول لـ`/superadmin` إلى `/auth/login` — وصفحة `/auth/login` الحالية لا تدرك تدفق 2FA فتدفع المستخدم لـ`/superadmin` مجدداً (التحقق الكامل عبر API يعمل، لكن الواجهة بلا مسار OTP). **الحل مقصود في SA.3/SA.5**: بناء `/superadmin/login` + `/superadmin/otp` وربطهما بصفحة الدخول عند رصد دور `SUPER_ADMIN`. لا تعديل على الواجهة الآن (قرار الإدارة التقنية).

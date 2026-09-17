@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { getGatewayAdapter, isGatewaySupported, CreatePaymentSessionRequest } from '@/lib/integrations/gateways';
+import { resolveGatewayConfig, gatewayConfigReadErrorToMessage } from '@/lib/integrations/gateways/gateway-config';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { encryptSecret } from '@/lib/utils/crypto';
@@ -62,8 +63,16 @@ export async function POST(
       return errorResponse('الرصيد المستحق صفر أو سالب — لا حاجة لدفعة', 400, 'NO_BALANCE_DUE');
     }
 
+    const resolution = await resolveGatewayConfig(gateway, { hotelId: booking.hotelId });
+    if (!resolution.ok) {
+      return errorResponse(
+        gatewayConfigReadErrorToMessage(resolution.reason),
+        400,
+        'GATEWAY_CONFIG_UNAVAILABLE'
+      );
+    }
+    const config = resolution.config;
     const adapter = getGatewayAdapter(gateway);
-    const config = adapter.config;
 
     const merchantTxId = `pay_${bookingId}_${Date.now()}`;
     const amount = balance;
@@ -81,7 +90,7 @@ export async function POST(
       callbackUrl: config.callbackUrl,
     };
 
-    const gatewayResult = await adapter.createPaymentSession(gatewayRequest);
+    const gatewayResult = await adapter.createPaymentSession(gatewayRequest, config);
 
     if (!gatewayResult.success) {
       console.error(`[${gateway.toUpperCase()}] Create session failed:`, gatewayResult.error);

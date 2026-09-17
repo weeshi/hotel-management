@@ -20,6 +20,12 @@ import {
   getTLyncProviderName,
 } from './tlync-client';
 
+import {
+  resolveGatewayConfig,
+  GatewayConfigReadError,
+  gatewayConfigReadErrorToMessage,
+} from './gateway-config';
+
 export type GatewayName = 'plutu' | 'tlync';
 
 export interface GatewayConfig {
@@ -62,7 +68,10 @@ export interface ParsedWebhook {
 export interface GatewayAdapter {
   providerName: string;
   config: PlutuConfig | TLyncConfig;
-  createPaymentSession(request: CreatePaymentSessionRequest): Promise<CreatePaymentSessionResponse>;
+  createPaymentSession(
+    request: CreatePaymentSessionRequest,
+    resolvedConfig?: PlutuConfig | TLyncConfig
+  ): Promise<CreatePaymentSessionResponse>;
   verifyWebhookSignature(payload: any, secretKey: string): boolean;
   parseWebhook(rawBody: string): ParsedWebhook;
 }
@@ -70,17 +79,41 @@ export interface GatewayAdapter {
 // Runtime config overrides merged over the env-derived config.
 // Both gateway configs share the same field shape, so callers can pass a
 // partial override (typically a test pointing the adapter at a local dummy).
+// `hotelId` makes createPaymentSession resolve the hotel's stored credentials
+// from IntegrationConfig (see gateway-config.ts) when no explicit config is
+// passed.
 export interface GatewayAdapterOptions {
   config?: Partial<PlutuConfig> & Partial<TLyncConfig>;
+  hotelId?: string;
 }
 
 function buildPlutuAdapter(opts?: GatewayAdapterOptions): GatewayAdapter {
-  const config: PlutuConfig = { ...getPlutuConfig(), ...(opts?.config ?? {}) };
+  const envConfig = getPlutuConfig();
+  const config: PlutuConfig = { ...envConfig, ...(opts?.config ?? {}) };
+
+  const resolvePlutuConfig = async (): Promise<PlutuConfig> => {
+    const resolution = await resolveGatewayConfig('plutu', {
+      hotelId: opts?.hotelId,
+      override: opts?.config,
+    });
+    if (!resolution.ok) {
+      throw new GatewayConfigReadError(
+        gatewayConfigReadErrorToMessage(resolution.reason),
+        resolution.reason
+      );
+    }
+    return resolution.config as PlutuConfig;
+  };
+
   return {
     providerName: getPlutuProviderName(),
     config,
-    async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
-      return createPlutuPaymentSession(config, request as PlutuPaymentRequest);
+    async createPaymentSession(
+      request,
+      resolvedConfig?
+    ): Promise<CreatePaymentSessionResponse> {
+      const finalConfig = resolvedConfig ?? (await resolvePlutuConfig());
+      return createPlutuPaymentSession(finalConfig, request as PlutuPaymentRequest);
     },
     verifyWebhookSignature(payload, secretKey): boolean {
       return verifyPlutuSignature(payload as PlutuWebhookPayload, secretKey);
@@ -92,12 +125,32 @@ function buildPlutuAdapter(opts?: GatewayAdapterOptions): GatewayAdapter {
 }
 
 function buildTLyncAdapter(opts?: GatewayAdapterOptions): GatewayAdapter {
-  const config: TLyncConfig = { ...getTLyncConfig(), ...(opts?.config ?? {}) };
+  const envConfig = getTLyncConfig();
+  const config: TLyncConfig = { ...envConfig, ...(opts?.config ?? {}) };
+
+  const resolveTLyncConfig = async (): Promise<TLyncConfig> => {
+    const resolution = await resolveGatewayConfig('tlync', {
+      hotelId: opts?.hotelId,
+      override: opts?.config,
+    });
+    if (!resolution.ok) {
+      throw new GatewayConfigReadError(
+        gatewayConfigReadErrorToMessage(resolution.reason),
+        resolution.reason
+      );
+    }
+    return resolution.config as TLyncConfig;
+  };
+
   return {
     providerName: getTLyncProviderName(),
     config,
-    async createPaymentSession(request): Promise<CreatePaymentSessionResponse> {
-      return createTLyncPaymentSession(config, request as TLyncPaymentRequest);
+    async createPaymentSession(
+      request,
+      resolvedConfig?
+    ): Promise<CreatePaymentSessionResponse> {
+      const finalConfig = resolvedConfig ?? (await resolveTLyncConfig());
+      return createTLyncPaymentSession(finalConfig, request as TLyncPaymentRequest);
     },
     verifyWebhookSignature(payload, secretKey): boolean {
       return verifyTLyncSignature(payload as TLyncWebhookPayload, secretKey);

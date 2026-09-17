@@ -73,6 +73,8 @@ gatewayConfig: encryptedConfig,
 
 > **ملاحظة أمنية:** التشفير يستخدم `PAYMENT_CRYPTO_KEY` (مفتاح المنصة، 32 بايت hex) مع AES-256-GCM — نفس الآلية المستخدمة في `IntegrationConfig.apiKeyEnc`.
 
+> **ملاحظة SA.4.5 (الربط بالتشغيل):** `config` في المقطع أعلاه لم يعد من `.env` مباشرة — بل نتاج `resolveGatewayConfig(gateway, { hotelId: booking.hotelId })` (انظر `SUPER-ADMIN-ARCH.md` §7.5): قراءة DB واحدة بلا Cache، الصف المخزَّن في `IntegrationConfig` هو المرجع، و`.env` ملاذ أخير **فقط** عند غياب الصف (رفض عند تعطيل/نقص السرّ — لا عبور-مستأجر). الـ Webhook يبقى يتحقق من هذه اللقطة أولاً؛ اختبار التدوير في منتصف الجلسة مؤتمت في `tests/integration/gateway-wiring.test.ts`.
+
 ---
 
 ## 4. Rate Limiting — التنفيذ الذري (Atomic Sliding Window) مع NOSCRIPT Fallback
@@ -147,6 +149,6 @@ if (!result.allowed) {
 - [ ] اختبار Webhook يدوي من sandbox لكل بوابة
 - [ ] اختبار Rate Limit: إرسال 6 طلبات سريعة → يتوقع 429 في الطلب السادس
 - [ ] اختبار IP Whitelist: طلب من IP غير مصرح → يتوقع 403
-- [ ] اختبار Config Mutation: إنشاء جلسة → تحديث IntegrationConfig → إرسال Webhook → يتوقع نجاح
+- [x] اختبار Config Mutation: إنشاء جلسة → تحديث IntegrationConfig → إرسال Webhook → يتوقع نجاح (**مؤتمت**: `tests/integration/gateway-wiring.test.ts` — «تدوير المفتاح في منتصف الجلسة والـ Webhook بالمفتاح القديم يمر`)
 - [ ] اختبار NOSCRIPT Fallback: إعادة تشغيل Redis → إرسال طلبات → لا ينهار الـ Rate Limiter
 - [ ] التحقق أن `DANGER_BYPASS_WEBHOOK_IP_CHECK` **غير مضبوط** في الإنتاج
