@@ -1,6 +1,8 @@
 # وثيقة معماريّة — اختبارات E2E عبر Playwright (E2E Testing Architecture) — M7.2
 
-> **الحالة:** 🟣 **مُعتمد معماريّاً — لا كود تنفيذي بعد.** وفق دستور AGENTS، تُرسى المعمارية وتُعتمد أولاً، ثم يُكتب الكود في PR مستقل يطبّق ما في هذا المستند حرفياً. هذا المستند هو **مصدر الحقيقة** لمسار E2E؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
+> **الحالة:** 🟢 **E2E.1 (البنية التحتية) مُنفَّذ ومُتحقَّق منه.** المسرح جاهز: خادم Dummy مستقل + خط تحكّم + تهيئة `hotel_e2e` + `playwright.config.ts`، مع اختبار دخاني (Smoke) ناجح يستدير على `/api/health` و`/__health`. اختبارات رحلة الدفع تُبنى في **E2E.2** (لم تبدأ بعد).
+>
+> هذا المستند هو **مصدر الحقيقة** لمسار E2E؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً. قسم «ما تم بناؤه فعلياً» أدناه يسرد الملفات والالتزامات.
 >
 > **القرار المُتبنّى (100%):** Playwright هو محرّك E2E الرسمي — لأن جوهر رحلة الدفع هو تنقّل **عبر أصلين (cross-origin)** بين تطبيقنا وبوابة الدفع، وهو بالضبط ما يتقنه Playwright (متعدد الأصول/الصفحات/السياقات) ويعاني فيه نموذج Cypress القائم داخل المتصفح.
 
@@ -116,14 +118,14 @@ export default defineConfig({
   globalTeardown: './tests/e2e/global-teardown.ts',
   webServer: [
     {
-      command: 'tsx scripts/e2e-dummy-gateway.ts',
+      command: 'npm run e2e:dummy-gateway',
       url: 'http://127.0.0.1:4400/__health',
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
-      env: { E2E_DUMMY_PORT: '4400', DUMMY_SECRETS: 'test-only' },
+      env: { E2E_DUMMY_PORT: '4400' },
     },
     {
-      command: 'tsx scripts/e2e-prepare-db.ts && npm run start',
+      command: 'npm run e2e:prepare-db && npm run build && npm run start',
       url: 'http://127.0.0.1:3100/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
@@ -151,10 +153,11 @@ export default defineConfig({
 2. **الجاهزية عبر `url`** (`/__health` و`/api/health`) — يستحيل أن تبدأ الاختبارات قبل جهوز الخادمين.
 3. **`reuseExistingServer: !CI`** — إعادة استخدام سريعة محلياً، وإقلاع نظيف في CI.
 4. **الإعداد يُحقن عند حدود العملية** (`webServer.env`) — لا تعديل `process.env` بعد التحميل (منهجية M7.1).
-5. **تحضير قاعدة البيانات داخل أمر الـ webServer** (`e2e-prepare-db.ts && npm run start`) — قرار مقصود لتجنّب أي حساسية لترتيب `globalSetup` مقابل `webServer`؛ التحضير مضمون قبل الإقلاع.
-6. **`next start` على بناء مسبق** (لا `next dev`) — أداء وثبات أعلى؛ البناء خطوة CI منفصلة أو ضمن الأمر.
-7. **الإغلاق** — Playwright ينهي العمليتين تلقائياً؛ `globalTeardown` ينظّف ما تحتاج قاعدة البيانات/الملفات المتبقية.
-8. **آثار الفشل** — `trace on-first-retry` + `video retain-on-failure` تُرفع في CI.
+5. **تحضير قاعدة البيانات داخل أمر الـ webServer** (`e2e:prepare-db && npm run build && npm run start`) — **اكتُشف تجريبياً أن Playwright يُقلع `webServer` قبل تشغيل `globalSetup`**، لذا لا يجوز أن يعتمد البناء على أن `globalSetup` جهّز القاعدة. الفصل: `e2e:prepare-db` يضمن **وجود المخطط قبل البناء**، و`global.setup.ts` يضمن **بداية نظيفة (TRUNCATE) قبل الاختبارات**.
+6. **`ensureDatabase` إنشائي لا هدّام:** يُنشئ `hotel_e2e` إن كانت مفقودة فقط (`E2E_FRESH_DB=1` يفرض DROP/CREATE صراحةً). لا `DROP DATABASE` افتراضي، لأن التطبيق قد يملك pool اتصالات مفتوحاً وقت تشغيل `globalSetup` فيُلحقه الضرر.
+7. **`next start` على بناء مسبق** (لا `next dev`) — أداء وثبات أعلى؛ البناء خطوة CI منفصلة أو ضمن الأمر.
+8. **الإغلاق** — Playwright ينهي العمليتين تلقائياً؛ `globalTeardown` ينظّف ما تحتاج قاعدة البيانات/الملفات المتبقية.
+9. **آثار الفشل** — `trace on-first-retry` + `video retain-on-failure` تُرفع في CI.
 
 ---
 
@@ -233,31 +236,55 @@ export default defineConfig({
 
 ---
 
-## 9) ❓ قرارات مفتوحة (تحتاج اعتمادك قبل التنفيذ)
+## 9) ✅ القرارات الأربعة (اعتمدتها الإدارة التقنية)
 
-1. بناء التطبيق لـ E2E: خطوة CI منفصلة أم داخل أمر الـ`webServer`؟
-2. حدّ التوازي الافتراضي (`workers`) محلياً/في CI — 1 أم أكثر مع عزل المستأجرين؟
-3. اعتماد قاعدة القالب (`hotel_e2e_template`) كتحسين قياسي أم اختياري؟
-4. هل نضيف لاحقاً متصفح WebKit/Firefox أم نكتفي بـ Chromium في CI؟
+| القرار | الاعتماد | التنفيذ |
+|---|---|---|
+| بناء التطبيق | داخل أمر `webServer` (`npm run build && npm run start`) — نسخة مطابقة للإنتاج | ✅ منفّذ |
+| التوازي | `workers: 1` الآن، و`fullyParallel` لاحقاً بعد استقرار CI | ✅ منفّذ |
+| قاعدة القالب | **YAGNI** — `TRUNCATE` فقط حالياً | ✅ منفّذ (TRUNCATE ديناميكي) |
+| المتصفحات | Chromium فقط للمرحلة الحالية (MVP) | ✅ منفّذ |
 
 ---
 
-## 10) 📖 Runbook (الصيانة لاحقاً)
+## 10) 🧱 ما تم بناؤه فعلياً (E2E.1)
+
+| المكوّن | الملف | الحالة |
+|---|---|---|
+| خادم Dummy بوضعَي تشغيل + صفحة الدفع + خط التحكم | `apps/web/tests/contracts/dummy-gateway/server.ts` | ✅ مُرقّى (وضع in-process كما هو + وضع مستقل) |
+| مشغّل الخادم المستقل | `apps/web/scripts/e2e-dummy-gateway.ts` | ✅ |
+| تحضير القاعدة قبل البناء | `apps/web/scripts/e2e-prepare-db.ts` | ✅ |
+| ثوابت البيئة (منفذ/قاعدة/أسرار) | `apps/web/tests/e2e/setup/env.ts` | ✅ |
+| أدوات القاعدة (إنشاء + push + TRUNCATE ديناميكي) | `apps/web/tests/e2e/setup/db.ts` | ✅ |
+| دورة الحياة (setup / teardown) | `apps/web/tests/e2e/setup/global.setup.ts` + `global.teardown.ts` | ✅ |
+| إعداد Playwright | `apps/web/playwright.config.ts` | ✅ |
+| اختبار دخاني للبنية | `apps/web/tests/e2e/infrastructure.spec.ts` | ✅ 4/4 |
+| فحص جاهزية التطبيق | `apps/web/src/app/api/health/route.ts` | ✅ |
+
+**التحقق:** `npx playwright test` → **4/4 ناجح** (Playwright يُقلع الخادمين ويؤكد الجاهزية تلقائياً)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء، واختبارات عقود Vitest **8/8** (لم يتأثر مسارها بإعادة هيكلة الخادم).
+
+**فراغ متبقٍ:** الفتحة الكاملة لرحلة الدفع (نجاح/فشل/توقيع مزوّر/ازدواج/تأخير) → **E2E.2**. ويُشار إلى أن `checkRateLimit` يعتمد على Redis؛ بيئة E2E لا تشغّله حالياً (يرجى تحديد السياسة في E2E.2).
+
+---
+
+## 11) 📖 Runbook (الصيانة لاحقاً)
 
 | المهمة | الأمر / المكان |
 |---|---|
-| تشغيل E2E (بعد التنفيذ) | `npm run test:e2e` (سكربت مقترح في `apps/web`) |
-| واجهة Playwright التفاعلية | `npx playwright test --ui` |
-| خادم البوابة المزيّف | `apps/web/scripts/e2e-dummy-gateway.ts` |
-| تحضير قاعدة E2E | `apps/web/scripts/e2e-prepare-db.ts` |
+| تشغيل E2E | `npm run test:e2e` (أو `npx playwright test` من `apps/web`) |
+| واجهة Playwright التفاعلية | `npm run test:e2e:ui` |
+| خادم البوابة المزيّف (مستقل) | `npm run e2e:dummy-gateway` (المنفذ عبر `E2E_DUMMY_PORT`) |
+| تحضير قاعدة E2E يدوياً | `npm run e2e:prepare-db` |
+| إعادة إنشاء القاعدة من الصفر | `E2E_FRESH_DB=1 npm run e2e:prepare-db` |
 | إعداد Playwright | `apps/web/playwright.config.ts` |
+| ثوابت البيئة (منفذ/قاعدة/أسرار) | `apps/web/tests/e2e/setup/env.ts` |
 | تحديث عقود البوابة | عبر مولّد fixtures فقط (راجع وثيقة العقود) |
 | قاعدة E2E | `hotel_e2e` (مستقلة عن `hotel_test`) |
 | الأسرار | اختبارية فقط (`sec_key_test_*`) |
 
 ---
 
-## 11) 🔁 التكامل مع الحالة الراهنة
+## 12) 🔁 التكامل مع الحالة الراهنة
 
 - يبني فوق المنجز: `dummy-gateway/server.ts` + `shared/signer.ts` + الملفات الذهبية + مولّدها.
 - لا يمسّ مسار Vitest ولا `hotel_test` ولا إعداد `vitest.config.ts`.
