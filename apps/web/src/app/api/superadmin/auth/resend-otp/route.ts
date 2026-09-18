@@ -13,7 +13,9 @@ import { withCsrf } from '@/middlewares/csrf';
 const otpService = new SuperAdminOtpService();
 
 const OTP_COOKIE = 'sa_otp';
-const OTP_COOKIE_PATH = '/api/superadmin/auth';
+// Path `/` (SA.5): must be readable by the `/superadmin/otp` Server Component
+// AND received by this `/api/superadmin/auth/*` route — see login route notes.
+const OTP_COOKIE_PATH = '/';
 
 const RESEND_RATE_LIMIT = 3;
 const RESEND_WINDOW_SECONDS = 300;

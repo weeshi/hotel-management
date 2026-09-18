@@ -15,7 +15,9 @@ const authService = new AuthService();
 const otpService = new SuperAdminOtpService();
 
 const OTP_COOKIE = 'sa_otp';
-const OTP_COOKIE_PATH = '/api/superadmin/auth';
+// Path `/` (SA.5): must be readable by the `/superadmin/otp` Server Component
+// AND received by this `/api/superadmin/auth/*` route — see login route notes.
+const OTP_COOKIE_PATH = '/';
 
 const otpSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'رمز التحقق يجب أن يكون 6 أرقام'),

@@ -1,9 +1,14 @@
 /**
- * SA.2 integration harness — Super-Admin Email OTP backend.
+ * SA.2/SA.2.5/SA.5 integration harness — Super-Admin Email OTP backend + UI
+ * guards.
  *
  * Exercises the real HTTP endpoints against a running dev server:
  *   POST /api/superadmin/auth/login
  *   POST /api/superadmin/auth/verify-otp
+ *   POST /api/superadmin/auth/resend-otp
+ *   POST /api/superadmin/auth/logout            (SA.5)
+ * GET  /superadmin, /superadmin/login, /superadmin/otp,
+ *      /superadmin/hotels                        (SA.5 server-side page guards)
  *
  * The emailed code is never read; instead the challenge's `codeHash` is patched
  * to a known value (hashOtpCode) so the flow is fully deterministic.
@@ -46,6 +51,7 @@ const OTP_PATH = '/api/superadmin/auth';
 const LOGIN_PATH = `${OTP_PATH}/login`;
 const VERIFY_PATH = `${OTP_PATH}/verify-otp`;
 const RESEND_PATH = `${OTP_PATH}/resend-otp`;
+const LOGOUT_PATH = `${OTP_PATH}/logout`;
 
 const KNOWN_CODE = '654321';
 const WRONG_CODE = '000000';
@@ -129,7 +135,7 @@ async function main() {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
 
-  console.log(`\n[SA.2] Super-Admin OTP harness — ${BASE}\n`);
+  console.log(`\n[SA.2/SA.5] Super-Admin OTP + page-guard harness — ${BASE}\n`);
 
   try {
     await call('/api/auth/csrf');
@@ -198,8 +204,11 @@ async function main() {
   const saLoginCookie = cookieFrom(login.setCookies, 'sa_otp');
   const saRaw = rawCookie(login.setCookies, 'sa_otp');
   check(
-    'sa_otp cookie is set HttpOnly and path-scoped',
-    !!saRaw && /HttpOnly/i.test(saRaw) && /Path=\/api\/superadmin\/auth/i.test(saRaw),
+    'sa_otp cookie is set HttpOnly and path-scoped to / (SA.5)',
+    !!saRaw &&
+      /HttpOnly/i.test(saRaw) &&
+      (/Path=\//i.test(saRaw) || /Path=\/?/i.test(saRaw)) &&
+      !/api\/superadmin\/auth/i.test(saRaw),
     saRaw
   );
   const decoded = saLoginCookie ? await verifyOtpChallengeToken(saLoginCookie) : null;
@@ -398,6 +407,34 @@ async function main() {
     });
   }
 
+  // ====== 5.5 SA.5 — server-side page guards (no client "am I allowed?" probe) ======
+  const pageNoCookie = await call('/superadmin/otp', { method: 'GET' });
+  check(
+    '/superadmin/otp without sa_otp cookie redirects to /superadmin/login (307)',
+    pageNoCookie.status === 307 &&
+      /\/superadmin\/login/.test(pageNoCookie.headers.get('location') ?? ''),
+    `got ${pageNoCookie.status} ${pageNoCookie.headers.get('location')}`
+  );
+  const pageTampered = await call('/superadmin/otp', {
+    method: 'GET',
+    cookie: 'sa_otp=evil.invalid.token',
+  });
+  check(
+    '/superadmin/otp with tampered cookie redirects to /superadmin/login (307)',
+    pageTampered.status === 307 &&
+      /\/superadmin\/login/.test(pageTampered.headers.get('location') ?? ''),
+    `got ${pageTampered.status}`
+  );
+  const pageLive = await call('/superadmin/otp', {
+    method: 'GET',
+    cookie: `sa_otp=${saCookie}`,
+  });
+  check(
+    '/superadmin/otp with a LIVE challenge renders the OTP form (200 HTML)',
+    pageLive.status === 200,
+    `got ${pageLive.status}`
+  );
+
   // 5. Correct code -> real session with tv=true
   const ok = await call(VERIFY_PATH, {
     method: 'POST',
@@ -437,6 +474,98 @@ async function main() {
   check(
     'Challenge consumed + lastTwoFactorAt recorded',
     !!afterOk?.consumedAt && !!userAfterOk?.lastTwoFactorAt
+  );
+
+  // ====== 5.6 SA.5 — protected pages with a real 2FA session ======
+  const atCookie = cookieFrom(ok.setCookies, 'accessToken');
+  const rtCookie = cookieFrom(ok.setCookies, 'refreshToken');
+
+  const dashNoToken = await call('/superadmin', { method: 'GET' });
+  check(
+    '/superadmin without accessToken redirects to /superadmin/login (307)',
+    dashNoToken.status === 307 &&
+      /\/superadmin\/login/.test(dashNoToken.headers.get('location') ?? ''),
+    `got ${dashNoToken.status}`
+  );
+  const dashLive = await call('/superadmin', {
+    method: 'GET',
+    cookie: `accessToken=${atCookie}`,
+  });
+  check(
+    '/superadmin with verified session renders the shell (200 HTML)',
+    dashLive.status === 200,
+    `got ${dashLive.status}`
+  );
+  const hotelsLive = await call('/superadmin/hotels', {
+    method: 'GET',
+    cookie: `accessToken=${atCookie}`,
+  });
+  check(
+    '/superadmin/hotels with verified session renders the page (200 HTML)',
+    hotelsLive.status === 200,
+    `got ${hotelsLive.status}`
+  );
+  const loginPage = await call('/superadmin/login', { method: 'GET' });
+  check(
+    '/superadmin/login stays public and renders (200 HTML)',
+    loginPage.status === 200,
+    `got ${loginPage.status}`
+  );
+  // A fully-verified session browsing the login screen is bounced forward.
+  const loginAuto = await call('/superadmin/login', {
+    method: 'GET',
+    cookie: `accessToken=${atCookie}`,
+  });
+  check(
+    '/superadmin/login auto-forwarded to /superadmin for verified sessions',
+    loginAuto.status === 307 &&
+      /\/superadmin$/.test(loginAuto.headers.get('location') ?? ''),
+    `got ${loginAuto.status} ${loginAuto.headers.get('location')}`
+  );
+
+  // ====== 5.7 SA.5 — logout endpoint (POST /api/superadmin/auth/logout) ======
+  const logoutCookies = `accessToken=${atCookie}; refreshToken=${rtCookie}`;
+  const logoutNoCsrf = await call(LOGOUT_PATH, {
+    method: 'POST',
+    headers: jsonHeaders,
+    cookie: logoutCookies,
+    body: '{}',
+  });
+  check(
+    'Logout without CSRF returns 403',
+    logoutNoCsrf.status === 403,
+    `got ${logoutNoCsrf.status}`
+  );
+  const logoutOk = await call(LOGOUT_PATH, {
+    method: 'POST',
+    headers: verifyHeaders,
+    cookie: `${logoutCookies}; csrf-token=${csrfToken}`,
+    body: '{}',
+  });
+  check(
+    'Logout revokes the session (200 + revoked)',
+    logoutOk.status === 200 && logoutOk.body?.data?.revoked === true,
+    `got ${logoutOk.status} ${JSON.stringify(logoutOk.body)}`
+  );
+  const afterLogout = await prisma.refreshToken.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+  });
+  check(
+    'Refresh tokens for the logout family are revoked in the DB',
+    afterLogout.every((r) => r.revoked === true) && afterLogout.length > 0,
+    `rows=${afterLogout.length}`
+  );
+  const refreshAfterLogout = await call('/api/auth/refresh', {
+    method: 'POST',
+    cookie: `refreshToken=${rtCookie}`,
+    body: '{}',
+  });
+  check(
+    'Rotating the revoked refresh token after logout returns 401',
+    refreshAfterLogout.status === 401,
+    `got ${refreshAfterLogout.status}`
   );
 
   // 6. Exhausting the attempt cap locks the account
@@ -493,11 +622,11 @@ async function main() {
   await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
   await prisma.$disconnect();
 
-  console.log(`\n[SA.2] ${passed} passed, ${failed} failed\n`);
+  console.log(`\n[SA.2/SA.5] ${passed} passed, ${failed} failed\n`);
   if (failed > 0) process.exitCode = 1;
 }
 
 main().catch((error) => {
-  console.error('[SA.2] harness crashed:', error);
+  console.error('[SA.2/SA.5] harness crashed:', error);
   process.exitCode = 1;
 });

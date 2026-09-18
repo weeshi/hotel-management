@@ -93,10 +93,10 @@
 | الطبقة | الموقع | ما تفحصه | سلوك الرفض |
 |---|---|---|---|
 | **1. Edge Middleware** | `src/middleware.ts` | التوقيع + `role === 'SUPER_ADMIN'` + **`tv === true`** | تحويل إلى `/superadmin/login` أو `/access-denied` |
-| **2. Client Layout Guard** | `(superadmin)/superadmin/layout.tsx` | حالة مصادقة مشتقّة من الخادم | تحويل إلى `/access-denied` (تجربة مستخدم فقط) |
+| **2. Server-Component Guard** | `(superadmin)/superadmin/(auth)/otp/page.tsx` + `(dashboard)/layout.tsx` | قراءة الكوكي + فك التحقق + استعلام DB للحالة الحيّة | `redirect()` فوري من الخادم إلى `/superadmin/login` |
 | **3. API Gate** | `withPlatformAuth` | التوقيع + الدور + `tv` | `401` / `403` بصيغة موحّدة |
 
-> **إصلاح مكتشَف:** الحاجز العميلي الحالي (`(dashboard)/superadmin/layout.tsx:18`) يقرأ `localStorage.user.role` — وهذا مخالف لـ AGENTS §10 (لا ثقة بالعميل). سيُستبدل بحاجز يعتمد على استجابة الخادم فقط. القرار الأمني يبقى دائماً للـ Middleware.
+> **إصلاح منفَّذ (SA.5):** الحاجز القديم (`(dashboard)/superadmin/layout.tsx`) كان يقرأ `localStorage.user.role` — مخالف لـ AGENTS §10 (لا ثقة بالعميل). **أُزيل بالكامل**: نُقلت الصفحات إلى `(superadmin)/superadmin/(dashboard)/`، وصار الحاجز **Server Component** يقرأ كوكي `accessToken` (HttpOnly) + `verifyAccessToken` + فحص `role`/`tv` + استعلام DB — أي لا يوجد أي قرار أمني مبني على بيانات العميل.
 
 ### 4.3 قواعد الـ Middleware
 
@@ -113,7 +113,7 @@
 
 `/admin/queues` (Bull Board) يبقى محميّاً بـ SUPER_ADMIN كما هو اليوم (AGENTS/README)، ويُضاف إليه شرط `tv` أيضاً — **تمّ تنفيذ ذلك فعلياً** في `src/middleware.ts` و`src/middlewares/superadmin-cookie.ts`.
 
-> **استثناءات الدخول:** صفحتَا `/superadmin/login` و`/superadmin/otp` ستُضافان إلى قائمة الاستثناءات عند بناء الواجهة في SA.3/SA.5. حالياً (بلا UI) لا يوجد أي مسار حقيقي يلبسهما، والمطلَق أنه لا شيء داخل `/superadmin` يجب أن يمرّ بدون `tv=true`.
+> **استثناءات الدخول (مُنفَّذة في SA.5):** صفحتَا `/superadmin/login` و`/superadmin/otp` في قائمة الاستثناءات في `src/middleware.ts`. شاشة OTP تبقي أمانها في **صفحة Server Component** نفسها (تحقق `sa_otp` الكوكي + استعلام DB)، ومشاهدةُ جلسة موثّقة بالكامل لهما تُعاد توجيهها إلى `/superadmin` من الخادم. أي مسار آخر داخل `/superadmin` لا يمرّ بدون `tv=true` — ويُعاد إلى `/superadmin/login` (لا `/auth/login`).
 
 ---
 
@@ -125,11 +125,13 @@
 
 | الرمز | يُصدر عند | النطاق (`scope`) | العمر | التخزين | الغرض |
 |---|---|---|---|---|---|
-| **رمز التحدي** `sa_otp` | نجاح كلمة المرور | `superadmin:otp` فقط | 10 دقائق | HttpOnly · SameSite=Strict · Path=`/api/superadmin/auth` | إثبات أنه أتمّ الطبقة الأولى فقط |
+| **رمز التحدي** `sa_otp` | نجاح كلمة المرور | `superadmin:otp` فقط | 10 دقائق | HttpOnly · SameSite=Strict · Path=`/` | إثبات أنه أتمّ الطبقة الأولى فقط |
 | **رمز الجلسة** `accessToken` | نجاح OTP | النظام كامل + `tv: true` | 15 دقيقة | HttpOnly · SameSite=Lax · Path=`/` | جلسة موثّقة بالكامل |
 | **رمز التجديد** `refreshToken` | نجاح OTP | تجديد | 7 أيام | HttpOnly · SameSite=Strict · Path=`/api/auth` | بقاء الجلسة |
 
 **النتيجة:** رمز التحدي **لا يصلح** لفتح أي صفحة في `/superadmin` (لأن الـ Middleware يشترط `tv === true`، ورمز التحدي لا يحمله)، ولا يصلح لأي API خارج `auth`. وبالعكس، رمز الجلسة لا يمكن الحصول عليه إلا بعد OTP.
+
+> **لماذا `Path=/` لرمز التحدي (قرار SA.5):** الكوكي يجب أن يصل إلى **وجهتين**: (1) صفحة `/superadmin/otp` (Server Component يقرأه عبر `cookies()`) و(2) مسارات الشراء `/api/superadmin/auth/{verify-otp,resend-otp,logout}`. بما أن `/api/...` ليس بادئة من `/superadmin`, فإن `Path=/superadmin` لن يُرسل الكوكي إلى الـ API — لذا `Path=/` هو الاختيار الصحيح الوحيد (الخيار «أو `/`» من قرار الإدارة التقنية). الأمان لا يتغيّر: HttpOnly + SameSite=Strict + JWT موقّع بمفتاح مخصّص `SUPERADMIN_OTP_SECRET` + عمر قصير + نطاق `superadmin:otp`.
 
 ### 5.2 التوليد والتخزين والتحقق
 
@@ -376,10 +378,10 @@
 |---|---|---|
 | **SA.1 — Foundation** | هذا المستند + تعديلات `schema.prisma` + Migration | 🟢 **مُنجَز** |
 | **SA.2 — Auth Core (Backend)** | `SuperAdminOtpService`، مسارات `/api/superadmin/auth/{login,verify-otp,resend-otp}`، `tv` في `AccessTokenPayload`/`RefreshTokenPayload`، شرط `tv` في الـ Middleware + `superadmin-cookie`، `withPlatformAuth`، `recordPlatformAudit`، اختبار تكاملي | 🟢 **مُنجَز** (بلا واجهة) |
-| **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | ⏳ (جزء الـ Middleware أُنجز ضمن SA.2) |
+| **SA.3 — Isolation** | نقل الصفحات إلى `(superadmin)`، استثناءات الدخول في الـ Middleware (عند وجود الصفحات)، استبدال الحاجز العميلي | 🟢 **مُنجَز ضمن SA.5** |
 | **SA.4 — Integration API** | `api/superadmin/integrations` (GET/POST/DELETE) + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.4.5 — Gateway Wiring** | `resolveGatewayConfig` (DB-first + env-fallback مشروط بلا Cache) في `payment-session` · بقاء الـ webhook على لقطة `gatewayConfig` · `tests/integration/gateway-wiring.test.ts` | 🟢 **مُنجَز** |
-| **SA.5 — UI** | شاشة الدخول/OTP + لوحة مفاتيح التكامل (Schema-driven) | ⏳ (لاحقاً) |
+| **SA.5 — UI (Auth Screens + Dashboard Gate)** | شاشة الدخول (factor 1) + شاشة OTP (Server-Component guard + 6 خانات + إعادة إرسال بتهدئة) + هيكل `(auth)`/`(dashboard)` · حاجز لوحة التحكم من الخادم (بلا `localStorage`) · `POST /api/superadmin/auth/logout` · استثناءات Middleware + اعتراض `SUPER_ADMIN` في `/auth/login` · الملعب 42/42 | 🟢 **مُنجَز** (لوحة مفاتيح التكامل Schema-driven في SA.7) |
 | **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | ⏳ |
 
 ---
@@ -396,7 +398,7 @@
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2/SA.2.5 + SA.4 + SA.4.5)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2/SA.2.5 + SA.4 + SA.4.5 + SA.5)
 
 ### SA.1 — Foundation
 
@@ -423,10 +425,10 @@
 | `apps/web/src/middleware.ts` | `/superadmin` و`/admin/queues` تشترطان `role==='SUPER_ADMIN'` **و**`tv===true` |
 | `apps/web/src/middlewares/superadmin-cookie.ts` | الحاجز البكري ينضاف له شرط `tv` (Bull Board) |
 | `apps/web/src/middlewares/platform-auth.ts` | بوّابة API تحت `/api/superadmin/*` (Bearer أو كوكي الجلسة) + `tv` |
-| `apps/web/scripts/test-superadmin-otp.ts` | اختبار تكاملي شامل (**30 فحصاً** — +10 لمسار إعادة الإرسال) — `npm run test:superadmin-otp` |
+| `apps/web/scripts/test-superadmin-otp.ts` | اختبار تكاملي شامل (**42 فحصاً** — SA.2 الأساس + إعادة الإرسال + حاجزات صفحات SA.5 + تسجيل الخروج) — `npm run test:superadmin-otp` |
 | `.env.example` / `apps/web/package.json` | متغيرات OTP جديدة (`…_RESEND_COOLDOWN_SECONDS` ضمنها) + سكربت `test:superadmin-otp` |
 
-**نتيجة الاختبار التكاملي:** 30/30 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، **نجاح إعادة الإرسال + تمديد الصلاحية + رفض التهدئة 429 مع `Retry-After` + إبطال الكود القديم + رفض بلا كوكي/كوكي تالف + سجل التدقيق**، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 284/284 تمر.
+**نتيجة الاختبار التكاملي (SA.2/SA.2.5):** 30/30 فحص بلا أخطاء (فشل الباسورد، توليد التحدي، رفض الكود الخاطئ+عدّ المحاولة، **نجاح إعادة الإرسال + تمديد الصلاحية + رفض التهدئة 429 مع `Retry-After` + إبطال الكود القديم + رفض بلا كوكي/كوكي تالف + سجل التدقيق**، نجاح `tv=true`، إغلاق الحساب، رفض الدخول بعد القفل). `tsc --noEmit` نظيف، `README`/السجلات متزامنة، والاختبارات الشاملة 284/284 تمر.
 
 ### SA.4 — Integration API (Backend خالص)
 
@@ -465,4 +467,26 @@
 
 **نتيجة الاختبار التكاملي:** `tests/integration/gateway-wiring.test.ts` 10/10 بلا أخطاء (بما فيها برهان التدوير/اللقطة والرفض الأمني وإثبات وصول env creds للبوابة في مسار الإرث). SA.4 26/26، SA.2 20/20، الاختبارات الشاملة **284/284**، `tsc --noEmit` نظيف.
 
-> **⚠️ ملاحظة انتقالية معروفة (UI):** بما أنّ جلسات السوبر أدمن الحالية (قبل SA.2) **بلا `tv`**، صارت الـ Middleware ترتد أي وصول لـ`/superadmin` إلى `/auth/login` — وصفحة `/auth/login` الحالية لا تدرك تدفق 2FA فتدفع المستخدم لـ`/superadmin` مجدداً (التحقق الكامل عبر API يعمل، لكن الواجهة بلا مسار OTP). **الحل مقصود في SA.3/SA.5**: بناء `/superadmin/login` + `/superadmin/otp` وربطهما بصفحة الدخول عند رصد دور `SUPER_ADMIN`. لا تعديل على الواجهة الآن (قرار الإدارة التقنية).
+### SA.5 — واجهة الدخول الثنائي + حاجز لوحة التحكم (UI, Server-Side)
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/src/app/api/superadmin/auth/{login,verify-otp,resend-otp}/route.ts` | **`OTP_COOKIE_PATH = '/'`** لرمز التحدي (SA.5) — يجب أن يصل إلى صفحة `/superadmin/otp` **و**مسارات `/api/superadmin/auth/*` معاً (انظر تبرير §5.1) |
+| `apps/web/src/middleware.ts` | استثناء `/superadmin/login` + `/superadmin/otp` (مسارا ما قبل المصادقة) · جلسة موثّقة بالكامل عليهما ← تحويل إلى `/superadmin` · كل بقيّة `/superadmin/*` و`/admin/queues` بلا `tv` ← تحويل إلى **`/superadmin/login`** (وليس `/auth/login`) |
+| `apps/web/src/app/(superadmin)/superadmin/(auth)/layout.tsx` | **جديد** — إطار البطاقة المركزية (بلا Sidebar) لشاشتي الدخول وOTP |
+| `apps/web/src/app/(superadmin)/superadmin/(auth)/login/{page,login-form}.tsx` | **جديد** — شاشة العامل الأول: `loginSchema` + `POST /api/superadmin/auth/login` → توجيه إلى `/superadmin/otp` (الكوكي تلقائياً معه) |
+| `apps/web/src/app/(superadmin)/superadmin/(auth)/otp/page.tsx` | **جديد** — **Server Component = الحاجز الحاسم**: `cookies().get('sa_otp')` → `verifyOtpChallengeToken` → استعلام `OtpChallenge` (حيّ، غير مستهلك) + `User.twoFactorEnabled` → أي فشل `redirect('/superadmin/login')` فوراً. لا يوجد بروب Client "هل أنا مصرَّح؟" |
+| `apps/web/src/app/(superadmin)/superadmin/(auth)/otp/{otp-form.tsx, otp-input…}` | **جديد** — نموذج 6 خانات (`useOtpInput`): تحقق تلقائي عند اكتمال الرقم، اهتزاز للكود الخاطئ، عدّاد انتهاء الصلاحية + تهدئة إعادة الإرسال، `Retry-After` محترم، إعادة توجيه بعد الأخطاء الختامية |
+| `apps/web/src/hooks/use-otp-input.ts` | **جديد** — Hook بلا اعتماديات: تنقية رقمية، تقدّم بؤري، مسح خلفي، أسهم، لصق كامل |
+| `apps/web/src/app/(superadmin)/superadmin/(dashboard)/layout.tsx` | **جديد** — حاجز لوحة التحكم **Server Component**: يؤكد `accessToken` + `role==='SUPER_ADMIN'` + `tv===true` + وجود المستخدم في DB ثم يرسم الهيكل (Sidebar + Tabs). **لا يوجد `localStorage`** (AGENTS §10) |
+| `apps/web/src/app/(superadmin)/superadmin/(dashboard)/{shell,sign-out-button,page}.tsx` | **جديد** — الهيكل (Sidebar يمين + تبويبات + بطاقة مستخدم) · سياسة خروج (POST ثم انتقال كامل) · صفحة ترحيب «لوحة التحكم العليا» |
+| `apps/web/src/app/api/superadmin/auth/logout/route.ts` | **جديد** — إبطال الجلسة: `verifyAccessToken`/`verifyRefreshToken` من الكوكيز → `authService.logout(userId, family)` → مسح `accessToken`/`refreshToken`/`sa_otp` → تدقيق. `withCsrf`، إخفاق ثنائي (بلا ذعر على كوكي تالف) |
+| `apps/web/src/app/auth/login/page.tsx` | عند رصد `SUPER_ADMIN` يوجَّه إلى **`/superadmin/login`** (لا `/superadmin`) — لا تقصير لمسار 2FA |
+| `apps/web/src/styles/globals.css` | `.otp-input` + `otp-shake` + `otp-fade-in` + احترام `prefers-reduced-motion` |
+| `apps/web/scripts/test-superadmin-otp.ts` | +12 فحصاً (SA.5): حاجزات صفحات (بلا كوكي/كوكي تالف/تحدي حيّ/جلسة موثّقة كاملة)، **logout** (رفض بلا CSRF، إبطال، رفض تدوير الـ Refresh بعده) — **42/42** |
+
+> **القرارات المعتمدة من الإدارة التقنية (SA.5):** (1) لوحة تحكم مؤقتة = بطاقة ترحيب + زر خروج فعّال؛ (2) تخطيط مكعّب: شاشات `(auth)` بطاقات مركزية بلا Sidebar ← هيكل كامل (`(dashboard)`) عبر `layout.tsx` متداخل؛ (3) `/auth/login` القديم يعترض دور `SUPER_ADMIN` ← `/superadmin/login`. تفاعلات النموذج: بسيطة (اهتزاز خاطئ، تلاشي خطأ، مؤشر تحميل، `prefers-reduced-motion`).
+
+**نتيجة الاختبار التكاملي (SA.5):** 42/42 فحص بلا أخطاء (كل حاجزات صفحات SA.5 + تسجيل خروج كامل + إعادة تشغيل النتيجة الكاملة SA.2/SA.2.5). `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة، الاختبارات الشاملة **284/284** تمر.
+
+> **✅ ملاحظة انتقالية حُلَّت (SA.5):** كانت جلسات السوبر أدمن القديمة (قبل SA.2) بلا `tv` فيرتّها الـ Middleware إلى `/auth/login` التي لا تدرك 2FA فتُعيد المستخدم إلى `/superadmin` (حلقة). الآن: `/superadmin/login` + `/superadmin/otp` مبنيتان ومربوطة باعتراض `SUPER_ADMIN` في `/auth/login`، والـ Middleware تعيد التوجيه إلى `/superadmin/login` نفسه — الحلقة مغلقة.

@@ -13,7 +13,12 @@ const authService = new AuthService();
 const otpService = new SuperAdminOtpService();
 
 const OTP_COOKIE = 'sa_otp';
-const OTP_COOKIE_PATH = '/api/superadmin/auth';
+// Path `/` is deliberate (SA.5): the pending-2FA challenge must be readable by
+// BOTH the `/superadmin/otp` Server Component (page request) AND the
+// `/api/superadmin/auth/*` redeem/resend routes — `/api/...` is not a prefix of
+// `/superadmin`, so only root matches both. Security is unchanged (HttpOnly +
+// SameSite=Strict + signed JWT with a dedicated secret + short TTL).
+const OTP_COOKIE_PATH = '/';
 
 /**
  * POST /api/superadmin/auth/login — first factor of the Super-Admin 2FA flow.
