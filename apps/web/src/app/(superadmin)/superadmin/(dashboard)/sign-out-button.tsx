@@ -35,6 +35,7 @@ export function SignOutButton({ fullWidth }: { fullWidth?: boolean }) {
     <Button
       variant="danger"
       size="sm"
+      data-testid="superadmin-logout-btn"
       onClick={handleSignOut}
       loading={loading}
       className={fullWidth ? 'w-full' : undefined}

@@ -71,6 +71,7 @@ export function LoginForm() {
           type="email"
           dir="ltr"
           placeholder="owner@platform.com"
+          data-testid="superadmin-login-email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -79,6 +80,7 @@ export function LoginForm() {
           label="كلمة المرور"
           type="password"
           placeholder="••••••••"
+          data-testid="superadmin-login-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -100,7 +102,7 @@ export function LoginForm() {
           </div>
         )}
 
-        <Button type="submit" loading={loading} className="w-full" size="lg">
+        <Button type="submit" loading={loading} className="w-full" size="lg" data-testid="superadmin-login-submit">
           {loading ? 'جاري التحقق...' : 'متابعة'}
         </Button>
       </form>

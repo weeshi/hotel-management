@@ -3,7 +3,9 @@ import { SignOutButton } from './sign-out-button';
 export default function SuperAdminOverviewPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">أهلاً بك في لوحة التحكم العليا</h1>
+      <h1 data-testid="superadmin-welcome" className="text-2xl font-bold mb-6">
+        أهلاً بك في لوحة التحكم العليا
+      </h1>
 
       <div className="card max-w-2xl">
         <div className="text-3xl mb-3">👑</div>

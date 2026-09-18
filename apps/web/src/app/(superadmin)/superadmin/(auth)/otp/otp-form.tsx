@@ -183,6 +183,7 @@ export function OtpForm({ maskedEmail, expiresInSeconds, resendUnlocksAt }: OtpF
               onKeyDown={(e) => onKeyDown(i, e)}
               onPaste={onPaste}
               aria-label={`الرقم ${i + 1}`}
+              data-testid={`otp-input-${i}`}
               className="otp-input"
             />
           ))}
@@ -192,6 +193,7 @@ export function OtpForm({ maskedEmail, expiresInSeconds, resendUnlocksAt }: OtpF
       {error && (
         <p
           role="alert"
+          data-testid="otp-error"
           className="mt-4 rounded-xl border border-[var(--red)]/30 bg-[var(--red)]/10 px-4 py-2.5 text-center text-sm text-[var(--red)] otp-fade-in"
         >
           {error}
@@ -214,6 +216,7 @@ export function OtpForm({ maskedEmail, expiresInSeconds, resendUnlocksAt }: OtpF
           <span>لم يصلك الرمز؟</span>
           <button
             type="button"
+            data-testid="otp-resend-btn"
             onClick={resendCode}
             disabled={resendCooldown > 0 || resending}
             className="font-semibold text-[var(--gold)] hover:underline disabled:pointer-events-none disabled:text-[var(--text-muted)]"

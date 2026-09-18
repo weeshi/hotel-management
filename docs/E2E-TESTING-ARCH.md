@@ -1,6 +1,6 @@
 # وثيقة معماريّة — اختبارات E2E عبر Playwright (E2E Testing Architecture) — M7.2
 
-> **الحالة:** 🟢 **E2E.1 (البنية التحتية) مُنفَّذ ومُتحقَّق منه.** المسرح جاهز: خادم Dummy مستقل + خط تحكّم + تهيئة `hotel_e2e` + `playwright.config.ts`، مع اختبار دخاني (Smoke) ناجح يستدير على `/api/health` و`/__health`. اختبارات رحلة الدفع تُبنى في **E2E.2** (لم تبدأ بعد).
+> **الحالة:** 🟢 **E2E.1 (البنية التحتية) و E2E.1.5 (مصادقة Super-Admin 2FA) مُنفَّذان ومُتحقَّق منهما.** المسرح جاهز: خادم Dummy مستقل + خط تحكّم + تهيئة `hotel_e2e` + `playwright.config.ts`، مع اختبار دخاني (Smoke) ناجح يستدير على `/api/health` و`/__health`. E2E.1.5 يضيف اختبارات الواجهة للمصادقة الثنائية عبر **Prisma Injection + Dual Time Sync** (إجمالي 9/9 — انظر §13). اختبارات رحلة الدفع تُبنى في **E2E.2** (لم تبدأ بعد).
 >
 > هذا المستند هو **مصدر الحقيقة** لمسار E2E؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً. قسم «ما تم بناؤه فعلياً» أدناه يسرد الملفات والالتزامات.
 >
@@ -289,3 +289,76 @@ export default defineConfig({
 - يبني فوق المنجز: `dummy-gateway/server.ts` + `shared/signer.ts` + الملفات الذهبية + مولّدها.
 - لا يمسّ مسار Vitest ولا `hotel_test` ولا إعداد `vitest.config.ts`.
 - يحافظ على قواعد الحوكمة: العقود → API فقط، الواجهة → E2E، والمستندات تُحدَّث مع الكود.
+
+---
+
+## 13) 🔐 E2E.1.5 — رحلة مصادقة Super-Admin الثنائية (2FA UI)
+
+> **الحالة:** 🟢 مُنفَّذ ومُتحقَّق منه — **9/9** شاملة (بنية §10: 4/4 + مصادقة: 5/5). التزام: `apps/web/tests/e2e/superadmin-auth.spec.ts` (+ `tsc --noEmit` نظيف + `next lint` بلا أخطاء).
+
+### 13.1 قرار الأمن (InfoSec) — لماذا لا `routes /api/test/*`
+
+- **مرفوض تماماً (Zero-Trust):** مسارات `routes /api/test/*` داخل تطبيق الإنتاج — حتى لو مقيّدة بـ `NODE_ENV` — تُعدّ «ثغرة نائمة» (Sleeping Vulnerability): قد تُعيد التشغيل أو تُستغل كـ Backdoor. لامرأوية فيه.
+- **المُعتمد (Option C — Prisma Injection):** Playwright يعمل في عملية Node → يملك مقبض `PrismaClient` مباشراً على `hotel_e2e` (كنفس أدوات البذر §5/§6) فيحقن **الحالة** المطلوبة في الجداول. المتصفح بعدها **يُمارس الواجهة والـ API والمتجرّد الحقيقي** فقط — صفر تعديلات على كود الإنتاج، صفر مسارات اختبار.
+
+### 13.2 أساسيات العزل
+
+- **بلا `storageState`:** كل اختبار يبدأ بسياق/ملف كوكيز نظيفين (عزل تام للحالة).
+- `test.beforeEach`: حذف صفوف `OtpChallenge` + `RefreshToken`، ثم `upsert` حساب الاختبار `super@hotel.com` / `superadmin123` (كلمة مرور bcrypt مشفَّرة) مع `twoFactorEnabled: true`.
+- **خانات OTP = ضغطات مفاتيح حقيقية:** `focus()` على `otp-input-0` ثم `page.keyboard.type(CODE, { delay: 60 })`. **ممنوع `page.fill`** — لأن `useOtpInput.setValueAt` يقطّع الإدخال إلى خانة واحدة ويدفع التركيز للخانة التالية (أي تعبئة جماعية تكسر الحوار).
+
+### 13.3 Prisma Injection (تحقّق الرمز المعروف)
+
+بعد أن يصل تسجيل الدخول إلى شاشة OTP، يقرأ Playwright صفّ التحدي **الحيّ** ثم:
+1. يحسب `EXPECTED_HASH = hashOtpCode(userId, 'SUPER_ADMIN_LOGIN', '123456')` — استيراد مباشر من `src/lib/utils/otp` (لا barrel — تجنّب جرّ اعتماديات Next/React).
+2. `update` على الصف: `codeHash = EXPECTED_HASH`، `attempts = 0`، `consumedAt = null`.
+3. المتصفح يدخل `123456` → التحدي يُستهلك عبر مسار الإنتاج الفعلي.
+- **اتساق السر:** `.env` خالٍ من `SUPERADMIN_OTP_SECRET` → الخادم و Playwright يتطابقان على `DEV_OTP_SECRET`. المشهد يقرأ `process.cwd()/.env` عبر `loadDotEnv()` (نفس أداة الـ harness) كي تبقى أسرار CI متوافقة.
+
+### 13.4 المزامنة المزدوجة للزمن (Dual Time Sync) — اختبار التهدئة
+
+تهدئة إعادة الإرسال (`SUPERADMIN_OTP_RESEND_COOLDOWN_SECONDS`) مُنفَّذة في **طبقتين**:
+- **الخادم (authoritative):** `OtpChallenge.lastCodeSentAt` في DB → `429 + Retry-After`.
+- **العميل:** مؤقّت React (نبضة 1 ثانية) يعطّل زر «إعادة الإرسال» حتى انقضاء المهلة.
+
+لا يكفي تزوير طبقةٍ واحدة (تزوير `clock` يحرّر الزر لكن الـ API يرد 429؛ حقن DB فقط يحرّر الـ API لكن الزر يبقى معطّلاً). الحل **كليهما معاً**:
+1. **نصف الخادم — حقن DB:** `lastCodeSentAt = Date.now() - (cooldown + 1) * 1000`.
+2. **نصف العميل — ساعة المتصفح:** `page.clock.install()` + `resume()` **قبل** `goto` (تُسجَّل ساعة المتصفح كساعة وهمية مع بقاء التنقّل طبيعياً)، ثم بعد رسم الشاشة: `page.clock.pauseAt(Date.now() + (cooldown + 1) * 1000 + 2000)` — يطلق مؤقّتات React المستحقة (مرة واحدة وفق توثيق Playwright) فيصبح الزر «متاحاً فعلاً».
+3. النقر → نجاح، مع ترقّب DB: دوران `codeHash`، `attempts === 0`، تمديد `expiresAt` (التحقّق الاستقصائي عبر `expect.poll`).
+
+### 13.5 فلسفة Retries (اعتماد الإدارة)
+
+- `retries: process.env.CI ? 1 : 0` — Retry واحد يمتص ضجيج CI الخارجي فقط؛ **محلياً صفر Retries**.
+- أي اختبار متفلّت يُصلَح ويُشخَّص، ولا يُقنَّع بمزيد من الإعادة — فهي إخفاء لا علاج. `trace on-first-retry` + `video retain-on-failure` تُرفَع في CI.
+
+### 13.6 السيناريوهات الخمسة
+
+| # | السيناريو | أبرز الفحوص |
+|---|---|---|
+| 1 | حاجز الـ Middleware | `/superadmin/hotels` بلا جلسة → إعادة توجيه على `/superadmin/login` |
+| 2 | رحلة 2FA كاملة | login → شاشة OTP → `123456`→ لوحة التحكم + كوكيات `accessToken`/`refreshToken`، و`sa_otp` أُزيلت، و`OtpChallenge.consumedAt` |
+| 3 | كود خاطئ | البقاء على `/superadmin/otp`، نص «رمز التحقق غير صحيح»، و`attempts === 1` في DB |
+| 4 | إعادة الإرسال والتهدئة | Dual Time Sync §13.4 → كود جديد، `attempts 0`، `expiresAt` ممدَّد، بلا رسالة خطأ |
+| 5 | تسجيل الخروج | الكوكيات (access/refresh/sa_otp) منزوعة، وزيارة `/superadmin` تُعيد للدخول |
+
+### 13.7 وسوم الاختبار (data-testid)
+
+| الوسم | الموقع |
+|---|---|
+| `superadmin-login-email` / `-password` / `-submit` | `(auth)/login/login-form.tsx` |
+| `otp-input-0..5` / `otp-resend-btn` / `otp-error` | `(auth)/otp/otp-form.tsx` |
+| `superadmin-logout-btn` | `(dashboard)/components/sign-out-button` |
+| `superadmin-welcome` | `(dashboard)/dashboard/page.tsx` |
+
+> **ملاحظة العزل التام لكيانات متعددة:** الـ dashboard يرسم **ثلاثة** أزرار خروج (Sidebar + رأس الجوال + بطاقة الترحيب) → الاستهداف مُقيَّد بسياق `getByRole('main')` إرضاءً للوضع الصارم (strict mode).
+
+### 13.8 الملفات
+
+| المكوّن | الملف |
+|---|---|
+| المشهد الرئيسي (5 اختبارات) | `apps/web/tests/e2e/superadmin-auth.spec.ts` |
+| أدوات الخطوة (inherit infra) | `apps/web/tests/e2e/setup/{env,db}.ts` |
+| وسوم منتِجة (4 ملفات) | `login-form.tsx` · `otp-form.tsx` · `sign-out-button` · `dashboard/page.tsx` |
+| استيراد التحدي الهاش | `apps/web/src/lib/utils/otp.ts` (`hashOtpCode`، `getOtpResendCooldownSeconds`) |
+
+**التحقق:** `npm run test:e2e` → **9/9** (البنية 4/4 + مصادقة 5/5)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
