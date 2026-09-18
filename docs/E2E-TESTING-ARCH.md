@@ -361,4 +361,39 @@ export default defineConfig({
 | وسوم منتِجة (4 ملفات) | `login-form.tsx` · `otp-form.tsx` · `sign-out-button` · `dashboard/page.tsx` |
 | استيراد التحدي الهاش | `apps/web/src/lib/utils/otp.ts` (`hashOtpCode`، `getOtpResendCooldownSeconds`) |
 
-**التحقق:** `npm run test:e2e` → **9/9** (البنية 4/4 + مصادقة 5/5)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
+**التحقق:** `npm run test:e2e` → **11/11** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
+
+---
+
+## 14) 🔐 E2E.1.6 — Step-up Authentication / Sudo Mode (المصادقة الحسّاسة)
+
+**خلفية المنتج (docs/SUPER-ADMIN-ARCH.md §SA.6):** بعد جلسة مُوثّقة بالكامل (pass + OTP)، تفرض البوابة `withSudoMode` إعادة إثبات الهوية (كود Step-up يُرسَل بريداً) قبل أي طفرة على `/api/superadmin/integrations` — تُفحَص البطاقة المكوَّنة `su_token` (JWT عديم الحالة، نطاق `superadmin:integrations`، نافذة سودو 5 دقائق) **في طبقة الحارس وليس طبقة الهوية**.
+
+السيناريوان (اختباران): رحلة سودو كاملة + رفض شامل لتزوير `su_token`. أدواتها ترث §13: `--project chromium`, webServer على `:3100` (prod build), قاعدة `hotel_e2e` مستقلة, Prisma Injection على تحدي `SUPER_ADMIN_STEP_UP`, تزوير عبر `jose` بالمفتاح الصحيح/الخاطئ.
+
+### 14.1 الحفرة الفريدة: `Secure` كوكي ≠ `page.request` (Root Cause + الحل)
+
+**الاكتشاف:** الخادم المبني (`next start` → `NODE_ENV=production`) يضع كل كوكيات الجلسة (`accessToken`/`refreshToken`/`csrf-token`) بعلامة **`Secure`**. متصفح Chromium **يرسلها فعلاً** إلى `http://127.0.0.1` (يُعامَل كأصل موثوق — لذلك تُرسم لوحة التحكم)، **لكن `page.request` في Playwright ليس المتصفح**: إنه عميل HTTP بـ Node يلتزم RFC 6265 بدقّة، فلا يرسل كوكي `Secure` فوق http صريح — فتتحطم كل نداءات API بـ `401` (لا `accessToken`) و`403` لو استُخدم CSRF (لا `csrf-token`).
+
+**البرهان التجريبيّ (وزن خفيف، خارج الملف):** `addCookies([{secure:false…}])` يُرسَل (200)؛ `addCookies([{secure:true…}])` لا يُرسَل (401) — فوق `http://127.0.0.1`.
+
+**الحل المعتمَد (طُبِّق في `loginAndBootCsrf`):** إعادة سكّ كوكيات الجلسة بلا علامة `Secure` عبر `context.addCookies` (نفس الاسم/النطاق/المسار — يحلّ محل نسخة الخادم). **صفر تغيير في كود الإنتاج** — تماماً كفلسفة Prisma Injection. هذا هو سبب بقاء E2E.1.5 أخضر: كل نداءاتها كانت تصفحاً للمتصفح + تفحّص `context.cookies()` فقط، لا نداءات API موثّقة عبر `page.request`.
+
+> **قاعدة للمستقبل:** أي نداء API موثّق جديد عبر `page.request` في E2E يجب أن يمرّ بـ `demoteSessionCookies` (§14.3) — حتى يمتلك المتصفحُ والـ API نفسَ الجلسة فوق http.
+
+### 14.2 السيناريوهان
+
+| # | السيناريو | أبرز الفحوص |
+|---|---|---|
+| 1 | رحلة سودو كاملة | GET خارج السودو (200) · POST بلا سودو → `403 STEP_UP_REQUIRED` · رمز خاطئ → `401 INVALID` + `attempts=1` · **Prisma Time Injection** لكود منتهٍ → `410 EXPIRED` · تحدٍّ حي + كود صحيح → `su_token` (نطاق/هدف/`jti`/نافذة ≤300s) · **استخدام واحد** للكود (إعادة الاستخدام → `401`) · **نافذة الاستخدام**: 3 عمليات بنفس البطاقة بلا إعادة OTP · حذف · ميزان `IntegrationConfig = 0` · سجل التدقيق الكامل |
+| 2 | تزوير `su_token` | مفتاح خاطئ → `403 STEP_UP_EXPIRED` (+1 `STEP_UP_EXPIRED_REJECTED`) · منتهٍ بمفتاح صحيح → `403 STEP_UP_EXPIRED` (+1) · **نطاق خاطئ** → `403 STEP_UP_REQUIRED` (بلا ضجيج تدقيق) · **موضوع مختلف** → `403 STEP_UP_REQUIRED` (بلا ضجيج) · صفر تسريب في `IntegrationConfig` |
+
+### 14.3 الملفات ومساعد السكريت
+
+| المكوّن | الملف |
+|---|---|
+| السيناريوهان | `apps/web/tests/e2e/superadmin-step-up.spec.ts` |
+| إبطال `Secure` الكوكيات | `demoteSessionCookies` (المساعد داخل نفس الملف) — مستند السبب الجذري في تعليق §14.1 |
+| أسرار مطابقة الخادم | `getSudoTokenSecret()`/`verifySudoToken` من `apps/web/src/lib/utils/jwt.ts` (dev fallback مُطابق للخادم) |
+
+**التحقق:** `npm run test:e2e` → **11/11** (2.1m؛ البنية 4 + مصادقة 5 + سودو 2)، حصاد الاستخدام: نداءا request (≤3/15د) و4 نداءات verify (≤5/60ث) في الاختبار 1 وصفر في الاختبار 2 (تزوير لا يلمس الـ request/verify). `tsc --noEmit` نظيف.

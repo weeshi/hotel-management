@@ -24,6 +24,24 @@ export function getOtpMaxAttempts(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
 }
 
+/**
+ * Sudo Mode window (SA.6) — the Step-up OTP and the issued `su_token` must BOTH
+ * die at 5 minutes so the emailed code can NEVER outlive the sudo window.
+ */
+export const SUDO_WINDOW_SECONDS = 300;
+
+/**
+ * Step-up OTP TTL (seconds). Hard-capped at `SUDO_WINDOW_SECONDS` (5 min):
+ * unlike the login code (default 600 via `SUPERADMIN_OTP_TTL_SECONDS`), a
+ * step-up code MUST NOT live longer than the sudo window — otherwise the window
+ * silently stretches to 10 minutes (docs/SUPER-ADMIN-ARCH.md §SA.6).
+ */
+export function getStepUpTtlSeconds(): number {
+  const parsed = Number(process.env.SUPERADMIN_STEP_UP_OTP_TTL_SECONDS);
+  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : SUDO_WINDOW_SECONDS;
+  return Math.min(base, SUDO_WINDOW_SECONDS);
+}
+
 /** Minimum seconds between two OTP emails for the same challenge (default 60). */
 export function getOtpResendCooldownSeconds(): number {
   const parsed = Number(process.env.SUPERADMIN_OTP_RESEND_COOLDOWN_SECONDS);

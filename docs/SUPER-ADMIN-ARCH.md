@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
 > **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) و SA.4.5 (ربط مفاتيح بوابات الدفع) مُنجَزة.**
-> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارات `login`/`verify-otp`/`resend-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). بقي **الواجهة الأمامية (UI)** والتوسعة منفصلتين في SA.3→SA.6 كما هو مبيّن في §10 — بقرار صريح من الإدارة التقنية.
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارات `login`/`verify-otp`/`resend-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). **وباك اند SA.6 (Step-up/Sudo Mode للعمليات الحسّاسة + الاختبارات الأمنية) مُنجَز.** بقي **الواجهة الأمامية (UI)** — بما فيها واجهة Step-up/Sudo للوحة، ومفاتيح التكامل Schema-driven — في متابعة SA.7 بقرار صريح من الإدارة التقنية (كما هو مبيّن في §10 و§12).
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -355,6 +355,8 @@
 | `SUPERADMIN_OTP_TTL_SECONDS` | صلاحية الكود (افتراضي 600) | — |
 | `SUPERADMIN_OTP_MAX_ATTEMPTS` | حد المحاولات (افتراضي 5) | — |
 | `SUPERADMIN_OTP_RESEND_COOLDOWN_SECONDS` | تهدئة إعادة الإرسال (افتراضي 60) | — |
+| `SUPERADMIN_STEP_UP_JWT_SECRET` | **SA.6 —** مفتاح توقيع `su_token` (Sudo Mode) | ≥ 32 حرفاً · **سرّي تماماً** · **مفتاح منفصل** عن ACCESS/REFRESH/OTP (فصل مفاتيح §SA.6/ج) · لا يبدأ بـ`NEXT_PUBLIC_` |
+| `SUPERADMIN_STEP_UP_OTP_TTL_SECONDS` | **SA.6 —** صلاحية كود الـ Step-up (افتراضي 300، **مقصوصة بسقف صلب = نافذة السودو**) — انظر §SA.6/و | — |
 
 **التسليم:** يستخدم `RESEND_API_KEY` القائم عبر `sendEmail()`. في التطوير/بدون مفتاح يُطبع الكود في السجل فقط (سلوك البوابة الحالي).
 
@@ -369,6 +371,7 @@
 - ❌ **منع** إصدار جلسة كاملة لسوبر أدمن بتخطي OTP حتى لو كانت الراية `twoFactorEnabled=false` — تُعامَل كخطأ تهيئة وتُرفض.
 - ❌ **منع** تخزين أسرار البوابات في `.env`؛ هي بيانات مستأجر ⇒ قاعدة البيانات مُشفّرة (§9).
 - ❌ **منع** `Math.random()` في توليد الكود.
+- ❌ **منع** جعل `su_token` ذا استخدامٍ واحد أو تشكيله بلا نطاق (scope) — القرار المعتمد SA.6: **window-use** داخل نافذة السودو (خمس دقائق) **بنطاق صريح** `superadmin:integrations` (§SA.6/ب).
 
 ---
 
@@ -382,7 +385,7 @@
 | **SA.4 — Integration API** | `api/superadmin/integrations` (GET/POST/DELETE) + Provider Registry + تطور `IntegrationConfig` (الحراسة `withPlatformAuth` جاهزة) | 🟢 **مُنجَز** (بلا واجهة) |
 | **SA.4.5 — Gateway Wiring** | `resolveGatewayConfig` (DB-first + env-fallback مشروط بلا Cache) في `payment-session` · بقاء الـ webhook على لقطة `gatewayConfig` · `tests/integration/gateway-wiring.test.ts` | 🟢 **مُنجَز** |
 | **SA.5 — UI (Auth Screens + Dashboard Gate)** | شاشة الدخول (factor 1) + شاشة OTP (Server-Component guard + 6 خانات + إعادة إرسال بتهدئة) + هيكل `(auth)`/`(dashboard)` · حاجز لوحة التحكم من الخادم (بلا `localStorage`) · `POST /api/superadmin/auth/logout` · استثناءات Middleware + اعتراض `SUPER_ADMIN` في `/auth/login` · الملعب 42/42 | 🟢 **مُنجَز** (لوحة مفاتيح التكامل Schema-driven في SA.7) |
-| **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | ⏳ |
+| **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | 🟢 **مُنجَز** (باك اند + اختبارات أمنية؛ **واجهة الـ Sudo** مؤجَّلة لـ SA.7) |
 
 ---
 
@@ -390,15 +393,16 @@
 
 - `apps/web/AGENTS.md` §9 (الأسرار) · §10 (الجلسات) · §11 (RBAC وعزل المنصة) · §13 (التوثيق الحيّ) · §16 (أمان التكاملات).
 - `apps/web/prisma/schema.prisma` — `User` · `IntegrationConfig` · `AuditLog`.
-- `apps/web/src/middlewares/auth.ts` · `superadmin-cookie.ts` · `csrf.ts` · `rate-limit.ts`.
+- `apps/web/src/middlewares/auth.ts` · `superadmin-cookie.ts` · `csrf.ts` · `rate-limit.ts` · `sudo-mode.ts` (SA.6).
 - `apps/web/src/lib/utils/jwt.ts` · `crypto.ts` · `password.ts`.
 - `apps/web/src/lib/services/auth.service.ts` · `src/app/api/auth/login/route.ts`.
+- `apps/web/src/app/api/superadmin/auth/step-up/{request,verify}/route.ts` (SA.6).
 - `apps/web/src/lib/gateways/email.gateway.ts`.
-- `docs/SECURITY-LOCAL-GATEWAYS.md` · `docs/CONTRACT-TESTING-ARCH.md`.
+- `docs/SECURITY-LOCAL-GATEWAYS.md` · `docs/CONTRACT-TESTING-ARCH.md` · `docs/E2E-TESTING-ARCH.md` §14 (E2E.1.6).
 
 ---
 
-## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2/SA.2.5 + SA.4 + SA.4.5 + SA.5)
+## 12) ✅ ما تم بناؤه فعلياً (SA.1 + SA.2/SA.2.5 + SA.4 + SA.4.5 + SA.5 + SA.6)
 
 ### SA.1 — Foundation
 
@@ -488,5 +492,31 @@
 > **القرارات المعتمدة من الإدارة التقنية (SA.5):** (1) لوحة تحكم مؤقتة = بطاقة ترحيب + زر خروج فعّال؛ (2) تخطيط مكعّب: شاشات `(auth)` بطاقات مركزية بلا Sidebar ← هيكل كامل (`(dashboard)`) عبر `layout.tsx` متداخل؛ (3) `/auth/login` القديم يعترض دور `SUPER_ADMIN` ← `/superadmin/login`. تفاعلات النموذج: بسيطة (اهتزاز خاطئ، تلاشي خطأ، مؤشر تحميل، `prefers-reduced-motion`).
 
 **نتيجة الاختبار التكاملي (SA.5):** 42/42 فحص بلا أخطاء (كل حاجزات صفحات SA.5 + تسجيل خروج كامل + إعادة تشغيل النتيجة الكاملة SA.2/SA.2.5). `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة، الاختبارات الشاملة **284/284** تمر.
+
+### SA.6 — Sudo Mode / Step-up Authentication (Backend خالص + اختبارات أمنية)
+
+**الفكرة:** افصل «من هو الطالب؟» (`withPlatformAuth` — جلسة + 2FA) عن «هل يجب رفع الصلاحية لهذه العملية؟» (`withSudoMode`). الطفرات على `/api/superadmin/integrations` (POST/DELETE) تشترط `su_token` سليم المنتهي الصلاحية في رأس `x-sudo-token`؛ `GET` خارج السودو كما هو.
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/src/lib/utils/otp.ts` | `SUDO_WINDOW_SECONDS = 300` + `getStepUpTtlSeconds()` — **سقف صلب** ≤ نافذة السودو (كود الـ Step-up لا يعيش أطول من البطاقة التي يفتحها) |
+| `apps/web/src/lib/services/superadmin-otp.service.ts` | `requestOtp` يقبل `customTtl?` (مسار الدخول بلا تغيير) · **`requestStepUpOtp`** (غرض `SUPER_ADMIN_STEP_UP`، إنهاء تحدي السودو السابق، بريد بسياق Step-up عبر `deliverCode(template:'step-up')`) · **`verifyStepUpOtp`** (نفس قوس المحاولات/القفل/الاستهلاك، `StepUpOtpVerifyResult` مُصدَّر) |
+| `apps/web/src/lib/utils/jwt.ts` | `getSudoTokenSecret()` + `SUDO_SECRET` منفصل · `SudoTokenPayload` · `signSudoToken`/`verifySudoToken` (HS256؛ `sub`=userId، `scope:'superadmin:integrations'`، `purpose`، `jti`، `iat`، `exp = now + SUDO_WINDOW_SECONDS`) |
+| `apps/web/src/middlewares/sudo-mode.ts` | **جديد — `withSudoMode`**: يُلصق **بعد** `withPlatformAuth` (يحتاج `request.user.userId`). بلا رأس → `403 STEP_UP_REQUIRED`؛ تحقق فاشل (توقيع/انتهاء) → `403 STEP_UP_EXPIRED` + تدقيق `STEP_UP_EXPIRED_REJECTED` **فقط عند وجود رأس**؛ نطاق ≠`superadmin:integrations` أو `sub`≠userId → `403 STEP_UP_REQUIRED` (بلا ضجيج تدقيق)؛ نجاح → تدقيق `STEP_UP_USED` (`entityId = jti`) ثم `handler` |
+| `apps/web/src/app/api/superadmin/auth/step-up/request/route.ts` | **جديد** — `POST` بجلسة `tv:true` + `withCsrf` + `checkRateLimit(3/15min)` (Redis fail-open) → إرسال كود + تدقيق `STEP_UP_OTP_REQUESTED` |
+| `apps/web/src/app/api/superadmin/auth/step-up/verify/route.ts` | **جديد** — `POST` بجلسة `tv:true` + `withCsrf` + `checkRateLimit(5/60ث)` → تحقّق → إصدار `su_token` + تدقيق `STEP_UP_OTP_VERIFIED`/`STEP_UP_OTP_FAILED_<REASON>` |
+| `apps/web/src/app/api/superadmin/integrations/route.ts` | `POST`/`DELETE` → `withPlatformAuth(withSudoMode(withCsrf(withRateLimit(handler, 30))))` · `GET` يبقى `withPlatformAuth(withRateLimit(handler, 60))` (خارج السودو) |
+| `.env.example` | `SUPERADMIN_STEP_UP_JWT_SECRET` + `SUPERADMIN_STEP_UP_OTP_TTL_SECONDS="300"` |
+| `apps/web/scripts/test-superadmin-otp.ts` | **+21 فحصاً (SA.6)** — 403 بلا سودو، window-use (3 عمليات ببطاقة واحدة)، تزويرات (مفتاح خاطئ/منتهي/نطاق/موضوع)، `customTtl:120` للخدمة، سجل التدقيق الكامل — **62/62** مع `process.exit` نظيف |
+| `apps/web/tests/e2e/superadmin-step-up.spec.ts` | **جديد — E2E.1.6** (تفاصيله في `docs/E2E-TESTING-ARCH.md` §14): رحلة سودو كاملة + رفض شامل للتزوير (تزوير عبر `jose`) |
+
+> **القرارات المعتمدة من الإدارة التقنية (SA.6):**
+> 1. **حارس مركّب لا مُعدَّل:** `withSudoMode` يُلصق بعد `withPlatformAuth` — الطبقات منفصلة (الهوية أولاً، الصلاحية السودو ثانياً).
+> 2. **`su_token` عديم الحالة بنافذة استخدام (window-use) لا single-use:** عمليات حسّاسة غير محدودة داخل الخمس دقائق, بلا تجديد؛ مفتاح توقيع **منفصل** (`SUPERADMIN_STEP_UP_JWT_SECRET`).
+> 3. **عقوبة توقيع منفصلة عن العقوبة الدلالية:** توقيع/انتهاء → `STEP_UP_EXPIRED` + تدقيق رفض (يُقيس محاولات الهجوم)؛ نطاق/موضوع → `STEP_UP_REQUIRED` (بلا ضجيج).
+> 4. **سقف TTL صلب:** كود Step-up يُقصوص إلى نافذة السودو مهما مُرِّر `SUPERADMIN_STEP_UP_OTP_TTL_SECONDS`.
+> 5. **صفر Schema:** `OtpPurpose.SUPER_ADMIN_STEP_UP` موجود مسبقاً؛ `PlatformAuditLog.action` حرّ النص.
+
+**نتيجة الاختبار التكاملي (SA.6):** `npm run test:superadmin-otp` → **62/62** (21 فحصاً SA.6) وخروج `0` نظيف؛ `npm run test:e2e` → **11/11** (البنية 4 + مصادقة 5 + سودو 2 — بـ `demoteSessionCookies` لحفرة `Secure`-كوكي/`page.request`، §E2E-TESTING-ARCH 14.1). `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة.
 
 > **✅ ملاحظة انتقالية حُلَّت (SA.5):** كانت جلسات السوبر أدمن القديمة (قبل SA.2) بلا `tv` فيرتّها الـ Middleware إلى `/auth/login` التي لا تدرك 2FA فتُعيد المستخدم إلى `/superadmin` (حلقة). الآن: `/superadmin/login` + `/superadmin/otp` مبنيتان ومربوطة باعتراض `SUPER_ADMIN` في `/auth/login`، والـ Middleware تعيد التوجيه إلى `/superadmin/login` نفسه — الحلقة مغلقة.

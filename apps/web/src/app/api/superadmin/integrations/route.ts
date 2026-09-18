@@ -4,6 +4,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { encryptSecret } from '@/lib/utils/crypto';
 import { withPlatformAuth } from '@/middlewares/platform-auth';
 import { withCsrf } from '@/middlewares/csrf';
+import { withSudoMode } from '@/middlewares/sudo-mode';
 import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 import { recordPlatformAudit } from '@/lib/services/platform-audit.service';
@@ -220,6 +221,8 @@ async function handler(request: NextRequest) {
 
 export const GET = withPlatformAuth(withRateLimit(handler, 60));
 
-export const POST = withPlatformAuth(withCsrf(withRateLimit(handler, 30)));
+// SA.6 Sudo Mode: mutating key management requires a fresh step-up (su_token).
+// Composition order (outer → inner): identity → elevation → CSRF → throttle.
+export const POST = withPlatformAuth(withSudoMode(withCsrf(withRateLimit(handler, 30))));
 
-export const DELETE = withPlatformAuth(withCsrf(withRateLimit(handler, 30)));
+export const DELETE = withPlatformAuth(withSudoMode(withCsrf(withRateLimit(handler, 30))));
