@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
-import { checkRateLimit } from '@/lib/rate-limiter';
+import { checkRateLimit, type RateLimitResult } from '@/lib/rate-limiter';
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +11,15 @@ export async function GET(
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const rateLimitKey = `ratelimit:payment-status:${bookingId}:${ip}`;
-  const rateLimitResult = await checkRateLimit(rateLimitKey, 30, 60);
+  let rateLimitResult: RateLimitResult;
+  try {
+    rateLimitResult = await checkRateLimit(rateLimitKey, 30, 60);
+  } catch (err) {
+    // Redis outage → fail open (app-wide convention), otherwise the poller
+    // 500s and the guest never learns their payment did succeed.
+    console.error('[Payment Status] Redis limiter unavailable, failing open:', (err as Error).message);
+    rateLimitResult = { allowed: true, current: 0, limit: 30, remaining: 30, resetAt: 0 };
+  }
   if (!rateLimitResult.allowed) {
     return NextResponse.json(
       {

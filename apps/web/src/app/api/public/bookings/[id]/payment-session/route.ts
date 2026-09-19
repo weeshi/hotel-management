@@ -14,18 +14,30 @@ export async function POST(
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const rateLimitKey = `ratelimit:payment-session:${bookingId}:${ip}`;
-  const rateLimitResult = await checkRateLimit(rateLimitKey, 5, 60);
-  if (!rateLimitResult.allowed) {
+  let rateLimited = false;
+  let resetAt = 0;
+  try {
+    const rateLimitResult = await checkRateLimit(rateLimitKey, 5, 60);
+    rateLimited = !rateLimitResult.allowed;
+    resetAt = rateLimitResult.resetAt;
+  } catch (err) {
+    // Redis outage → fail open, matching the app-wide convention (every other
+    // route catches this and continues with a floor). A disabled rate limiter
+    // must never take the guest checkout down.
+    console.error('[Payment Session] Redis limiter unavailable, failing open:', (err as Error).message);
+  }
+  if (rateLimited) {
+    const retryAfter = resetAt - Math.floor(Date.now() / 1000);
     return NextResponse.json(
       {
         success: false,
         error: {
           message: 'طلبات كثيرة جداً لإنشاء جلسة دفع. حاول بعد دقيقة',
           code: 'RATE_LIMITED',
-          retryAfter: rateLimitResult.resetAt - Math.floor(Date.now() / 1000),
+          retryAfter,
         },
       },
-      { status: 429, headers: { 'Retry-After': String(rateLimitResult.resetAt - Math.floor(Date.now() / 1000)) } }
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
     );
   }
 

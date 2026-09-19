@@ -78,6 +78,7 @@ export function UnverifiedSuccessView({ bookingId, sessionId }: UnverifiedSucces
   return (
     <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4" dir="rtl">
       <div
+        data-testid="checkout-unverified"
         className="max-w-md w-full rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center"
         role="status"
         aria-live="polite"

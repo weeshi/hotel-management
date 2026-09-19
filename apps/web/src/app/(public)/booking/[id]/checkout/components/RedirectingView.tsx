@@ -53,6 +53,7 @@ export function RedirectingView({ paymentUrl, onCancel, loading }: RedirectingVi
 
       <div className="w-full max-w-md space-y-3">
         <Button
+          data-testid="checkout-redirect-gateway"
           onClick={handleRedirect}
           disabled={loading || redirecting}
           className="w-full"

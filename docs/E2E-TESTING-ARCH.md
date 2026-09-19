@@ -361,7 +361,7 @@ export default defineConfig({
 | وسوم منتِجة (4 ملفات) | `login-form.tsx` · `otp-form.tsx` · `sign-out-button` · `dashboard/page.tsx` |
 | استيراد التحدي الهاش | `apps/web/src/lib/utils/otp.ts` (`hashOtpCode`، `getOtpResendCooldownSeconds`) |
 
-**التحقق:** `npm run test:e2e` → **11/11** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
+**التحقق:** `npm run test:e2e` → **13/13** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14 + دفع الضيف 2/2 — E2E.2 §15)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
 
 ---
 
@@ -396,4 +396,50 @@ export default defineConfig({
 | إبطال `Secure` الكوكيات | `demoteSessionCookies` (المساعد داخل نفس الملف) — مستند السبب الجذري في تعليق §14.1 |
 | أسرار مطابقة الخادم | `getSudoTokenSecret()`/`verifySudoToken` من `apps/web/src/lib/utils/jwt.ts` (dev fallback مُطابق للخادم) |
 
-**التحقق:** `npm run test:e2e` → **11/11** (2.1m؛ البنية 4 + مصادقة 5 + سودو 2)، حصاد الاستخدام: نداءا request (≤3/15د) و4 نداءات verify (≤5/60ث) في الاختبار 1 وصفر في الاختبار 2 (تزوير لا يلمس الـ request/verify). `tsc --noEmit` نظيف.
+**التحقق:** `npm run test:e2e` → **13/13** (2.2m؛ البنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 2 — E2E.2 §15)، حصاد الاستخدام: نداءا request (≤3/15د) و4 نداءات verify (≤5/60ث) في الاختبار 1 وصفر في الاختبار 2 (تزوير لا يلمس الـ request/verify). `tsc --noEmit` نظيف.
+
+---
+
+## 15) 💳 E2E.2 — رحلة دفع الضيف (Guest Payment Journey — Plutu)
+
+**خلفية المنتج (docs/FRONTEND-CHECKOUT-ARCH.md):** صفحة `/booking/[id]/checkout` عامة (بلا جلسة) تعرض رصيد Folio وتحوّل الضيف لمزوّد الدفع. مساران: `POST /api/public/bookings/[id]/payment-session` (إنشاء الجلسة) و`GET .../payment-session/[sessionId]/status` (استطلاع الحالة من شاشة «غير المؤكَّدة»). تحقق `?step=success` عبر `getVerifiedSucceededSession` (SUCCEEDED) وإلا شاشة `UnverifiedSuccessView` التي تستطلع 5×3ث ثم «تعذر تأكيد حالة الدفع».
+
+السيناريوان (اختباران) في `tests/e2e/guest-payment.spec.ts` على منصة **Plutu** عبر Dummy Gateway (`:4400`) وأصيل التطبيق المبني (`:3100`):
+
+| # | السيناريو | أبرز الفحوص |
+|---|---|---|
+| 1 | الرحلة السعيدة | اختيار `gateway-card-plutu` → «التوجيه للبوابة» (`checkout-redirect-gateway`) → `waitForURL(**/pay/**)` → `dg-succeed` → العودة `?step=success` (`checkout-success`) → **الدفتر**: Folio رصيد **0**/`SETTLED`/`settledAt`، الجلسة `SUCCEEDED` ومربوطة بالدفعة، `Payment PLUTU 250`، حركة `FolioTransaction −250`، `GatewayWebhook PROCESSED` مربوط بالجلسة والدفعة |
+| 2 | رفض الويب هوك المزوَّر | نفس التوجيه حتى صفحة البوابة → كشف سجلّ الـ create عبر `__control/creates` (مطابقة `orderId` ببادئة `pay_{bookingId}_`) → `__control/forge` (توقيع `0…1`) → **`401 UNAUTHORIZED`** → الدفتر **بلا مساس** (رصيد ثابت/`ACTIVE`، جلسة `PENDING`، `count(Payment)=0`، `count(GatewayWebhook)=0`، صفر حركات) → `dg-cancel` → العودة → شاشة «غير مؤكَّدة» تظهر ثم «تعذر تأكيد حالة الدفع» بعد استنفاد الاستطلاع |
+
+### 15.1 البذر والبسَاطة: شجرة كاملة بلا تخفيف
+
+`tests/e2e/setup/seed-guest-payment.ts` يُنشئ **Hotel → RoomType → Room → Guest → Booking (PENDING) → BookingRoom → Folio (رصيد 250) → IntegrationConfig** (engine `plutu`، kind `PAYMENT_GATEWAY`، isActive). قرارات مؤثّرة:
+
+- **`apiKeyEnc` يُشفَّر فعلاً** (`encryptSecret` AES-GCM بمفتاح `PAYMENT_CRYPTO_KEY='a'.repeat(64)` يضبطه الاختبار في `process.env` قبل الاستدعاء) ويحوي `{merchantId, secretKey}` — أمّا `config` فنصّ JSON **غير مُشفَّر** (`{baseUrl: DUMMY_BASE, returnUrl, callbackUrl}`) لأن `overlayConfigFields` لا يفكّ `config` إطلاقاً. النتيجة: يمرّ الـ seed عبر مسار `resolveGatewayConfig` الإنتاجي (source `db`، عقود `CONTRACT_SECRETS` مطابقة للتوقيع) — لا خيوط مساعدة.
+- **مطابقة الويب هوك عبر `merchantTxId` وليس `gatewayTransactionId`:** التطبيق يخزّن `gatewayTransactionId = session_id` (dummy) بينما حمولة الويب هوك تحمل `transaction_id` (`txn_…`) — مطابقة `orderId` (`pay_{bookingId}_{ts}`) تلتقط السجل الصحيح.
+
+### 15.2 الكسوران المكتشفان في أثناء الرحلة (Root Cause + الحل)
+
+1. **Dummy Gateway — زر «العودة دون دفع».** كان `dg-cancel` نموذج `GET` يَحمُل `action=return_url`؛ عند الإرسال يستبدل المتصفح **استعلام النموذج (الفارغ)** باستعلام الـ action فيُسقط `?step=success` فيعود الضيف لشاشة اختيار الطريقة (وليس «غير المؤكَّدة»). الحل: نموذج `POST` بمسار `outcome=cancel` يُدير الخادم **`302` نحو `return_url` الكاملة دون إرسال أي webhook** — العودة بلا دفع لا تُرسل إشعاراً (مطابق للواقع ولبقية الأزرار التي تعيد عبر 302 خادمي لا عبر المتصفح).
+2. **مسارا الإنشاء والحالة أمام انقطاع Redis.** `POST /payment-session` و`GET /payment-session/[sessionId]/status` يُسمّيان `checkRateLimit` مباشرة؛ عند توقف Redis يرمي الـ limiter «Connection is closed» → **500** على مسار عام. بقية المسارات (OTP/Step-up) تلجأ fail-open — وهذان كانا شاذّيْن. الحل: تعليق الاستدعاء في try/catch (منطق `429`/`Retry-After` محفوظ حرفياً)، فيسجّل الخادم «Redis limiter unavailable, failing open» ويمضي؛ التحصين الثاني أبقى استطلاع شاشة «غير المؤكَّدة» يعمل بدل كسره.
+
+### 15.3 وسوم الاختبار (data-testid)
+
+| الوسم | الموقع |
+|---|---|
+| `gateway-card-{id}` | `(public)/booking/[id]/checkout/components/GatewaySelectorCard.tsx` |
+| `checkout-redirect-gateway` | `…/components/RedirectingView.tsx` |
+| `checkout-success` | `…/components/SuccessView.tsx` |
+| `checkout-unverified` | `…/components/UnverifiedSuccessView.tsx` |
+| `dg-succeed` / `dg-cancel` (ضيف الجزء الساند) | `tests/contracts/dummy-gateway/server.ts` |
+
+### 15.4 الملفات
+
+| المكوّن | الملف |
+|---|---|
+| السيناريوهان | `apps/web/tests/e2e/guest-payment.spec.ts` |
+| بذر الشجرة الكاملة | `apps/web/tests/e2e/setup/seed-guest-payment.ts` |
+| تحسين Dummy Gateway | `apps/web/tests/contracts/dummy-gateway/server.ts` (مسار `cancel` + `302`) |
+| تحصين limiter (fail-open) | `payment-session/route.ts` · `payment-session/[sessionId]/status/route.ts` |
+
+**التحقق:** `npm run test:e2e` → **13/13** (2.2m؛ بنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 2)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة. ضجيج `[WebServer]` «Redis limiter unavailable, failing open» هو المسار المتعمَّد، لا فشلاً.

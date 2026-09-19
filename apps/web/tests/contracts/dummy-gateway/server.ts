@@ -131,8 +131,8 @@ function renderPayPage(record: CreateRecord, origin: string): string {
       <button class="succeed" type="submit" name="outcome" value="success" data-testid="dg-succeed">Pay successfully</button>
       <button class="fail" type="submit" name="outcome" value="failed" data-testid="dg-fail">Fail payment</button>
     </form>
-    <form method="GET" action="${escapeHtml(record.returnUrl)}">
-      <button class="skip" type="submit" data-testid="dg-cancel">Return without paying</button>
+    <form method="POST" action="${action}">
+      <button class="skip" type="submit" name="outcome" value="cancel" data-testid="dg-cancel">Return without paying</button>
     </form>
   </div>
 </body>
@@ -335,6 +335,14 @@ export async function createDummyGateway(
             return;
           }
           const outcome = String((body as Record<string, unknown>)?.outcome ?? 'success');
+          if (outcome === 'cancel') {
+            // Guest walked away without paying: redirect back with the full
+            // returnUrl (query preserved via a real 302) and deliver NO webhook.
+            // NB: a GET form to `returnUrl` would drop its query string, so the
+            // "return without paying" path must redirect server-side instead.
+            redirect(record.returnUrl || `${origin}/pay/${sessionId}`);
+            return;
+          }
           const status: WebhookStatus = outcome === 'failed' ? 'FAILED' : 'SUCCESS';
           await deliverWebhook(record, status);
           redirect(record.returnUrl || `${origin}/pay/${sessionId}`);
