@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/utils/jwt';
 import { prisma } from '@/lib/utils/prisma';
 import { DashboardShell } from './shell';
+import { ToastContainer } from '@/components/ui/toast';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,5 +41,10 @@ export default async function SuperAdminDashboardLayout({
   });
   if (!user) redirect('/superadmin/login');
 
-  return <DashboardShell user={{ name: user.name, email: user.email }}>{children}</DashboardShell>;
+  return (
+    <>
+      <DashboardShell user={{ name: user.name, email: user.email }}>{children}</DashboardShell>
+      <ToastContainer />
+    </>
+  );
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
-import { withAuth } from '@/middlewares/auth';
+import { withPlatformAuth } from '@/middlewares/platform-auth';
+import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 
 // --- GET /api/superadmin/invitations ---
@@ -46,4 +47,4 @@ async function getHandler() {
   }
 }
 
-export const GET = withAuth(getHandler, ['SUPER_ADMIN']);
+export const GET = withPlatformAuth(withRateLimit(getHandler, 60));

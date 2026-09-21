@@ -29,7 +29,18 @@ export function withRateLimit(handler: Function, limit?: number) {
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       'unknown';
 
-    const result = rateLimit(ip, limit);
+    // Bucket per ENDPOINT, not per IP alone: a global per-IP counter would let
+    // a burst on ONE route (e.g. OTP resends) exhaust the allowance of every
+    // other route (e.g. login) for the same caller.
+    let route = 'unknown';
+    try {
+      route = new URL(request.url).pathname;
+    } catch {
+      /* non-URL request — fall back to a shared bucket */
+    }
+    const key = `${request.method} ${route}:${ip}`;
+
+    const result = rateLimit(key, limit);
 
     if (!result.allowed) {
       return NextResponse.json(

@@ -1,7 +1,7 @@
 # وثيقة معماريّة — غرفة تحكّم مالك المنصة + المصادقة الثنائية (Super Admin Control Room & Email OTP 2FA)
 
 > **الحالة:** 🟢 **SA.1 (Foundation) و SA.2 (Auth Core — Backend) و SA.4 (Integration API — Backend) و SA.4.5 (ربط مفاتيح بوابات الدفع) مُنجَزة.**
-> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارات `login`/`verify-otp`/`resend-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). **وباك اند SA.6 (Step-up/Sudo Mode للعمليات الحسّاسة + الاختبارات الأمنية) مُنجَز.** بقي **الواجهة الأمامية (UI)** — بما فيها واجهة Step-up/Sudo للوحة، ومفاتيح التكامل Schema-driven — في متابعة SA.7 بقرار صريح من الإدارة التقنية (كما هو مبيّن في §10 و§12).
+> اكتمل **كود الخادم** للمصادقة الثنائية (OTP Service + مسارات `login`/`verify-otp`/`resend-otp` + شرط `tv` في الـ Middleware + `withPlatformAuth`) ولإدارة مفاتيح التكاملات (`/api/superadmin/integrations` + Provider Registry + تطوّر `IntegrationConfig`) **وربطها بالتشغيل** (`payment-session` يقرأ من الـ DB عبر `resolveGatewayConfig`؛ الـ webhook على لقطة `gatewayConfig`). **وباك اند SA.6 (Step-up/Sudo Mode للعمليات الحسّاسة + الاختبارات الأمنية) مُنجَز.** **و SA.7 (الواجهة الأمامية Schema-driven لمفاتيح التكامل + شرط رفع الصلاحية الواعية من العميل + ترقية بوابات `hotels`/`invitations` إلى `withPlatformAuth` + تنقيح سطل الـ rate-limiter لكل مسار على حدة + اختبارات E2E.1.7) مُنجَز أيضاً** — التفاصيل في §10 و§12.
 >
 > هذا المستند هو **مصدر الحقيقة** لمنطقة الـ Super Admin؛ أي انحراف أثناء التنفيذ يُعدّل هنا فوراً.
 
@@ -386,6 +386,7 @@
 | **SA.4.5 — Gateway Wiring** | `resolveGatewayConfig` (DB-first + env-fallback مشروط بلا Cache) في `payment-session` · بقاء الـ webhook على لقطة `gatewayConfig` · `tests/integration/gateway-wiring.test.ts` | 🟢 **مُنجَز** |
 | **SA.5 — UI (Auth Screens + Dashboard Gate)** | شاشة الدخول (factor 1) + شاشة OTP (Server-Component guard + 6 خانات + إعادة إرسال بتهدئة) + هيكل `(auth)`/`(dashboard)` · حاجز لوحة التحكم من الخادم (بلا `localStorage`) · `POST /api/superadmin/auth/logout` · استثناءات Middleware + اعتراض `SUPER_ADMIN` في `/auth/login` · الملعب 42/42 | 🟢 **مُنجَز** (لوحة مفاتيح التكامل Schema-driven في SA.7) |
 | **SA.6 — Hardening** | Step-up للعمليات الحسّاسة، اختبارات أمنية، توثيق README | 🟢 **مُنجَز** (باك اند + اختبارات أمنية؛ **واجهة الـ Sudo** مؤجَّلة لـ SA.7) |
+| **SA.7 — Integrations UI (Sudo-aware)** | صفحة `/superadmin/integrations` Schema-driven (بطاقات Plutu/T-Lync لكل فندق + مفاتيح مُقنّعة `hasKey` + seeds secret-bundle + مفاتيح تفعيل) · `SudoProvider`/`useSudoMutation` في `(dashboard)` (رفع الصلاحية الواعي من العميل — لا اعتراض عالمي) · `StepUpModal` بإعادة استخدام `useOtpInput` · ترقية `hotels`/`invitations` إلى `withPlatformAuth` (+`withRateLimit`) · سطل rate-limit لكل مسار على حدة · **E2E.1.7 (4 سيناريوهات)** | 🟢 **مُنجَز** |
 
 ---
 
@@ -520,3 +521,28 @@
 **نتيجة الاختبار التكاملي (SA.6):** `npm run test:superadmin-otp` → **62/62** (21 فحصاً SA.6) وخروج `0` نظيف؛ `npm run test:e2e` → **11/11** (البنية 4 + مصادقة 5 + سودو 2 — بـ `demoteSessionCookies` لحفرة `Secure`-كوكي/`page.request`، §E2E-TESTING-ARCH 14.1). `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة.
 
 > **✅ ملاحظة انتقالية حُلَّت (SA.5):** كانت جلسات السوبر أدمن القديمة (قبل SA.2) بلا `tv` فيرتّها الـ Middleware إلى `/auth/login` التي لا تدرك 2FA فتُعيد المستخدم إلى `/superadmin` (حلقة). الآن: `/superadmin/login` + `/superadmin/otp` مبنيتان ومربوطة باعتراض `SUPER_ADMIN` في `/auth/login`، والـ Middleware تعيد التوجيه إلى `/superadmin/login` نفسه — الحلقة مغلقة.
+
+### SA.7 — Integrations UI (واجهة Schema-driven + رفع الصلاحية الواعي من العميل)
+
+**الفكرة:** أتمِمت SA.6 من جهة العميل. `GET` يقرأ كل فندق وصفوف تكاملاته (`hasKey` فقط — zero-leakage)، وكل طفرة (حفظ/حذف) تمر **قصداً** عبر `useSudoMutation()` بدل `fetch` عارٍ: الخادم يرد `403 STEP_UP_REQUIRED`، فيفتح الـ SudoProvider نافذة Step-up **مرة واحدة** (قفل single-flight)، ثم يعيد تشغيل الطلب بـ `x-sudo-token`. ليس اعتراضاً عاماً على `fetch` — الرفع متعمَّد وصفحات تُختار الاشتراك فيه.
+
+| الملف | التغيير |
+|---|---|
+| `apps/web/src/app/(superadmin)/superadmin/(dashboard)/integrations/page.tsx` | **جديد** — إدارة مفاتيح بوابات الدفع (Plutu/T-Lync وفق `PROVIDER_REGISTRY` — Schema-driven): منتقي فندق (`hotels` عبر `withPlatformAuth`)، بطاقة لكل بوابة (Badge حالة `isActive` + «مُعدّ مسبقاً/غير مكوّن» من `hasKey`، حقول سرّية `type=password` لا تُعرض أبداً، حقل «تعديل» يعبّئ القناع `••••••••` فقط، configات + تبديلا Sandbox/تفعيل، زر حفظ عبر `sudoMutation`, حذف ببطاقة تأكيد عبر `sudoMutation`). **`saveEngine` يفحص حقول الأسرار بلا شرط** (لا مشروطاً بـ `revealSecrets`) — في أول تهيئة لا يوجد زر «تعديل» أصلاً؛ القناع/الحقل الفارغ = «أبقِ المخزّن»، والقيم المكتوبة = المفتاح الجديد |
+| `apps/web/src/lib/sudo/SudoContext.tsx` | **جديد — `SudoProvider`**: يملك النصف العميلي لعمر السودو. `sudoMutation` يرسل بـ `x-sudo-token` المخزّن، وعلى `403 STEP_UP_REQUIRED/STEP_UP_EXPIRED` يفتح النافذة، يطلب الرمز (`/step-up/request`) ثم يتحقق (`/step-up/verify`)، يُخزّن `su_token` في **ذاكرة الوحدة المحمية (useRef لا localStorage)** بنافذة 5 دقائق، ويعيد تشغيل الطلب الأصلي. **قفل single-flight `flowActiveRef` + طابور `queueRef`**: أي طفرات تُرفض أثناء انشغال القفل (حفظ مزدوج/حفظ ثم حذف) تنتظر وتُعاد كلها بـ **OTP واحد**. انتهاء البطاقة → مسح الكاش وإعادة التدفق مرة واحدة. إلغاء النافذة → رفض كل الطابور |
+| `apps/web/src/lib/sudo/useSudoMutation.ts` | **جديد** — وصول إلى `SudoContext`؛ `useSudoMutation().sudoMutation(...)` صريح لا ضمني (AGENTS §10 — لا اعتراض عالمي) |
+| `apps/web/src/components/superadmin/StepUpModal.tsx` | **جديد** — نافذة تأكيد إضافي (6 خانات عبر `useOtpInput` — نفس تحكم شاشة الدخول: تقطيع تلقائي/لصق/اهتزاز للكود الخاطئ/إرسال تلقائي)، عدّاد انتهاء + إعادة إرسال بتهدئة 60ث، `data-testid={stepup-modal, otp-input-i, otp-error, otp-resend-btn}`. **غبية عمداً**: الشبكة/الأحداث في الـ Provider |
+| `apps/web/src/app/(superadmin)/superadmin/(dashboard)/layout.tsx` | `ToastContainer` يُركَّب في هيكل اللوحة (إشعارات نجاح/فشل كل طفرات التكاملات والحفظ) |
+| `apps/web/src/app/(superadmin)/superadmin/(dashboard)/shell.tsx` | عنصر «🔌 التكاملات» في الشريط الجانبي + `SudoProvider` يغلّف `<main>` — نطاق الرفع يعم اللوحة كلها |
+| `apps/web/src/app/api/superadmin/hotels/route.ts` · `hotels/[id]/route.ts` · `invitations/route.ts` · `invitations/[id]/resend/route.ts` | **ترقية الحاجز**: `withAuth(…, ['SUPER_ADMIN'])` → `withPlatformAuth` (+`withRateLimit` على GET). كان الحارس القديم يقرأ `Authorization: Bearer` فقط — وحدة تحكم السوبر أدمن الكوكية (httpOnly `accessToken` بلا هيدر) **لا يمكن أن تعبره أبداً**؛ الجديد كذلك يفرض `tv===true` (جلسة مُوثّقة بالكامل) لا دوراً فقط |
+| `apps/web/src/middlewares/rate-limit.ts` | **إصلاح علة إنتاجية**: كان السطل مرتكزاً على الـ IP وحده (مشارك عبر كل المسارات) فاستنزاف طفرات مسار واحد يستنزف حصة باقي المسارات (مثلاً OTP بطول الـ E2E يُقفل الـ login). صار المفتاح `${method} ${pathname}:${ip}` — **سطل لكل مسار على حدة** مع fallback عشوائي لـ 'unknown' |
+| `apps/web/src/components/ui/badge.tsx` | `'data-testid'?` مقبولة ومُمرَّرة إلى جذر `<span>` (كانت تُهمل صمتاً فتكسر تمييز شارات الحالة في E2E) |
+| `apps/web/tests/e2e/superadmin-integrations-ui.spec.ts` | **جديد — E2E.1.7** (تفاصيله في `docs/E2E-TESTING-ARCH.md` §17): رحلة سودو كاملة من الواجهة + كاش النافذة + **فخّ التزامن** (حفظان متزامنان يُحلّان بـ OTP واحد) + حذف يرفع الصلاحية هو الآخر |
+
+> **القرارات المعتمدة من الإدارة التقنية (SA.7):**
+> 1. **الرفع واعٍ وصريح:** `useSudoMutation` — لا إعادة كتابة عالمية لـ `fetch` ولا اعتراض تلقائي؛ الصفحات التي تطفّر موارد محميّة بالسودو فقط هي المعنية.
+> 2. **صفر تسريب مستمر:** GET يرجع `hasKey` فقط؛ الواجهة لا تطلب المفتاح المخزّن ولا تعرضه؛ «تعديل» يعبّئ القناع كي لا يفرّغ الحقل أبداً.
+> 3. **قفل single-flight:** أي عدد من الطفرات المرفوضة أثناء نافذة الـ OTP تنتظر في طابور وتُعاد كلها بعد نجاح **واحد** — لا نوافذ متكدسة ولا رموز متعددة.
+> 4. **كلاسيكية سطر واحد:** إصلاح الـ rate-limiter (مفتاح مركّب المسار) يقضي على فقاعة الاستنزاف المتقاطع للمسارات — علة إنتاجية تتجاوز SA.7.
+
+**نتيجة الاختبار (SA.7):** `npx playwright test tests/e2e/superadmin-integrations-ui.spec.ts` → **4/4** (رحلة السودو الكاملة · كاش النافذة · فخ الالتزامن · الحذف يرفع). `npm run test:e2e` → **22/22** (البنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 7 + **تكاملات SA.7 4**)، `npx tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة. ملاحظة: بعد ترقية `hotels`/`invitations` إلى `withPlatformAuth` لا يزال `scripts/test-superadmin-otp.ts` (فحوص الـ API بالكوكي عبر `request` التقليدي) غير متضمَّن في هذه المخرَجات — الأهم أن وحدة التحكم الكوكية تعبر البوابات فعلياً كما أثبتته E2E.1.7.

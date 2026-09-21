@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { InvitationService } from '@/lib/services/invitation.service';
 import { createHotelInvitationSchema } from '@hotel/shared';
-import { withAuth } from '@/middlewares/auth';
+import { withPlatformAuth } from '@/middlewares/platform-auth';
 import { withCsrf } from '@/middlewares/csrf';
+import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 import { buildInvitationLink } from '@/lib/utils/invitation-link';
 
@@ -93,5 +94,10 @@ async function postHandler(request: NextRequest) {
   }
 }
 
-export const GET = withAuth(getHandler, ['SUPER_ADMIN']);
-export const POST = withAuth(withCsrf(postHandler), ['SUPER_ADMIN']);
+// SA.7 audit: these were demoted to the platform gate. The cookie-authenticated
+// Super-Admin console (no Bearer header, httpOnly `accessToken`) could never pass
+// the legacy `withAuth`, and `withPlatformAuth` additionally enforces `tv:true`
+// (2FA-verified session) instead of role-only.
+export const GET = withPlatformAuth(withRateLimit(getHandler, 60));
+
+export const POST = withPlatformAuth(withCsrf(withRateLimit(postHandler, 30)));

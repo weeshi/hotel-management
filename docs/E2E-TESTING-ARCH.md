@@ -361,7 +361,7 @@ export default defineConfig({
 | وسوم منتِجة (4 ملفات) | `login-form.tsx` · `otp-form.tsx` · `sign-out-button` · `dashboard/page.tsx` |
 | استيراد التحدي الهاش | `apps/web/src/lib/utils/otp.ts` (`hashOtpCode`، `getOtpResendCooldownSeconds`) |
 
-**التحقق:** `npm run test:e2e` → **18/18** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14 + دفع الضيف 7/7 — E2E.2 §15 + E2E.3 §16)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
+**التحقق:** `npm run test:e2e` → **22/22** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14 + دفع الضيف 7/7 — E2E.2 §15 + E2E.3 §16 + **تكاملات سوبر أدمن 4/4 — E2E.1.7 §17**)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
 
 ---
 
@@ -477,3 +477,37 @@ export default defineConfig({
 | إصلاح الاستطلاع (كسر M6) | `apps/web/src/app/(public)/booking/[id]/checkout/components/UnverifiedSuccessView.tsx` |
 
 **التحقق:** `npm run test:e2e` → **18/18** (2.8m؛ بنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 7)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة.
+
+---
+
+## 17) 🔌 E2E.1.7 — Integrations UI (واجهة مفاتيح التكامل + رفع الصلاحية الواعي من العميل)
+
+**خلفية المنتج (docs/SUPER-ADMIN-ARCH.md §SA.7):** صفحة `/superadmin/integrations` (تحت `(superadmin)/superadmin/(dashboard)`) تدير مفاتيح بوابات الدفع لكل فندق عبر `PROVIDER_REGISTRY`. كل حفظ وحذف يمرّ بـ `${useSudoMutation}.sudoMutation` — عند `403 STEP_UP_REQUIRED` يفتح `SudoProvider` نافذة Step-up (OTP بالبريد من `/step-up/request` ثم `/step-up/verify`)، يخزّن `su_token` بذاكرة الوحدة (نافذة 5 دقائق)، ويعيد تشغيل الطلب بـ `x-sudo-token`. `GET` خارج السودو كما هو.
+
+السيناريوهات الأربعة (أربعة اختبارات) في `tests/e2e/superadmin-integrations-ui.spec.ts`. ترث §13: `--project chromium`, webServer `:3100` (prod build)، قاعدة `hotel_e2e` المستقلة، Prisma Injection على تحدي `SUPER_ADMIN_STEP_UP`, بـ `demoteSessionCookies` (§14.1 — النداءات الموثّقة عبر `page.request`/`request` تحتاج كوكيات بلا `Secure` فوق http)، وملعب حلو `otp:159357` (بريد → تحفيز حقيقي في الخادم).
+
+| # | السيناريو | أبرز الفحوص |
+|---|---|---|
+| 1 | **رحلة سودو كاملة** | `submitLogin` (دخول + OTP → لوحة) → اختيار فندق البذرة → **حفظ بلا مفتاح** على `plutu` → `btn-save` → نافذة `stepup-modal` تظهر → حقن التحدي → كتابة الكود → `otp-error` لا تظهر → **حفظ يُعاد تلقائياً** → `toast` نجاح + إعادة إحضار → `status-badge-plutu` «مفعّل» + **`haskey-badge` «مُعدّ مسبقاً»** (السرّ كُتب فعلاً) → `secret-plutu-*` تعرض القناع لا الفراغ |
+| 2 | **كاش النافذة (window-use)** | بعد رحلة #1 مباشرة (نفس الجلسة): **حفظ ثانٍ** وفق إعدادات **T-Lync** → `stepup-modal` **لا تظهر** (البطاقة مخزّنة) → يُحفظ ويكتمل فوراً → `haskey-badge-tlync` |
+| 3 | **فخّ التزامن** | رفع صحة الرحلة ثم: **نقرتا حفظ متزامنتان** (`Promise.all`) على بوابتين بلا بطاقة → نافذة **واحدة** فقط (عداد `stepup-modal` = 1 — القفل single-flight) → OTP واحد → **الطلبان يُعادان** → كلتا البطاقتين `haskey` |
+| 4 | **الحذف يرفع الصلاحية هو الآخر** | تشغيل الحذف → بطاقة تأكيد → «حذف نهائي» → `stepup-modal` (DELETE خارج السودو يرفض كذلك) → OTP → يُعاد الحذف → `nokey-badge` للبوابة واختفاء زر الحذف والصف يُحذف فعلياً |
+
+### 17.1 كسورٌ ثلاثة اكتُشفت في أثناء الرحلة (Root Cause + الحل)
+
+1. **`Badge` كان يُهمل `data-testid` صمتاً** (`src/components/ui/badge.tsx` يقبل `variant|children|className` فقط) — فكل شارات الحالة (مفعّل/متوقف/مُعدّ مسبقاً/غير مكوّن) بدون تمييز؛ فشل عدم الغوص في `toHaveAttribute('data-testid', …)`. الحل: `'data-testid'?: string` في الواجهة وإمراره إلى جذر `<span>` — **سطران بلا تغيير في السلوك المرئي**.
+2. **`saveEngine` كان يتجاهل الأسرار في أول تهيئة** — حزمة الأسرار كانت مبنية داخل `if (form.revealSecrets)` (علم «تعديل» يظهر فقط عندما يكون هناك مفتاح مخزّن أصلاً) → أول حفظ يُنشئ صفاً بـ `hasKey:false` (يظهر «غير مكوّن» رغم نجاح الحفظ). الحل: الفحص **بلا شرط** على `def.secretFields`؛ القناع `••••••••` والحقل الفارغ = «أبقِ المخزّن»، والقيم المكتوبة = مفتاح جديد.
+3. **سطل الـ rate-limiter كان مشاركاً عبر المسارات (فشل تسجيل دخول الاختبارين 3-4)** — `withRateLimit` كان يبني مفتاحه من **الـ IP وحده** عبر كل المسارات، فاستنزف رحلة الاختبارين 1-2 (دخول ×1 + step-up request ×N + verify ×N + حفظ ×N) حصة `login` (10/دقيقة) وأدّى الـ `429 RATE_LIMITED` «طلبات كثيرة جداً. حاول بعد دقيقة» إلى بقاء الاختبارين على `/superadmin/login`. **البرهان التجريبيّ:** دفعة 4 دخول API في نافذة انتظار جديدة كلها 200؛ نفس الدفعة في المركز الرابع من رحلة كاملة كلها 429. الحل: المفتاح `مثلّث المسار` — `${method} ${pathname}:${ip}` — فلم يعد استنزاف مسار يمس حصة غيره (إصلاح يخدم الإنتاج قبل الاختبار).
+
+### 17.2 الملفات
+
+| المكوّن | الملف |
+|---|---|
+| السيناريوهات الأربعة | `apps/web/tests/e2e/superadmin-integrations-ui.spec.ts` |
+| إصلاح `data-testid` للـ Badge | `apps/web/src/components/ui/badge.tsx` |
+| إصلاح `saveEngine` (فحص بلا شرط) | `apps/web/src/app/(superadmin)/superadmin/(dashboard)/integrations/page.tsx` |
+| إصلاح سطل الـ limiter (مسار مركّب) | `apps/web/src/middlewares/rate-limit.ts` |
+| واجهة السودو | `apps/web/src/lib/sudo/{SudoContext,useSudoMutation}.tsx` · `apps/web/src/components/superadmin/StepUpModal.tsx` |
+| ترقية `hotels`/`invitations` إلى `withPlatformAuth` | `apps/web/src/app/api/superadmin/{hotels,hotels/[id],invitations,invitations/[id]/resend}/route.ts` |
+
+**التحقق:** `npm run test:e2e` → **22/22** (2.4m؛ بنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 7 + تكاملات 4)، `npx tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة.

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/utils/prisma';
-import { withAuth } from '@/middlewares/auth';
+import { withPlatformAuth } from '@/middlewares/platform-auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
@@ -62,4 +62,4 @@ async function resendHandler(request: NextRequest, { params }: { params: { id: s
   }
 }
 
-export const POST = withAuth(withCsrf(withRateLimit(resendHandler)), ['SUPER_ADMIN']);
+export const POST = withPlatformAuth(withCsrf(withRateLimit(resendHandler)));

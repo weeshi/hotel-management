@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { updateHotelCustomDomainSchema } from '@hotel/shared';
-import { withAuth } from '@/middlewares/auth';
+import { withPlatformAuth } from '@/middlewares/platform-auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
@@ -55,4 +55,4 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export const PATCH = withAuth(withCsrf(withRateLimit(patchHandler)), ['SUPER_ADMIN']);
+export const PATCH = withPlatformAuth(withCsrf(withRateLimit(patchHandler)));

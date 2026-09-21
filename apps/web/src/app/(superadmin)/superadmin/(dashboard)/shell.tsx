@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SignOutButton } from './sign-out-button';
+import { SudoProvider } from '@/lib/sudo/SudoContext';
 
 const NAV_GROUPS: { section: string; items: { href: string; label: string }[] }[] = [
   {
@@ -10,6 +11,7 @@ const NAV_GROUPS: { section: string; items: { href: string; label: string }[] }[
     items: [
       { href: '/superadmin', label: '🏠 نظرة عامة' },
       { href: '/superadmin/hotels', label: '🏨 الفنادق' },
+      { href: '/superadmin/integrations', label: '🔌 التكاملات' },
       { href: '/superadmin/invitations', label: '📨 الدعوات' },
       { href: '/admin/queues', label: '⚙️ مراقبة الطوابير' },
     ],
@@ -83,7 +85,9 @@ export function DashboardShell({
           <SignOutButton />
         </header>
 
-        <main className="p-6 lg:p-8 max-w-7xl mx-auto w-full">{children}</main>
+        <main className="p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          <SudoProvider>{children}</SudoProvider>
+        </main>
       </div>
     </div>
   );

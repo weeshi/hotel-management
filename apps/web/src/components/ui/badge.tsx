@@ -4,6 +4,7 @@ interface BadgeProps {
   variant?: 'gold' | 'green' | 'red' | 'blue' | 'yellow' | 'purple';
   children: React.ReactNode;
   className?: string;
+  'data-testid'?: string;
 }
 
 const variants = {
@@ -15,9 +16,12 @@ const variants = {
   purple: 'bg-[rgba(155,89,182,0.1)] text-[var(--purple)]',
 };
 
-export function Badge({ variant = 'gold', children, className }: BadgeProps) {
+export function Badge({ variant = 'gold', children, className, 'data-testid': dataTestId }: BadgeProps) {
   return (
-    <span className={clsx('inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold', variants[variant], className)}>
+    <span
+      data-testid={dataTestId}
+      className={clsx('inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold', variants[variant], className)}
+    >
       {children}
     </span>
   );
