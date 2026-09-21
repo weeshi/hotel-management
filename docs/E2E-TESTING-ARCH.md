@@ -361,7 +361,7 @@ export default defineConfig({
 | وسوم منتِجة (4 ملفات) | `login-form.tsx` · `otp-form.tsx` · `sign-out-button` · `dashboard/page.tsx` |
 | استيراد التحدي الهاش | `apps/web/src/lib/utils/otp.ts` (`hashOtpCode`، `getOtpResendCooldownSeconds`) |
 
-**التحقق:** `npm run test:e2e` → **13/13** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14 + دفع الضيف 2/2 — E2E.2 §15)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
+**التحقق:** `npm run test:e2e` → **18/18** (البنية 4/4 + مصادقة 5/5 + Step-up/Sudo 2/2 — E2E.1.6 §14 + دفع الضيف 7/7 — E2E.2 §15 + E2E.3 §16)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء. (ضجيج `[WebServer]` حول Redis «Connection is closed» هو المسار المتعمَّد fail-open لعربة الـ limiter — وليس فشل اختبار.)
 
 ---
 
@@ -396,7 +396,7 @@ export default defineConfig({
 | إبطال `Secure` الكوكيات | `demoteSessionCookies` (المساعد داخل نفس الملف) — مستند السبب الجذري في تعليق §14.1 |
 | أسرار مطابقة الخادم | `getSudoTokenSecret()`/`verifySudoToken` من `apps/web/src/lib/utils/jwt.ts` (dev fallback مُطابق للخادم) |
 
-**التحقق:** `npm run test:e2e` → **13/13** (2.2m؛ البنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 2 — E2E.2 §15)، حصاد الاستخدام: نداءا request (≤3/15د) و4 نداءات verify (≤5/60ث) في الاختبار 1 وصفر في الاختبار 2 (تزوير لا يلمس الـ request/verify). `tsc --noEmit` نظيف.
+**التحقق:** `npm run test:e2e` → **18/18** (2.8m؛ البنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 7 — E2E.2 §15 + E2E.3 §16)، حصاد الاستخدام: نداءا request (≤3/15د) و4 نداءات verify (≤5/60ث) في الاختبار 1 وصفر في الاختبار 2 (تزوير لا يلمس الـ request/verify). `tsc --noEmit` نظيف.
 
 ---
 
@@ -443,3 +443,37 @@ export default defineConfig({
 | تحصين limiter (fail-open) | `payment-session/route.ts` · `payment-session/[sessionId]/status/route.ts` |
 
 **التحقق:** `npm run test:e2e` → **13/13** (2.2m؛ بنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 2)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة. ضجيج `[WebServer]` «Redis limiter unavailable, failing open» هو المسار المتعمَّد، لا فشلاً.
+
+---
+
+## 16) 💳 E2E.3 — تكملة رحلة دفع الضيف (السيناريوهات الباقية من §6)
+
+استكمالاً لـ §15، تغطي **خمسة** سيناريوهات جديدة بقية بنود قائمة §6 على نفس `tests/e2e/guest-payment.spec.ts` وسطر التحكم في Dummy Gateway (`:4400`): نجاح **T-Lync** (#2)، **فشل الدفع** (#3)، **العودة قبل الـ webhook ثم تسوية البوابة** (#4 — حلقة M6 الفعلية)، **ازدواج الـ webhook** (#6)، و**create مرفوض** (#7):
+
+| # | السيناريو | أبرز الفحوص |
+|---|---|---|
+| 1 | نجاح T-Lync | `seedGuestBooking(..., gateway:'tlync')` → `gateway-card-tlync` → `dg-succeed` → `checkout-success` (بوابة ثانية كاملة عبر `resolveGatewayConfig` DB) — `Payment.method=TLYNC`/`gateway=tlync`، Webhook `payment.success PROCESSED` مربوط بالجلسة والدفعة، Folio `SETTLED` |
+| 2 | فشل الدفع | `dg-fail` → Dummy يُسلّم **`FAILED` webhook قبل** العودة إلى `?step=success` → شاشة «غير المؤكَّدة» تستنفد الاستطلاع → «تعذر تأكيد حالة الدفع»؛ الجلسة **`FAILED`**، صفر `Payment`/`FolioTransaction`، رصيد ثابت، Webhook واحد `payment.failed PROCESSED` |
+| 3 | العودة قبل الـ webhook ثم تسوية البوابة (حلقة M6) | `dg-cancel` (بلا webhook — العودة لا تُرسل شيئاً) → الاستطلاع يعمل («في انتظار تأكيد الدفع») → خط التحكم `__control/settle` (SUCCESS) → الاستطلاع يلتقط تحوّل الجلسة إلى `SUCCEEDED` → **`checkout-success` تُرسم**؛ الدفتر يُصفَّر مرة واحدة |
+| 4 | ازدواج الـ webhook | `__control/duplicate` يسلّم حمولتين متطابقتين متتاليتين → الدمج على **`@@unique([provider, hotelId, eventId])`** → Webhook واحد `PROCESSED`، دفعة واحدة، `FolioTransaction` واحدة، `SETTLED` مرة واحدة |
+| 5 | create مرفوض | `__control/fail-create {provider:'plutu'}` → `POST /payment-session` يعيد `502` ولا يُنشئ صفّاً (إنشاؤه **بعد** نجاح البوابة) → `FailedView` («فشل الدفع») يعرض «فشل إنشاء جلسة الدفع» عبر `role=alert`، صفر `PaymentSession`، الدفتر سليم |
+
+### 16.1 البذر معرَّب للبوابتين
+
+`seed-guest-payment.ts` يقبل `gateway?: 'plutu' | 'tlync'` (افتراضياً `plutu`؛ لا أثر على سيناريوهي §15). لكل بوابة: Hotel/bookingNo باسم البوابة + صف `IntegrationConfig` engine مطابق (engine `tlync` → فكّ `{merchantId, secretKey}` ليستخدمها العقد الأصيل `resolveGatewayConfig`)، و`callbackUrl` نحو `.../gateways/{gateway}/webhook`. البذر يبقى **فريد البيانات لا تهيئة** — كل سيناريو فندق/حجز جديدان لا يتقاطعان.
+
+### 16.2 الكسر الإنتاجي الذي كشفه السيناريو 3 (Root Cause + الحل)
+
+**الاكتشاف:** شاشة «غير المؤكَّدة» (`UnverifiedSuccessView.tsx`) تستطلع `GET /payment-session/[sessionId]/status` وتقرأ نتيجة التحقق من `body?.verified` — لكن المسار يردّ عبر `successResponse({verified})` التي تغلّفها كـ `{ success: true, data: { verified } }`. فالشرط `body?.verified === true` هو **`undefined === true` دائماً** → لا تنقلب الشاشة أبداً إلى النجاح، حتى بعد تسويةٍ حقيقية متأخّرة. لم تُرَ في §15 لأن السيناريوهين لا يتطلبان الانقلاب (السعيدة تصل النجاح عبر SSR، والمزوَّر يُفحَص على الاستنفاد فقط).
+
+**الحل:** صار `fetchVerified` يقرأ `body?.data?.verified === true` — سطر واحد في `apps/web/src/app/(public)/booking/[id]/checkout/components/UnverifiedSuccessView.tsx` — فيعمل «العودة قبل الـ webhook ثم التسوية» (حلقة M6 في §6/السيناريو 4) فعلياً: الضيف يعود بلا دفع، تُسلَّم البوابة لاحقاً، والاستطلاع ينقلب وحده إلى النجاح.
+
+### 16.3 الملفات
+
+| المكوّن | الملف |
+|---|---|
+| السيناريوهات الخمسة | `apps/web/tests/e2e/guest-payment.spec.ts` |
+| البذر المعرَّب للبوابتين | `apps/web/tests/e2e/setup/seed-guest-payment.ts` |
+| إصلاح الاستطلاع (كسر M6) | `apps/web/src/app/(public)/booking/[id]/checkout/components/UnverifiedSuccessView.tsx` |
+
+**التحقق:** `npm run test:e2e` → **18/18** (2.8m؛ بنية 4 + مصادقة 5 + سودو 2 + دفع الضيف 7)، `tsc --noEmit` نظيف، `next lint` بلا أخطاء جديدة.

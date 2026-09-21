@@ -20,7 +20,7 @@ async function fetchVerified(bookingId: string, sessionId: string): Promise<bool
     if (res.status === 404) return false;
     if (!res.ok) return false;
     const body = await res.json();
-    return body?.verified === true;
+    return body?.data?.verified === true;
   } catch {
     return false;
   }

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { E2E, APP_BASE, DUMMY_BASE } from './env';
-import { CONTRACT_SECRETS } from '../../contracts/shared/signer';
+import { CONTRACT_SECRETS, ContractGateway } from '../../contracts/shared/signer';
 import { encryptSecret } from '../../../src/lib/utils/crypto';
 
 // The E2E app process boots with PAYMENT_CRYPTO_KEY = E2E.paymentCryptoKey
@@ -20,18 +20,20 @@ export interface SeedGuestBookingOptions {
   amount?: number;
   nights?: number;
   nightlyRate?: number;
+  /** Gateway engine to wire through IntegrationConfig (defaults to 'plutu'). */
+  gateway?: ContractGateway;
 }
 
 /**
  * Seeds the full, realistic guest-booking tree for E2E.2:
  *
  *   Hotel → RoomType → Room → Guest → Booking → BookingRoom → Folio
- *                            └→ IntegrationConfig (Plutu · DB-sourced)
+ *                            └→ IntegrationConfig (gateway · DB-sourced)
  *
  * The gateway is wired through the production path: an `IntegrationConfig` row
- * (kind=PAYMENT_GATEWAY, engine=plutu, isActive) whose `apiKeyEnc` carries the
+ * (kind=PAYMENT_GATEWAY, engine={gateway}, isActive) whose `apiKeyEnc` carries the
  * encrypted { merchantId, secretKey } contract bundle and whose `config` overlay
- * points Plutu at the E2E dummy gateway. This exercises `resolveGatewayConfig`
+ * points the gateway at the E2E dummy. This exercises `resolveGatewayConfig`
  * source='db' and lets a forged webhook be rejected against the secret stored in
  * the DB rather than the platform env fallback.
  *
@@ -42,14 +44,16 @@ export async function seedGuestBooking(
   prisma: PrismaClient,
   opts: SeedGuestBookingOptions = {},
 ): Promise<SeededBookingContext> {
+  const gateway = opts.gateway ?? 'plutu';
   const amount = opts.amount ?? 250;
   const nights = opts.nights ?? 2;
   const nightlyRate = opts.nightlyRate ?? amount / nights;
   const stamp = Date.now();
+  const secrets = CONTRACT_SECRETS[gateway];
 
   const hotel = await prisma.hotel.create({
     data: {
-      name: `E2E Plutu Hotel ${stamp}`,
+      name: `E2E ${gateway === 'tlync' ? 'T-Lync' : 'Plutu'} Hotel ${stamp}`,
       currency: 'LYD',
       timezone: 'Asia/Tripoli',
     },
@@ -89,7 +93,7 @@ export async function seedGuestBooking(
 
   const booking = await prisma.booking.create({
     data: {
-      bookingNo: `E2E-PLUTU-${stamp}`,
+      bookingNo: `E2E-${gateway === 'tlync' ? 'TLYNC' : 'PLUTU'}-${stamp}`,
       hotelId: hotel.id,
       guestId: guest.id,
       guestName: guest.name,
@@ -127,19 +131,19 @@ export async function seedGuestBooking(
   await prisma.integrationConfig.create({
     data: {
       hotelId: hotel.id,
-      engine: 'plutu',
+      engine: gateway,
       kind: 'PAYMENT_GATEWAY',
       isActive: true,
       apiKeyEnc: encryptSecret(
         JSON.stringify({
-          merchantId: CONTRACT_SECRETS.plutu.merchantId,
-          secretKey: CONTRACT_SECRETS.plutu.secretKey,
+          merchantId: secrets.merchantId,
+          secretKey: secrets.secretKey,
         }),
       ),
       config: JSON.stringify({
         baseUrl: DUMMY_BASE,
         returnUrl: `${APP_BASE}/booking/${booking.id}/checkout?step=success`,
-        callbackUrl: `${APP_BASE}/api/external/gateways/plutu/webhook`,
+        callbackUrl: `${APP_BASE}/api/external/gateways/${gateway}/webhook`,
       }),
     },
   });
