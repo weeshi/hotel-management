@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { withValidation } from '@/middlewares/validate';
@@ -51,24 +51,22 @@ async function putHandler(request: NextRequest, { params }: { params: { id: stri
     if (body.status === 'COMPLETED') data.completedAt = new Date();
 
     // --- Atomic transaction: task update + optional room sync ---
-    const operations: any[] = [
-      prisma.housekeepingTask.update({
+    const task = await tenantTx(async (tx) => {
+      const updated = await tx.housekeepingTask.update({
         where: { id: params.id },
         data,
         include: { room: { include: { roomType: true } } },
-      }),
-    ];
+      });
 
-    if (body.status === 'COMPLETED' && existing.taskType === 'CLEANING') {
-      operations.push(
-        prisma.room.update({
+      if (body.status === 'COMPLETED' && existing.taskType === 'CLEANING') {
+        await tx.room.update({
           where: { id: existing.roomId },
           data: { housekeepingStatus: 'CLEAN' },
-        }),
-      );
-    }
+        });
+      }
 
-    const [task] = await prisma.$transaction(operations);
+      return updated;
+    });
 
     return successResponse(task);
   } catch (error: any) {

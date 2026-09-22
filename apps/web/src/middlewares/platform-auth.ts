@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/utils/jwt';
 import { UnauthorizedError, ForbiddenError } from '@/lib/utils/errors';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 
 /**
  * Platform-gate for `/api/superadmin/*` (docs/SUPER-ADMIN-ARCH.md §4.2 layer 3).
@@ -40,7 +41,9 @@ export function withPlatformAuth(handler: Function) {
         tv: payload.tv,
       };
 
-      return handler(request, context);
+      // M8 — Super-Admin requests run as app_platform (BYPASSRLS): platform
+      // identity is cross-tenant by design; RLS must never filter it.
+      return runWithTenant({ mode: 'PLATFORM' }, () => handler(request, context));
     } catch (error) {
       return NextResponse.json(
         {

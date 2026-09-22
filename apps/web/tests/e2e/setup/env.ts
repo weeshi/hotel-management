@@ -15,11 +15,20 @@ export const E2E = {
   secrets: CONTRACT_SECRETS,
 } as const;
 
+function withCreds(base: string, user: string, pass: string): string {
+  const url = new URL(base);
+  url.username = user;
+  url.password = pass;
+  return url.toString();
+}
+
 export const APP_BASE = `http://127.0.0.1:${E2E.appPort}`;
 export const DUMMY_BASE = `http://127.0.0.1:${E2E.dummyPort}`;
 
 const APP_ENV_EXTRA: Record<string, string> = {
   DATABASE_URL: E2E.databaseUrl,
+  APP_DATABASE_URL: withCreds(E2E.databaseUrl, 'app_tenant', process.env.E2E_APP_DB_PASSWORD ?? 'app_tenant_dev_only_2026'),
+  PLATFORM_DATABASE_URL: withCreds(E2E.databaseUrl, 'app_platform', process.env.E2E_PLATFORM_DB_PASSWORD ?? 'app_platform_dev_only_2026'),
   PAYMENT_CRYPTO_KEY: E2E.paymentCryptoKey,
   PLUTU_BASE_URL: DUMMY_BASE,
   TLYNC_BASE_URL: DUMMY_BASE,

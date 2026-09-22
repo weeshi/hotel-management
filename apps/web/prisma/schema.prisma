@@ -60,6 +60,11 @@ model Hotel {
   channelMappings       ChannelMapping[]
   channelPriceSnapshots ChannelPriceSnapshot[]
   vccAuditLogs          VCCAuditLog[]
+  folios                Folio[]
+  folioTransactions     FolioTransaction[]
+  folioDiscounts        FolioDiscount[]
+  scheduledCharges      ScheduledCharge[]
+  roomCharges           RoomCharge[]
 }
 
 // ============================================================
@@ -642,6 +647,8 @@ model FolioRoutingRule {
 // ============================================================
 model Folio {
   id           String    @id @default(uuid())
+  hotelId      String
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
   bookingId    String    @unique
   booking      Booking   @relation(fields: [bookingId], references: [id])
   status       String    @default("ACTIVE")
@@ -664,11 +671,14 @@ model Folio {
   routingRuleTargets FolioRoutingRule[]
 
   @@index([bookingId])
+  @@index([hotelId])
   @@index([status])
 }
 
 model ScheduledCharge {
   id          String    @id @default(uuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
   folioId     String
   folio       Folio     @relation(fields: [folioId], references: [id])
   description String
@@ -678,10 +688,13 @@ model ScheduledCharge {
   processedAt DateTime?
 
   @@index([folioId, chargeDate])
+  @@index([hotelId])
 }
 
 model RoomCharge {
   id              String      @id @default(uuid())
+  hotelId         String
+  hotel           Hotel       @relation(fields: [hotelId], references: [id])
   bookingRoomId   String
   bookingRoom     BookingRoom @relation(fields: [bookingRoomId], references: [id])
   date            DateTime
@@ -693,10 +706,13 @@ model RoomCharge {
   folioTransaction FolioTransaction?
 
   @@index([bookingRoomId, date])
+  @@index([hotelId])
 }
 
 model FolioTransaction {
   id            String      @id @default(uuid())
+  hotelId       String
+  hotel         Hotel       @relation(fields: [hotelId], references: [id])
   folioId       String
   folio         Folio       @relation(fields: [folioId], references: [id])
   type          String
@@ -715,10 +731,13 @@ model FolioTransaction {
 
   @@index([folioId])
   @@index([createdAt])
+  @@index([hotelId])
 }
 
 model FolioDiscount {
   id          String   @id @default(uuid())
+  hotelId     String
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
   folioId     String
   folio       Folio    @relation(fields: [folioId], references: [id])
   type        String
@@ -729,6 +748,7 @@ model FolioDiscount {
   createdAt   DateTime @default(now())
 
   @@index([folioId])
+  @@index([hotelId])
 }
 
 // ============================================================
@@ -1385,3 +1405,4 @@ model WebsiteSetting {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
+

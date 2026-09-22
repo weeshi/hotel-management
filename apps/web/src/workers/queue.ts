@@ -2,6 +2,7 @@ import { JobScheduler } from 'bullmq';
 import { createQueue, QUEUE_CONFIGS, JOB_PRIORITY, PREFIX, buildJobId } from '@/lib/bullmq';
 import { getRedis } from '@/lib/redis';
 import { prisma } from '@/lib/utils/prisma';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { enqueuePurgeJobsForPayment } from '@/workers/jobs/purgeVCC.job';
 
 export const queues = {
@@ -65,35 +66,37 @@ export async function registerRepeatableJobs(): Promise<void> {
 }
 
 export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueued: number }> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - 7);
-  cutoffDate.setHours(0, 0, 0, 0);
+  return runWithTenant({ mode: 'PLATFORM' }, async () => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 7);
+    cutoffDate.setHours(0, 0, 0, 0);
 
-  const vccPayments = await prisma.payment.findMany({
-    where: {
-      vccToken: { not: null },
-      vccPurgedAt: null,
-      method: 'VCC',
-      gateway: 'vgs',
-      booking: {
-        rooms: {
-          some: {
-            checkOut: { lt: cutoffDate },
+    const vccPayments = await prisma.payment.findMany({
+      where: {
+        vccToken: { not: null },
+        vccPurgedAt: null,
+        method: 'VCC',
+        gateway: 'vgs',
+        booking: {
+          rooms: {
+            some: {
+              checkOut: { lt: cutoffDate },
+            },
           },
         },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    });
+
+    let enqueued = 0;
+    for (const payment of vccPayments) {
+      await enqueuePurgeJobsForPayment(payment.id);
+      enqueued++;
+    }
+
+    console.log(`[Purge Scanner] Scanned ${vccPayments.length} expired VCC payments, enqueued ${enqueued} purge job sets`);
+    return { scanned: vccPayments.length, enqueued };
   });
-
-  let enqueued = 0;
-  for (const payment of vccPayments) {
-    await enqueuePurgeJobsForPayment(payment.id);
-    enqueued++;
-  }
-
-  console.log(`[Purge Scanner] Scanned ${vccPayments.length} expired VCC payments, enqueued ${enqueued} purge job sets`);
-  return { scanned: vccPayments.length, enqueued };
 }
 
 export async function getQueueHealth(): Promise<

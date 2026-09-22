@@ -120,6 +120,7 @@ export async function seedGuestBooking(
 
   await prisma.folio.create({
     data: {
+      hotelId: hotel.id,
       bookingId: booking.id,
       status: 'ACTIVE',
       totalCharges: amount,

@@ -3,6 +3,7 @@ import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { connectRedis, disconnectRedis, getRedis } from '@/lib/redis';
 import { registerRepeatableJobs, getQueueHealth, QueueKey } from './queue';
 import { QUEUE_CONFIGS } from '@/lib/bullmq';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { buildSnapshotProcessor } from './jobs/buildSnapshot.job';
 import { pushToOTAProcessor } from './jobs/pushToOTA.job';
 import { processInboundBookingProcessor } from './jobs/processInboundBooking.job';
@@ -10,13 +11,31 @@ import { pushRatePlanProcessor } from './jobs/pushRatePlan.job';
 import { reconcileInventoryProcessor } from './jobs/reconcileInventory.job';
 import { processPurgeVCCProcessor } from './jobs/purgeVCC.job';
 
+/**
+ * M8 — every job processor runs under an RLS context:
+ *   - jobs addressed to ONE hotel (`job.data.hotelId`) run as app_tenant for it,
+ *   - cross-hotel aggregator/global jobs (e.g. a multi-hotel snapshot/reconcile
+ *     or the platform-wide VCC purge scan) run as app_platform BYPASSRLS;
+ *     they are trusted internal code and always write tenant attribution
+ *     (`hotelId`) explicitly per row.
+ */
+function withTenantContext(processor: (job: any) => Promise<any>) {
+  return (job: any) => {
+    const hotelId = job?.data?.hotelId;
+    if (hotelId) {
+      return runWithTenant({ mode: 'TENANT', hotelId }, () => processor(job));
+    }
+    return runWithTenant({ mode: 'PLATFORM' }, () => processor(job));
+  };
+}
+
 const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
-  snapshot: buildSnapshotProcessor,
-  publish: pushToOTAProcessor,
-  ingest: processInboundBookingProcessor,
-  rates: pushRatePlanProcessor,
-  reconcile: reconcileInventoryProcessor,
-  purge: processPurgeVCCProcessor,
+  snapshot: withTenantContext(buildSnapshotProcessor),
+  publish: withTenantContext(pushToOTAProcessor),
+  ingest: withTenantContext(processInboundBookingProcessor),
+  rates: withTenantContext(pushRatePlanProcessor),
+  reconcile: withTenantContext(reconcileInventoryProcessor),
+  purge: withTenantContext(processPurgeVCCProcessor),
 };
 
 function startHealthServer(port: number): void {

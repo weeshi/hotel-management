@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { notFound } from 'next/navigation';
 import { CheckoutClient } from './CheckoutClient';
 import { SuccessView } from './components/SuccessView';
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 async function getBookingData(bookingId: string): Promise<BookingCheckoutData | null> {
-  const booking = await prisma.booking.findUnique({
+  const booking = await prismaPlatform.booking.findUnique({
     where: { id: bookingId },
     include: {
       folio: {
@@ -122,7 +122,7 @@ async function getBookingData(bookingId: string): Promise<BookingCheckoutData | 
 }
 
 async function getVerifiedSucceededSession(bookingId: string, sessionId?: string) {
-  return prisma.paymentSession.findFirst({
+  return prismaPlatform.paymentSession.findFirst({
     where: {
       bookingId,
       status: 'SUCCEEDED',
@@ -153,7 +153,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
   if (step === 'success') {
     const session = await getVerifiedSucceededSession(bookingId, sessionId);
     if (!session) {
-      const latestSession = await prisma.paymentSession.findFirst({
+      const latestSession = await prismaPlatform.paymentSession.findFirst({
         where: { bookingId },
         orderBy: { createdAt: 'desc' },
         select: { id: true },

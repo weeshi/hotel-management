@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { WalletService } from '@/lib/services/wallet.service';
 import type { Role } from '@prisma/client';
@@ -30,25 +30,28 @@ export class PaymentService {
     const newRefundedAmount = payment.refundedAmount + data.amount;
     const newStatus = newRefundedAmount >= payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
 
-    const [refund] = await prisma.$transaction([
-      prisma.refund.create({
+    const refund = await tenantTx(async (tx) => {
+      const created = await tx.refund.create({
         data: {
           paymentId,
           amount: data.amount,
           reason: data.reason,
           status: 'SUCCEEDED',
         },
-      }),
-      prisma.payment.update({
+      });
+      await tx.payment.update({
         where: { id: paymentId },
         data: {
           refundedAmount: { increment: data.amount },
           status: newStatus,
         },
-      }),
-    ]);
+      });
+
+      return created;
+    });
 
     if (payment.folioId) {
+      const folioId = payment.folioId;
       if (payment.method === 'WALLET') {
         const booking = payment.folio?.booking;
         if (booking?.guestId && booking?.hotelId) {
@@ -64,25 +67,25 @@ export class PaymentService {
         }
       }
 
-      await prisma.$transaction([
-        prisma.folioTransaction.create({
+      await tenantTx(async (tx) => {
+        await tx.folioTransaction.create({
           data: {
-            folioId: payment.folioId,
+            folioId,
             type: 'REFUND',
             category: 'REFUND',
             description: data.reason || `استرداد من دفعة #${paymentId.slice(0, 8)}`,
             amount: data.amount,
             createdById: data.createdById,
           },
-        }),
-        prisma.folio.update({
-          where: { id: payment.folioId },
+        });
+        await tx.folio.update({
+          where: { id: folioId },
           data: {
             totalPaid: { decrement: data.amount },
             balance: { increment: data.amount },
           },
-        }),
-      ]);
+        });
+      });
     }
 
     return refund;

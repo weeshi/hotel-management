@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/utils/jwt';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { DashboardShell } from './shell';
 import { ToastContainer } from '@/components/ui/toast';
 
@@ -35,7 +35,7 @@ export default async function SuperAdminDashboardLayout({
   if (payload.role !== 'SUPER_ADMIN') redirect('/access-denied');
   if (payload.tv !== true) redirect('/superadmin/login');
 
-  const user = await prisma.user.findUnique({
+  const user = await prismaPlatform.user.findUnique({
     where: { id: payload.userId },
     select: { id: true, email: true, name: true },
   });

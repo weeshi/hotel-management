@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 
 // --- Hostname Normalization ---
 
@@ -47,7 +47,7 @@ export async function resolveTenantFromRequest(request: Request) {
   const isLocalhost = host === 'localhost' || host === '127.0.0.1';
   const isDev = process.env.NODE_ENV !== 'production';
 
-  const hotel = await prisma.hotel.findUnique({
+  const hotel = await prismaPlatform.hotel.findUnique({
     where: { customDomain: host },
     select: { id: true, name: true },
   });
@@ -55,7 +55,7 @@ export async function resolveTenantFromRequest(request: Request) {
   if (hotel) return hotel;
 
   if (isLocalhost && isDev) {
-    return prisma.hotel.findFirst({
+    return prismaPlatform.hotel.findFirst({
       where: { id: 'default-hotel' },
       select: { id: true, name: true },
     });
@@ -63,3 +63,4 @@ export async function resolveTenantFromRequest(request: Request) {
 
   return null;
 }
+

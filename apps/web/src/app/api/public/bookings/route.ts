@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/utils/prisma';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 import { resolveTenantFromRequest } from '@/lib/utils/tenant';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { BookingService } from '@/lib/services/booking.service';
 import { PricingService } from '@/lib/services/pricing.service';
 import { WebsiteSettingsService } from '@/lib/services/website-settings.service';
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
       return errorResponse('فندق غير موجود لهذا النطاق', 404);
     }
 
+    return runWithTenant({ mode: 'TENANT', hotelId: hotel.id }, async () => {
     const { searchParams } = new URL(request.url);
     const bookingNo = searchParams.get('bookingNo');
     const email = searchParams.get('email');
@@ -85,6 +87,7 @@ export async function GET(request: NextRequest) {
         : null,
       createdAt: booking.createdAt,
     });
+    });
   } catch (error: any) {
     return errorResponse(error.message || 'فشل استرجاع الحجز', 400);
   }
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('فندق غير موجود لهذا النطاق', 404);
     }
 
+    return runWithTenant({ mode: 'TENANT', hotelId: hotel.id }, async () => {
     const settings = await websiteSettingsService.getSettings(hotel.id);
     if (!settings.isOnlineBookingEnabled) {
       return errorResponse('الحجز عبر الموقع معطّل حالياً', 403);
@@ -223,6 +227,7 @@ export async function POST(request: NextRequest) {
       booking,
       message: 'تم إنشاء الحجز بنجاح. سيتم التواصل معكم للتأكيد.',
     }, 201);
+    });
   } catch (error: any) {
     return errorResponse(error.message || 'فشل إنشاء الحجز', 400);
   }

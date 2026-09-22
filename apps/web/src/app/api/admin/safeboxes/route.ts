@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse } from '@/lib/utils/api-response';
@@ -45,7 +45,7 @@ async function createSafeBoxHandler(request: NextRequest) {
       return errorResponse('rentalDuration يجب أن يكون DAILY أو WEEKLY أو MONTHLY', 400);
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       // --- 1. Look up package to get price ---
       const pkg = await tx.safeBoxPackage.findFirst({
         where: { id: packageId, hotelId: user.hotelId, isActive: true },

@@ -1,0 +1,89 @@
+# M8 — Multi-Tenancy Hardening: Row-Level Security (Phase-1)
+
+معمارية عزل المستأجرين على مستوى قاعدة البيانات بنظام **Row-Level Security** المضبوط عبر جلسة Prisma، بحيث لا يعتمد أمن التعدد على تذكّر المطوّر لوضع `hotelId` في كل استعلام — بل يُفرَض فرضاً من طبقة DB وظيفةً، ويُحقن تلقائياً من طبقة التطبيق.
+
+---
+
+## 1. الأدوار (Roles)
+
+| الدور | BYPASSRLS | الاستخدام |
+|-------|-----------|-----------|
+| `app_tenant` | لا | **كل طلب app عادي** — RLS مُفعّل عليه، لا يرى إلا صفوف فندق جلسة `app.current_hotel_id` |
+| `app_platform` | نعم | مسارات Super-Admin العالمية + الجداول العامة (Hotels, invitations, webhook bootstrap, counters) |
+| `app_migrator` | نعم | أدوات صيانة/seed/backfill غير DDL |
+
+- **كلمة المرور**: `APP_DB_PASSWORD` / `PLATFORM_DB_PASSWORD` / `MIGRATOR_DB_PASSWORD` مع قيم **تطوير محلية فقط** (`app_tenant_dev_only_2026` …) — لا تُعاد في بيئات حقيقية.
+- **صلاحيات**: `GRANT` على كل جداول/متتاليات `public` + `ALTER DEFAULT PRIVILEGES` (كائنات الترحيلات المستقبلية تكتسب الصلاحيات تلقائياً لأن الترحيل يركض بصلاحية superuser).
+- **Idempotent/آمن**: الدور يُنشأ **فقط عند غيابه** (بدون `DO`/`ALTER ROLE`)، لأن `CREATE ROLE` داخل DO متبوعاً بـ `ALTER ROLE` في نفس الجلسة يصطدم بسباق pg المعروف `tuple concurrently updated` (XX000).
+- الملف: `apps/web/scripts/provision-db-roles.ts` (تصدير `provisionRoles(adminUrl)` + وضع مستقل عند التشغيل المباشر).
+
+> ملاحظة تشغيل: الرئيسي `main()` محروس — لا يستدعي نفسه عند `import` (منع الازدواج مع سلسلة e2e).
+
+## 2. محرك RLS
+
+- تابع `public.app_hotel_id()` يقرأ GUC الجلسة `app.current_hotel_id`:
+  - مضبوط → يعيد قيمته.
+  - غير مضبوط → `NULL`.
+- سياسات القراءة/الكتابة لكل جدول: `app_hotel_id() = hotelId`.
+  - **`app_tenant` بدون GUC → 0 صفوف** (fail-closed).
+  - GUC تُضبط داخل نطاق المعاملة فقط (`set_config(..., true)` — is_local) فتلاشى بعد نهايتها مطابقةً لمعاملات التطبيق.
+
+## 3. تصنيف الجداول
+
+| الفئة | العدد | السياسة |
+|-------|-------|---------|
+| **مستأجَر** (لديه عمود `hotelId`) | 40 | `tenant_isolation` (تعريفها `app_hotel_id() = hotelId`) — كتالوج يُعدّ آلياً: أي جدول `public` فيه عمود `hotelId` |
+| **مشتق** (بلا `hotelId` — أبناء/أحفاد) | 14 | `tenant_derived`: `EXISTS` على سلسلة الأبوين حتى أب مستأجَر (مثال: `Refund` ← `Folio.hotelId`؛ `WalletTransaction` ← `Wallet.hotelId` — والمحفظة `hotelId`+`guestId` بلا `userId`) |
+| **عام** (كل فندق/منصة) | 5 | `allow_all` — `Hotel`, `RefreshToken`, `OtpChallenge`, `PlatformAuditLog`, `BookingNumberCounter` |
+| **FORCE RLS** | 59 | كل الجداول المذكورة + `Hotel` مقيّد أيضاً |
+
+الأداة: `apps/web/scripts/apply-rls.ts` (تصدير `applyRls(adminUrl)`)، والخراج الترميزي الدقيق يُكتب إلى **`apps/web/prisma/rls/rls.sql`** للمراجعة والحفظ.
+
+## 4. تطويقات اشتقاق `hotelId` (دفاع في العمق)
+
+على الجداول المالية الخمسة، **BEFORE INSERT OR UPDATE** على أعمدة الأبوين تملأ `hotelId` من أبيه تلقائياً:
+
+| الجدول | الأب | المسار |
+|--------|------|--------|
+| `Folio` | `Booking` | `bookingId → hotelId` |
+| `FolioTransaction` | `Folio` | `folioId → hotelId` |
+| `FolioDiscount` | `Folio` | `folioId → hotelId` |
+| `ScheduledCharge` | `Folio` | `folioId → hotelId` |
+| `RoomCharge` | `BookingRoom` | `bookingRoomId → (BookingRoom → Booking) → hotelId` |
+
+الفائدة: أي مسار داخل المعاملة (حيث لا يعمل التعتراض) يضمن له `hotelId` الصحيح حتى لو نسي تمريره صراحةً.
+
+## 5. الجانب التطبيقي (Prisma)
+
+- **عميلان** من `src/lib/utils/prisma.ts`:
+  - `prisma` — موسَّع (استعلامات المستأجر)، ومختصر بصلاحية `app_tenant` في E2E.
+  - `prismaPlatform` — للعمليات المنصّاتية وما فوق المستأجر (BYPASSRLS).
+- **حقن مركزي** في اعتراض `prisma` تحت سياق TENANT:
+  - أعلى مستوى: أي `create`/`createMany`/`upsert` على 40 نموذجاً يستلم `hotelId` تلقائياً.
+  - نسقي (nested): خريطة `NESTED_HOTEL_MODEL` (`folio`/`masterFolio` → `Folio`، `transactions` → `FolioTransaction` …) تملأ ما ينقص داخل `create` الأبوين.
+  - **تجاهل مقصود**: عمليات `connect`/qi/rة غير إنشائية لا تُتلمس.
+- **`tenantTx(cb, options)`**:
+  1. يقرأ سياق المستأجر من AsyncLocalStorage (`getTenantContext`).
+  2. `PLATFORM` → معاملة `prismaPlatform` بلا GUC ولا حقن.
+  3. `TENANT` → فتح `prismaBase.$transaction`، ضبط `set_config('app.current_hotel_id', …, true)` داخل المعاملة، ثم يمرّر `cb` **`tx` ملفوفاً بـ Proxy** يحقن `hotelId` في كل `create`-family — فتغطّى جميع مواقع الاستدعاء السابقة/المستقبلية بدون تعديل يدوي (عقب `tx` كان مُصفَّحاً `any` فتقف المسؤولية على الـ Proxy + التطويقات).
+- الجداول المالية الخمسة أصبحت تتطلب `hotelId` في إدخالات Prisma: المواقع الثلاثة ذات الحرفية المباشرة (وليست داخل `tenantTx` — `restaurant-orders/[id]`، `scheduledCharge.createMany`، `folioDiscount.create`) مرّرت `hotelId` صراحةً.
+
+## 6. الترحيل
+
+- `apps/web/prisma/migrations/20260922000000_add_financial_hotel_id/migration.sql` (يدوي الصنع، لأن `prisma migrate dev` يضرب بدفت سابقة في مشاريع shadow DB — فلو سير العمل «db push + SQL بالأيدي»):
+  1. `ADD COLUMN hotelId` nullable
+  2. `UPDATE` backfill من الأبوين (Folio ← Booking؛ حركات/خصومات/مستحقات ← Folio؛ رسوم غرفة ← BookingRoom→Booking)
+  3. `SET NOT NULL`
+  4. `FK ON DELETE RESTRICT ON UPDATE CASCADE` + `@@index([hotelId])`
+- طُبّق على `hotel_management` (backfill 2/3) و`hotel_e2e` (backfill 7/4) ثم `prisma db push` أعاد «in sync».
+
+## 7. سلسلة E2E
+
+- `apps/web/tests/e2e/setup/env.ts`: `APP_DATABASE_URL` (=`app_tenant` بصلاحية RLS) + `PLATFORM_DATABASE_URL` (=`app_platform`) تمرَّران للتطبيق عبر `APP_ENV_EXTRA` → **الخادم E2E يركض تحت RLS فعلياً**.
+- `apps/web/scripts/e2e-prepare-db.ts` = إنشاء القاعدة → `provisionRoles` → `pushSchema` → `applyRls`.
+- إعادة تعيين كاملة: `E2E_FRESH_DB=1` (إلزامية أول مرة بعد الترحيل إن كانت `hotel_e2e` تملك صفوفاً لأن `db push` لا يضيف عمود NOT NULL فوق صفوف موجودة).
+
+## 8. بوابات التحقق
+
+- `tsc`/`lint`/`build` نظيف؛ E2E 22/22 على `hotel_e2e` (بوصف `app_tenant`).
+- تحقق يدوي: `psql -U app_tenant hotel_e2e` → بدون `set_config` **0 صفوف** في أي جدول مستأجَر؛ مع GUC الصحيح → صفوف ذلك الفندق فقط.

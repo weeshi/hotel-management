@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
@@ -67,7 +67,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
       rooms: booking.rooms.map((r: any) => r.roomId),
     });
 
-    await prisma.$transaction(async (tx) => {
+    await tenantTx(async (tx) => {
       // Update dates on all booking rooms (only if not checked in)
       if (!isCheckedin && (body.checkIn || body.checkOut)) {
         for (const room of booking.rooms) {
@@ -117,7 +117,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
           const serviceTx = await tx.folioTransaction.findMany({
             where: { folioId: booking.folio.id, category: { not: 'ROOM_CHARGE' } },
           });
-          const serviceTotal = serviceTx.reduce((sum, t) => sum + Number(t.amount), 0);
+          const serviceTotal = serviceTx.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
           await tx.folio.update({
             where: { id: booking.folio.id },
             data: { totalCharges: serviceTotal, balance: serviceTotal },

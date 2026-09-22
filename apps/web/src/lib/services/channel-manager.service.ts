@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { createNotification } from '@/lib/services';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -239,7 +239,7 @@ export class ChannelManagerService {
 
       const bookingNo = await generateBookingNumber();
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await tenantTx(async (tx) => {
         const booking = await tx.booking.create({
           data: {
             bookingNo,

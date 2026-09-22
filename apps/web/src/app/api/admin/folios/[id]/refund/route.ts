@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { Prisma } from '@prisma/client';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
@@ -24,7 +24,7 @@ async function runWithRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 async function executeRefund(user: any, folioId: string, amount: number, method: 'WALLET' | 'CASH') {
   return runWithRetry(() =>
-    prisma.$transaction(
+    tenantTx(
       async (tx) => {
         // --- Re-read folio INSIDE the transaction to guard against concurrent refunds ---
         const folio = await tx.folio.findUnique({

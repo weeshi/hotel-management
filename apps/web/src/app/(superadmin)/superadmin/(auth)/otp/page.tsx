@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyOtpChallengeToken } from '@/lib/utils/jwt';
 import { getOtpResendCooldownSeconds, maskEmail } from '@/lib/utils/otp';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { OtpForm } from './otp-form';
 
 export const dynamic = 'force-dynamic';
@@ -35,14 +35,14 @@ export default async function SuperAdminOtpPage() {
     redirect('/superadmin/login');
   }
 
-  const challenge = await prisma.otpChallenge.findFirst({
+  const challenge = await prismaPlatform.otpChallenge.findFirst({
     where: { id: payload.challengeId, userId: payload.sub },
   });
   if (!challenge || challenge.consumedAt || challenge.expiresAt.getTime() <= Date.now()) {
     redirect('/superadmin/login');
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prismaPlatform.user.findUnique({
     where: { id: payload.sub },
     select: { email: true, twoFactorEnabled: true },
   });

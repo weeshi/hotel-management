@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, prismaPlatform } from '@/lib/utils/prisma';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { getGatewayAdapter, isGatewaySupported, CreatePaymentSessionRequest } from '@/lib/integrations/gateways';
 import { resolveGatewayConfig, gatewayConfigReadErrorToMessage } from '@/lib/integrations/gateways/gateway-config';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
@@ -53,7 +54,7 @@ export async function POST(
       return errorResponse('رابط العودة (returnUrl) مطلوب', 400, 'MISSING_RETURN_URL');
     }
 
-    const booking = await prisma.booking.findFirst({
+    const booking = await prismaPlatform.booking.findFirst({
       where: { id: bookingId },
       include: {
         folio: true,
@@ -70,11 +71,14 @@ export async function POST(
       return errorResponse('هذا الحجز لا يحتوي على فاتورة (Folio) للدفع', 400, 'NO_FOLIO');
     }
 
-    const balance = Number(booking.folio.balance);
+    const folio = booking.folio;
+    const balance = Number(folio.balance);
     if (balance <= 0) {
       return errorResponse('الرصيد المستحق صفر أو سالب — لا حاجة لدفعة', 400, 'NO_BALANCE_DUE');
     }
 
+    const scopedHotelId = booking.hotelId;
+    return runWithTenant({ mode: 'TENANT', hotelId: scopedHotelId }, async () => {
     const resolution = await resolveGatewayConfig(gateway, { hotelId: booking.hotelId });
     if (!resolution.ok) {
       return errorResponse(
@@ -124,7 +128,7 @@ export async function POST(
       data: {
         hotelId: booking.hotelId,
         bookingId: booking.id,
-        folioId: booking.folio.id,
+        folioId: folio.id,
         guestId: booking.guestId ?? undefined,
         method: gateway.toUpperCase(),
         gateway,
@@ -148,6 +152,7 @@ export async function POST(
       currency,
       expiresAt: paymentSession.expiresAt?.toISOString(),
     }, 201);
+    });
   } catch (err: any) {
     console.error('[Payment Session] Unexpected error:', err);
     return errorResponse(err.message || 'فشل إنشاء جلسة الدفع', 500);

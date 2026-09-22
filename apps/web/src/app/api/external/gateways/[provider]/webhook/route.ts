@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, prismaPlatform, tenantTx } from '@/lib/utils/prisma';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { getGatewayAdapter, isGatewaySupported } from '@/lib/integrations/gateways';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { createAuditLog } from '@/lib/services';
@@ -82,7 +83,9 @@ export async function POST(
   } | null = null;
 
   try {
-    paymentSession = await prisma.paymentSession.findFirst({
+    // M8 — webhooks arrive unauthenticated; the payment-session lookup that
+    // RESOLVES the tenant must therefore run as app_platform (BYPASSRLS).
+    paymentSession = await prismaPlatform.paymentSession.findFirst({
       where: {
         OR: [
           { gatewayTransactionId: transactionId },
@@ -107,6 +110,10 @@ export async function POST(
   }
 
   let secretKey = '';
+  const scopedHotelId = hotelId as string;
+  return runWithTenant(
+    { mode: 'TENANT', hotelId: scopedHotelId },
+    async () => {
   if (paymentSession.gatewayConfig) {
     try {
       const decrypted = decryptSecret(paymentSession.gatewayConfig);
@@ -138,7 +145,7 @@ export async function POST(
   const webhookRecord = await prisma.gatewayWebhook.create({
     data: {
       provider,
-      hotelId,
+      hotelId: scopedHotelId,
       eventId: transactionId,
       type: `payment.${status.toLowerCase()}`,
       payload: rawBody,
@@ -172,10 +179,10 @@ export async function POST(
   const amount = (payload as any).amount;
   const currency = (payload as any).currency || 'LYD';
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await tenantTx(async (tx) => {
     const payment = await tx.payment.create({
       data: {
-        hotelId,
+        hotelId: scopedHotelId,
         bookingId: paymentSession!.bookingId,
         folioId: paymentSession!.folioId ?? undefined,
         amount,
@@ -184,7 +191,7 @@ export async function POST(
         gateway: provider,
         gatewayPaymentId: transactionId,
         externalRef: orderId,
-        idempotencyKey: `gw_${hotelId}_${transactionId}`,
+        idempotencyKey: `gw_${scopedHotelId}_${transactionId}`,
         status: 'SUCCEEDED',
         metadata: JSON.stringify({ paymentSessionId: paymentSession!.id, webhookId: webhookRecord.id }),
       },
@@ -226,7 +233,7 @@ export async function POST(
     }
 
     await createAuditLog({
-      hotelId,
+      hotelId: scopedHotelId,
       userId: 'SYSTEM_WEBHOOK',
       action: 'PAYMENT',
       entity: 'PAYMENT',
@@ -245,4 +252,6 @@ export async function POST(
   });
 
   return successResponse({ received: true, paymentId: result.paymentId, status: 'succeeded' });
+    },
+  );
 }

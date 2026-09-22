@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { createAuditLog, createNotification } from '@/lib/services';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -124,7 +124,7 @@ export class ExternalBookingService {
 
       let totalCharges = 0;
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await tenantTx(async (tx) => {
         const hotel = await tx.hotel.findUnique({
           where: { id: hotelId },
           select: { currency: true },

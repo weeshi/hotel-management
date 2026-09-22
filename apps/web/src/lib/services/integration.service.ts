@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { createAuditLog, createNotification } from '@/lib/services';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -36,7 +36,7 @@ export class IntegrationService {
     try {
       const bookingNo = await generateBookingNumber();
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await tenantTx(async (tx) => {
         await tx.gatewayWebhook.create({
           data: {
             provider: engine,

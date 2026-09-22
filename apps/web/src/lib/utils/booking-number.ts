@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+import { prisma, tenantTx } from './prisma';
 
 // bookingNo is globally unique (@@unique in schema), so the sequence must NOT
 // restart per hotel — otherwise two hotels both generate BK-YYYYMM-0001 and
@@ -9,7 +9,7 @@ export async function generateBookingNumber(): Promise<string> {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
 
-  const seq = await prisma.$transaction(async (tx) => {
+  const seq = await tenantTx(async (tx) => {
     const rows = await tx.$queryRaw<Array<{ value: number }>>`
       UPDATE "BookingNumberCounter"
       SET "value" = "value" + 1, "updatedAt" = now()
@@ -20,6 +20,8 @@ export async function generateBookingNumber(): Promise<string> {
 
     // First use (pre-migration rows exist) — seed from the max existing
     // sequence so we never reuse a number already present in the database.
+    // NOTE: under a TENANT span, `booking` is RLS-scoped to that hotel; the
+    // global counter row itself is not (BookingNumberCounter is a global table).
     const last = await tx.booking.findFirst({
       orderBy: { createdAt: 'desc' },
       select: { bookingNo: true },

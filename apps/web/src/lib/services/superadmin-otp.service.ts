@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { sendEmail } from '@/lib/gateways/email.gateway';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import {
   SUDO_WINDOW_SECONDS,
   generateOtpCode,
@@ -65,11 +66,21 @@ interface RequestOtpParams {
  */
 export class SuperAdminOtpService {
   /**
+   * M8 — identity/OTP tables are platform-global (no tenant), so every public
+   * method runs as app_platform (BYPASSRLS). This also makes `tenantTx` inside
+   * deterministic regardless of which route invoked the flow.
+   */
+  private platform<T>(fn: () => Promise<T>): Promise<T> {
+    return runWithTenant({ mode: 'PLATFORM' }, fn);
+  }
+
+  /**
    * Issues a new login challenge for a Super-Admin and emails the code.
    * Any previous un-consumed login challenge for this user is invalidated first,
    * so at most one code is live at a time.
    */
   async requestOtp({ userId, ip, userAgent, customTtl }: RequestOtpParams) {
+    return this.platform(async () => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== 'SUPER_ADMIN') {
       throw new UnauthorizedError('حساب غير صالح');
@@ -98,6 +109,7 @@ export class SuperAdminOtpService {
     await this.deliverCode({ to: user.email, code, ttlSeconds });
 
     return { challengeId: challenge.id, expiresAt: challenge.expiresAt };
+    });
   }
 
   /**
@@ -109,6 +121,7 @@ export class SuperAdminOtpService {
    * WITH the 5-minute sudo window — the TTL mismatch trap fixed in SA.6.
    */
   async requestStepUpOtp(params: { userId: string; ip?: string; userAgent?: string }) {
+    return this.platform(async () => {
     const user = await prisma.user.findUnique({ where: { id: params.userId } });
     if (!user || user.role !== 'SUPER_ADMIN') {
       throw new UnauthorizedError('حساب غير صالح');
@@ -143,6 +156,7 @@ export class SuperAdminOtpService {
     });
 
     return { challengeId: challenge.id, expiresAt: challenge.expiresAt, email: user.email };
+    });
   }
 
   private async deliverCode(params: {
@@ -213,6 +227,7 @@ export class SuperAdminOtpService {
   }): Promise<OtpResendResult> {
     const { userId, challengeId } = params;
 
+    return this.platform(async () => {
     const challenge = await prisma.otpChallenge.findFirst({
       where: { id: challengeId, userId, purpose: LOGIN_PURPOSE },
     });
@@ -266,6 +281,7 @@ export class SuperAdminOtpService {
     await this.deliverCode({ to: user.email, code, ttlSeconds });
 
     return { ok: true, expiresAt, email: user.email };
+    });
   }
 
   /**
@@ -286,6 +302,7 @@ export class SuperAdminOtpService {
   }): Promise<OtpVerifyResult> {
     const { userId, challengeId, code } = params;
 
+    return this.platform(async () => {
     const challenge = await prisma.otpChallenge.findFirst({
       where: { id: challengeId, userId, purpose: LOGIN_PURPOSE },
     });
@@ -311,7 +328,7 @@ export class SuperAdminOtpService {
       const attempts = challenge.attempts + 1;
       const exhausted = attempts >= challenge.maxAttempts;
 
-      await prisma.$transaction(async (tx) => {
+      await tenantTx(async (tx) => {
         await tx.otpChallenge.update({
           where: { id: challenge.id },
           data: {
@@ -333,21 +350,22 @@ export class SuperAdminOtpService {
       return { ok: false, reason: exhausted ? 'EXHAUSTED' : 'INVALID' };
     }
 
-    await prisma.$transaction([
-      prisma.otpChallenge.update({
+    await tenantTx(async (tx) => {
+      await tx.otpChallenge.update({
         where: { id: challenge.id },
         data: { consumedAt: new Date() },
-      }),
-      prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: { lastTwoFactorAt: new Date(), twoFactorMethod: 'EMAIL_OTP' },
-      }),
-    ]);
+      });
+    });
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { ok: false, reason: 'INVALID_CHALLENGE' };
 
     return { ok: true, user };
+    });
   }
   
   /**
@@ -367,6 +385,7 @@ export class SuperAdminOtpService {
   }): Promise<StepUpOtpVerifyResult> {
     const { userId, code } = params;
   
+    return this.platform(async () => {
     const challenge = await prisma.otpChallenge.findFirst({
       where: { userId, purpose: STEP_UP_PURPOSE, consumedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -393,7 +412,7 @@ export class SuperAdminOtpService {
       const attempts = challenge.attempts + 1;
       const exhausted = attempts >= challenge.maxAttempts;
   
-      await prisma.$transaction(async (tx) => {
+      await tenantTx(async (tx) => {
         await tx.otpChallenge.update({
           where: { id: challenge.id },
           data: {
@@ -419,36 +438,37 @@ export class SuperAdminOtpService {
       };
     }
   
-    await prisma.$transaction([
-      prisma.otpChallenge.update({
+    await tenantTx(async (tx) => {
+      await tx.otpChallenge.update({
         where: { id: challenge.id },
         data: { consumedAt: new Date() },
-      }),
-      prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: { lastTwoFactorAt: new Date(), twoFactorMethod: 'EMAIL_OTP' },
-      }),
-    ]);
+      });
+    });
   
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { ok: false, reason: 'INVALID_CHALLENGE', challengeId: challenge.id };
   
     return { ok: true, user, challengeId: challenge.id };
+    });
   }
   
   private async consumeAndLock(challengeId: string, userId: string) {
-    await prisma.$transaction([
-      prisma.otpChallenge.updateMany({
+    await tenantTx(async (tx) => {
+      await tx.otpChallenge.updateMany({
         where: { id: challengeId, consumedAt: null },
         data: { consumedAt: new Date() },
-      }),
-      prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: {
           lockedUntil: new Date(Date.now() + ACCOUNT_LOCK_MINUTES * 60 * 1000),
           failedLoginAttempts: 0,
         },
-      }),
-    ]);
+      });
+    });
   }
 }

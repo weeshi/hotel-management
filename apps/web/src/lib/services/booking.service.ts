@@ -1,4 +1,4 @@
-﻿import { prisma } from '@/lib/utils/prisma';
+﻿import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { Prisma } from '@prisma/client';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { BookingRepository } from '@/lib/repositories/booking.repository';
@@ -162,7 +162,7 @@ export class BookingService {
       }
     }
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await tenantTx(async (tx) => {
       const created = await tx.booking.create({
         data: {
           bookingNo,
@@ -328,7 +328,7 @@ export class BookingService {
     });
     if (!folio) throw new NotFoundError('الفاتورة غير موجودة للحجز');
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       // --- Charges are already posted at booking creation time (create()). ---
       // checkIn() ONLY: occupies rooms, records payment, deducts wallet, updates status.
 
@@ -440,7 +440,7 @@ export class BookingService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       let refundPct = 100;
       if (booking.cancellationPolicy) {
         try {
@@ -574,7 +574,7 @@ for (const room of booking.rooms) {
 
     const moveDate = new Date();
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
         data: { status: 'CHECKED_IN' },
@@ -738,7 +738,7 @@ for (const room of booking.rooms) {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       const oldCheckOut = booking.rooms[0].checkOut;
       const originalCheckIn = booking.rooms[0].checkIn;
       const totalOldNights = Math.ceil(
@@ -999,7 +999,7 @@ for (const room of booking.rooms) {
     // Determine new status
     const newStatus = options?.noShow ? 'NO_SHOW' : 'CANCELLED';
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       // 1. Update booking status
       await tx.booking.update({
         where: { id: bookingId },

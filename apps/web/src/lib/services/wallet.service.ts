@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { Prisma } from '@prisma/client';
 import type { PaymentMethod, Role } from '@prisma/client';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
@@ -231,7 +231,7 @@ export class WalletService {
       throw new ForbiddenError('هذا النزيل غير مصرح له بالحصول على رصيد دائن. قم بتفعيل "السماح بالائتمان" من ملف النزيل');
     }
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       let wallet = await tx.wallet.findUnique({
         where: { guestId_hotelId: { guestId: params.guestId, hotelId: params.hotelId } },
       });

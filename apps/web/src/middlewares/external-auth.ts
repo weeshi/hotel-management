@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { decryptSecret } from '@/lib/utils/crypto';
 import { SUPPORTED_ENGINES } from '@/lib/integrations/normalizers';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 
 export interface ExternalRequest extends NextRequest {
   external?: {
@@ -33,7 +34,10 @@ export function withExternalAuth(handler: Function) {
         );
       }
 
-      const configs = await prisma.integrationConfig.findMany({
+      // M8 — the key lookup is tenant resolution, so it runs cross-tenant
+      // (app_platform BYPASSRLS); the tenant itself is then made the RLS scope
+      // for the whole request.
+      const configs = await prismaPlatform.integrationConfig.findMany({
         where: { engine, isActive: true },
       });
 
@@ -63,7 +67,10 @@ export function withExternalAuth(handler: Function) {
       }
 
       (request as any).external = { hotelId: matchedHotelId, engine };
-      return handler(request, context);
+      return runWithTenant(
+        { mode: 'TENANT', hotelId: matchedHotelId },
+        () => handler(request, context)
+      );
     } catch {
       return NextResponse.json(
         { success: false, error: { message: 'Authentication failed', code: 'UNAUTHORIZED' } },

@@ -8,18 +8,32 @@ import {
 } from '@/lib/utils/jwt';
 import { UnauthorizedError, ValidationError } from '@/lib/utils/errors';
 import { randomBytes } from 'crypto';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 
 function uuidv4() {
   return crypto.randomUUID();
 }
 
 export class AuthService {
+  /**
+   * M8 — identity lookups (`user`, `refreshToken`) are platform-scoped: login
+   * must read ANY account (including cross-tenant SUPER_ADMINs whose hotelId
+   * is null), so every public method runs as app_platform (BYPASSRLS). Tenant
+   * restriction of the login SURFACE is enforced by the `hotelId` argument,
+   * not by RLS.
+   */
+  private platform<T>(fn: () => Promise<T>): Promise<T> {
+    return runWithTenant({ mode: 'PLATFORM' }, fn);
+  }
+
   // `hotelId` locks the login to a specific tenant (used when the request host
   // matches a registered hotel customDomain). The failure message stays uniform
   // so the host never leaks which accounts exist.
   async login(email: string, password: string, hotelId?: string) {
-    const user = await this.authenticateCredentials(email, password, hotelId);
-    return this.issueSession(user);
+    return this.platform(async () => {
+      const user = await this.authenticateCredentials(email, password, hotelId);
+      return this.issueSession(user);
+    });
   }
 
   /**
@@ -28,44 +42,46 @@ export class AuthService {
    * the first factor must NOT grant a session (docs/SUPER-ADMIN-ARCH.md §5.1).
    */
   async authenticateCredentials(email: string, password: string, hotelId?: string) {
-    let user = hotelId
-      ? await prisma.user.findFirst({ where: { email, hotelId } })
-      : await prisma.user.findUnique({ where: { email } });
+    return this.platform(async () => {
+      let user = hotelId
+        ? await prisma.user.findFirst({ where: { email, hotelId } })
+        : await prisma.user.findUnique({ where: { email } });
 
-    // Platform-wide SUPER_ADMINs have hotelId = null (they see all hotels), so
-    // the tenant-locked lookup above returns nothing when a hotel host is
-    // detected. Fall back to the global account lookup, but ONLY for
-    // SUPER_ADMIN accounts — tenant isolation for regular staff is preserved.
-    if (!user && hotelId) {
-      const globalUser = await prisma.user.findUnique({ where: { email } });
-      if (globalUser && globalUser.role === 'SUPER_ADMIN' && !globalUser.hotelId) {
-        user = globalUser;
+      // Platform-wide SUPER_ADMINs have hotelId = null (they see all hotels), so
+      // the tenant-locked lookup above returns nothing when a hotel host is
+      // detected. Fall back to the global account lookup, but ONLY for
+      // SUPER_ADMIN accounts — tenant isolation for regular staff is preserved.
+      if (!user && hotelId) {
+        const globalUser = await prisma.user.findUnique({ where: { email } });
+        if (globalUser && globalUser.role === 'SUPER_ADMIN' && !globalUser.hotelId) {
+          user = globalUser;
+        }
       }
-    }
 
-    if (!user) throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      if (!user) throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const minutes = Math.ceil(
-        (user.lockedUntil.getTime() - Date.now()) / 60000
-      );
-      throw new UnauthorizedError(
-        `الحساب مقفل. حاول بعد ${minutes} دقيقة`
-      );
-    }
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const minutes = Math.ceil(
+          (user.lockedUntil.getTime() - Date.now()) / 60000
+        );
+        throw new UnauthorizedError(
+          `الحساب مقفل. حاول بعد ${minutes} دقيقة`
+        );
+      }
 
-    const valid = await verifyPassword(password, user.password);
-    if (!valid) {
-      await this.handleFailedLogin(user.id);
-      throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
-    }
+      const valid = await verifyPassword(password, user.password);
+      if (!valid) {
+        await this.handleFailedLogin(user.id);
+        throw new UnauthorizedError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+      });
+
+      return user;
     });
-
-    return user;
   }
 
   /**
@@ -74,7 +90,7 @@ export class AuthService {
    * middleware requires it for /superadmin (docs/SUPER-ADMIN-ARCH.md §4.3).
    */
   async issueSession(user: any, opts?: { tv?: boolean }) {
-    return this.generateTokens(user, opts);
+    return this.platform(() => this.generateTokens(user, opts));
   }
 
   private async handleFailedLogin(userId: string) {
@@ -134,47 +150,51 @@ export class AuthService {
   }
 
   async refreshTokens(oldRefreshToken: string) {
-    const payload = await verifyRefreshToken(oldRefreshToken);
-    if (!payload) throw new UnauthorizedError('رمز التحديث غير صالح');
+    return this.platform(async () => {
+      const payload = await verifyRefreshToken(oldRefreshToken);
+      if (!payload) throw new UnauthorizedError('رمز التحديث غير صالح');
 
-    const stored = await prisma.refreshToken.findUnique({
-      where: { token: oldRefreshToken },
-      include: { user: true },
-    });
+      const stored = await prisma.refreshToken.findUnique({
+        where: { token: oldRefreshToken },
+        include: { user: true },
+      });
 
-    if (!stored || stored.revoked) {
-      if (stored?.family) {
-        await prisma.refreshToken.updateMany({
-          where: { family: stored.family, revoked: false },
-          data: { revoked: true },
-        });
+      if (!stored || stored.revoked) {
+        if (stored?.family) {
+          await prisma.refreshToken.updateMany({
+            where: { family: stored.family, revoked: false },
+            data: { revoked: true },
+          });
+        }
+        throw new UnauthorizedError('تم إلغاء رمز التحديث');
       }
-      throw new UnauthorizedError('تم إلغاء رمز التحديث');
-    }
 
-    if (stored.expiresAt < new Date()) {
-      throw new UnauthorizedError('انتهت صلاحية رمز التحديث');
-    }
+      if (stored.expiresAt < new Date()) {
+        throw new UnauthorizedError('انتهت صلاحية رمز التحديث');
+      }
 
-    await prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revoked: true },
+      await prisma.refreshToken.update({
+        where: { id: stored.id },
+        data: { revoked: true },
+      });
+
+      return this.generateTokens(stored.user, { tv: payload.tv });
     });
-
-    return this.generateTokens(stored.user, { tv: payload.tv });
   }
 
   async logout(userId: string, family?: string) {
-    if (family) {
-      await prisma.refreshToken.updateMany({
-        where: { userId, family, revoked: false },
-        data: { revoked: true },
-      });
-    } else {
-      await prisma.refreshToken.updateMany({
-        where: { userId, revoked: false },
-        data: { revoked: true },
-      });
-    }
+    return this.platform(async () => {
+      if (family) {
+        await prisma.refreshToken.updateMany({
+          where: { userId, family, revoked: false },
+          data: { revoked: true },
+        });
+      } else {
+        await prisma.refreshToken.updateMany({
+          where: { userId, revoked: false },
+          data: { revoked: true },
+        });
+      }
+    });
   }
 }

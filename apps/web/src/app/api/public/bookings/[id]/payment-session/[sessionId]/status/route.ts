@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { successResponse, errorResponse } from '@/lib/utils/api-response';
 import { checkRateLimit, type RateLimitResult } from '@/lib/rate-limiter';
 
@@ -37,7 +37,7 @@ export async function GET(
     );
   }
 
-  const session = await prisma.paymentSession.findFirst({
+  const session = await prismaPlatform.paymentSession.findFirst({
     where: { id: sessionId, bookingId },
     select: {
       id: true,

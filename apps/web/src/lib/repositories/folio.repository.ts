@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { BaseRepository } from './base.repository';
 
 export class FolioRepository extends BaseRepository<any> {
@@ -34,8 +34,8 @@ export class FolioRepository extends BaseRepository<any> {
     roomChargeId?: string;
   }) {
     const isCharge = data.amount > 0;
-    const [transaction] = await prisma.$transaction([
-      prisma.folioTransaction.create({
+    const transaction = await tenantTx(async (tx) => {
+      const created = await tx.folioTransaction.create({
         data: {
           folioId,
           type: data.type,
@@ -46,23 +46,25 @@ export class FolioRepository extends BaseRepository<any> {
           createdById: data.createdById,
           roomChargeId: data.roomChargeId,
         },
-      }),
-      prisma.folio.update({
+      });
+      await tx.folio.update({
         where: { id: folioId },
         data: {
           totalCharges: { increment: data.amount + (data.taxAmount || 0) },
           balance: { increment: data.amount + (data.taxAmount || 0) },
           ...(isCharge ? { status: 'ACTIVE', settledAt: null, settledById: null } : {}),
         },
-      }),
-    ]);
+      });
+
+      return created;
+    });
 
     return transaction;
   }
 
   async applyPayment(folioId: string, paymentId: string, amount: number, settledById?: string) {
-    const [transaction, updatedFolio] = await prisma.$transaction([
-      prisma.folioTransaction.create({
+    const { transaction, updatedFolio } = await tenantTx(async (tx) => {
+      const created = await tx.folioTransaction.create({
         data: {
           folioId,
           type: 'PAYMENT',
@@ -70,15 +72,16 @@ export class FolioRepository extends BaseRepository<any> {
           description: 'دفعة',
           amount: -amount,
         },
-      }),
-      prisma.folio.update({
+      });
+      const updated = await tx.folio.update({
         where: { id: folioId },
         data: {
           totalPaid: { increment: amount },
           balance: { decrement: amount },
         },
-      }),
-    ]);
+      });
+      return { transaction: created, updatedFolio: updated };
+    });
 
     if (Number(updatedFolio.balance) <= 0 && updatedFolio.status !== 'SETTLED') {
       await prisma.folio.update({
@@ -129,6 +132,7 @@ export class FolioRepository extends BaseRepository<any> {
         chargeDate.setDate(chargeDate.getDate() + i);
 
 charges.push({
+            hotelId: booking.hotelId,
             folioId,
             description: `إيجار ${room.room?.roomNumber ?? 'غير محدد'} - ${chargeDate.toLocaleDateString('ar-LY')}`,
             amount: room.nightlyRate,
