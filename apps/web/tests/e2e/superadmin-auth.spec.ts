@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import { createE2eClient } from './setup/db';
+import { resetRateLimitKeys } from './setup/rate-limit';
 import { hashOtpCode, getOtpResendCooldownSeconds } from '../../src/lib/utils/otp';
 
 // Mirror the backend harness: load `.env` (if any) so the OTP HMAC secret we
@@ -93,6 +94,8 @@ test.beforeEach(async () => {
     },
   });
   superAdminId = user.id;
+
+  await resetRateLimitKeys();
 
   // Fresh slate per test: no leftover challenges, sessions or lockouts.
   await prisma.otpChallenge.deleteMany({ where: { userId: superAdminId } });

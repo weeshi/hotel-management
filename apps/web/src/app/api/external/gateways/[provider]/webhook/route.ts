@@ -205,6 +205,7 @@ export async function POST(
     if (paymentSession!.folioId) {
       const folioTx = await tx.folioTransaction.create({
         data: {
+          hotelId: scopedHotelId,
           folioId: paymentSession!.folioId,
           type: 'PAYMENT',
           category: 'PAYMENT',

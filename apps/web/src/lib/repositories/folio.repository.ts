@@ -34,9 +34,15 @@ export class FolioRepository extends BaseRepository<any> {
     roomChargeId?: string;
   }) {
     const isCharge = data.amount > 0;
+    const folio = await prisma.folio.findUnique({
+      where: { id: folioId },
+      select: { hotelId: true },
+    });
+    if (!folio) throw new Error(`Folio not found: ${folioId}`);
     const transaction = await tenantTx(async (tx) => {
       const created = await tx.folioTransaction.create({
         data: {
+          hotelId: folio.hotelId,
           folioId,
           type: data.type,
           category: data.category,
@@ -63,9 +69,15 @@ export class FolioRepository extends BaseRepository<any> {
   }
 
   async applyPayment(folioId: string, paymentId: string, amount: number, settledById?: string) {
+    const folio = await prisma.folio.findUnique({
+      where: { id: folioId },
+      select: { hotelId: true },
+    });
+    if (!folio) throw new Error(`Folio not found: ${folioId}`);
     const { transaction, updatedFolio } = await tenantTx(async (tx) => {
       const created = await tx.folioTransaction.create({
         data: {
+          hotelId: folio.hotelId,
           folioId,
           type: 'PAYMENT',
           category: 'PAYMENT',

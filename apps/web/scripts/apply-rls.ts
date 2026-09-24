@@ -7,13 +7,12 @@
  *   2. tenant-scoped tables (have `hotelId`) → `tenant_isolation` policy.
  *   3. global tables (Hotel + RefreshToken / OtpChallenge / PlatformAuditLog /
  *      BookingNumberCounter) → `allow_all` policy.
- *   4. child tables without `hotelId` (RoomCharge-children, BookingRoom, Refund,
- *      WalletTransaction, …) → `tenant_derived` policy built on an EXISTS over
- *      their tenanted parent chain, so an app_tenant session can neither read
- *      nor write rows belonging to another hotel.
- *   5. BEFORE INSERT/UPDATE triggers on the five financial tables that derive
- *      `hotelId` from their parent (Folio→Booking, charge/txn/discount→Folio,
- *      RoomCharge→BookingRoom→Booking) as defense-in-depth.
+ *   4. child tables that gained a DB-forced `hotelId` in M8 Phase-1 (5 financial
+ *      tables) and M8 Phase-2-b (the 14 formerly-derived children) → direct
+ *      `tenant_isolation` policy (same CHECK as any other tenanted table).
+ *   5. BEFORE INSERT/UPDATE triggers on all 19 of said tables that derive
+ *      `hotelId` from their parent under `SELECT … FOR NO KEY UPDATE SKIP LOCKED`
+ *      (deterministic lock order; see scripts/generate-child-hotelid-migration.ts).
  *
  * Every DDL executed here is also written to `prisma/rls/rls.sql` so the exact
  * artifact is reviewable/committed.
@@ -28,6 +27,7 @@
 import { Client } from 'pg';
 import fs from 'node:fs';
 import path from 'node:path';
+import { childTriggerSqls } from './generate-child-hotelid-migration';
 
 const ADMIN_URL =
   process.env.ADMIN_DATABASE_URL ??
@@ -46,42 +46,22 @@ const GLOBAL_ALLOW = new Set([
 
 type Derivation = (t: string) => string;
 
-const DERIVED: Record<string, Derivation> = {
-  BookingRoom: (t) =>
-    `EXISTS (SELECT 1 FROM "Booking" p WHERE p."id" = "${t}"."bookingId" AND p."hotelId" = public.app_hotel_id())`,
-  BookingService: (t) =>
-    `EXISTS (SELECT 1 FROM "Booking" p WHERE p."id" = "${t}"."bookingId" AND p."hotelId" = public.app_hotel_id())`,
-  GuestDocument: (t) =>
-    `EXISTS (SELECT 1 FROM "Guest" p WHERE p."id" = "${t}"."guestId" AND p."hotelId" = public.app_hotel_id())`,
-  FolioRoutingRule: (t) =>
-    `EXISTS (SELECT 1 FROM "GroupBooking" p WHERE p."id" = "${t}"."groupBookingId" AND p."hotelId" = public.app_hotel_id())`,
-  Invoice: (t) =>
-    `EXISTS (SELECT 1 FROM "Folio" p WHERE p."id" = "${t}"."folioId" AND p."hotelId" = public.app_hotel_id())`,
-  Refund: (t) =>
-    `EXISTS (SELECT 1 FROM "Payment" p WHERE p."id" = "${t}"."paymentId" AND p."hotelId" = public.app_hotel_id())`,
-  RestaurantOrderItem: (t) =>
-    `EXISTS (SELECT 1 FROM "RestaurantOrder" p WHERE p."id" = "${t}"."orderId" AND p."hotelId" = public.app_hotel_id())`,
-  RoomTypeAmenity: (t) =>
-    `EXISTS (SELECT 1 FROM "RoomType" p WHERE p."id" = "${t}"."roomTypeId" AND p."hotelId" = public.app_hotel_id())`,
-  RoomTypeDefaultService: (t) =>
-    `EXISTS (SELECT 1 FROM "RoomType" p WHERE p."id" = "${t}"."roomTypeId" AND p."hotelId" = public.app_hotel_id())`,
-  RoomTypeExtraBed: (t) =>
-    `EXISTS (SELECT 1 FROM "RoomType" p WHERE p."id" = "${t}"."roomTypeId" AND p."hotelId" = public.app_hotel_id())`,
-  SafeBoxTransaction: (t) =>
-    `EXISTS (SELECT 1 FROM "SafeDepositBox" p WHERE p."id" = "${t}"."safeDepositBoxId" AND p."hotelId" = public.app_hotel_id())`,
-  SafeDepositBoxItem: (t) =>
-    `EXISTS (SELECT 1 FROM "SafeDepositBox" p WHERE p."id" = "${t}"."safeDepositBoxId" AND p."hotelId" = public.app_hotel_id())`,
-  WalletTransaction: (t) =>
-    `EXISTS (SELECT 1 FROM "Wallet" p WHERE p."id" = "${t}"."walletId" AND p."hotelId" = public.app_hotel_id())`,
-  WebhookEndpoint: (t) =>
-    `EXISTS (SELECT 1 FROM "ApiPartner" p WHERE p."id" = "${t}"."partnerId" AND p."hotelId" = public.app_hotel_id())`,
-};
+/**
+ * Only tables that STILL have no hotelId column (and are therefore tenanted
+ * purely by derivation) live here. Every model that gained a real `hotelId`
+ * column (M8 Phase-1: the 5 financial tables; M8 Phase-2-b: the 14 derived
+ * children below) is auto-detected below and given a direct
+ * `tenant_isolation` policy instead.
+ */
+const DERIVED: Record<string, Derivation> = {};
 
 function tenantPolicy(t: string): string[] {
   const name = JSON.stringify(t);
   return [
     `ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;`,
     `ALTER TABLE ${name} FORCE ROW LEVEL SECURITY;`,
+    `DROP POLICY IF EXISTS tenant_derived ON ${name};`,
+    `DROP POLICY IF EXISTS allow_all ON ${name};`,
     `DROP POLICY IF EXISTS tenant_isolation ON ${name};`,
     `CREATE POLICY tenant_isolation ON ${name} USING ("hotelId" = public.app_hotel_id()) WITH CHECK ("hotelId" = public.app_hotel_id());`,
   ];
@@ -92,6 +72,8 @@ function globalPolicy(t: string): string[] {
   return [
     `ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;`,
     `ALTER TABLE ${name} FORCE ROW LEVEL SECURITY;`,
+    `DROP POLICY IF EXISTS tenant_isolation ON ${name};`,
+    `DROP POLICY IF EXISTS tenant_derived ON ${name};`,
     `DROP POLICY IF EXISTS allow_all ON ${name};`,
     `CREATE POLICY allow_all ON ${name} USING (true) WITH CHECK (true);`,
   ];
@@ -102,65 +84,96 @@ function derivedPolicy(t: string, expr: string): string[] {
   return [
     `ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;`,
     `ALTER TABLE ${name} FORCE ROW LEVEL SECURITY;`,
+    `DROP POLICY IF EXISTS tenant_isolation ON ${name};`,
+    `DROP POLICY IF EXISTS allow_all ON ${name};`,
     `DROP POLICY IF EXISTS tenant_derived ON ${name};`,
     `CREATE POLICY tenant_derived ON ${name} USING (${expr}) WITH CHECK (${expr});`,
   ];
 }
 
+interface TriggerSpec {
+  trigger: string;
+  table: string;
+  /** Parent lookup chain from the child row to the tenanted ancestor. */
+  hops: Array<{ from: string; alias?: string; via: string }>;
+  targetCol?: string;
+}
+
+/**
+ * Derives `hotelId` from the parent chain (e.g. RoomCharge → BookingRoom →
+ * Booking) using `SELECT … FOR NO KEY UPDATE … SKIP LOCKED` — deterministic
+ * PK-ordered lock acquisition, and never blocks on a parent being
+ * concurrently re-homed.
+ */
+function triggerFunctionBody(spec: TriggerSpec): string {
+  const first = spec.hops[0];
+  const firstRef = first.alias ?? JSON.stringify(first.from);
+  const fromClause = `  FROM ${
+    first.alias ? `${first.alias} ${JSON.stringify(first.from)}` : JSON.stringify(first.from)
+  }`;
+  const joins = spec.hops
+    .slice(1)
+    .map((h) => `  JOIN ${h.alias ? `${h.alias} ${JSON.stringify(h.from)}` : JSON.stringify(h.from)} ON ${h.via}`);
+  const lockCols = spec.hops.map((h) => h.alias ?? JSON.stringify(h.from)).join(', ');
+  const orderCols = spec.hops.map((h) => `${h.alias ?? JSON.stringify(h.from)}."id"`).join(', ');
+  const target = spec.targetCol ?? `${firstRef}."hotelId"`;
+
+  return [
+    'DECLARE',
+    '  v_hotel_id text;',
+    'BEGIN',
+    `  SELECT ${target} INTO v_hotel_id`,
+    fromClause,
+    ...joins,
+    `  WHERE ${first.via}`,
+    `   ORDER BY ${orderCols}`,
+    `   FOR NO KEY UPDATE OF ${lockCols} SKIP LOCKED;`,
+    '  IF v_hotel_id IS NULL THEN',
+    `    RAISE EXCEPTION 'cannot derive hotelId for ${spec.table}: parent row missing' USING ERRCODE = 'P0001';`,
+    '  END IF;',
+    '  NEW."hotelId" := v_hotel_id;',
+    '  RETURN NEW;',
+    'END;',
+  ].join('\n');
+}
+
+function renderTrigger(spec: TriggerSpec): string[] {
+  const fnName = spec.trigger;
+  const table = JSON.stringify(spec.table);
+  return [
+    `DROP TRIGGER IF EXISTS ${fnName} ON ${table};`,
+    [
+      `CREATE OR REPLACE FUNCTION public.${fnName}() RETURNS trigger LANGUAGE plpgsql AS $$`,
+      triggerFunctionBody(spec),
+      `$$;`,
+    ].join('\n'),
+    `CREATE TRIGGER ${fnName} BEFORE INSERT OR UPDATE ON ${table} FOR EACH ROW EXECUTE FUNCTION public.${fnName}();`,
+  ];
+}
+
 function triggerStatements(): string[] {
-  const helpers: Array<[string, string, string, string]> = [
-    // [trigger, table, column, funcBody]
-    [
-      'trg_folio_hotel',
-      'Folio',
-      'bookingId',
-      `NEW."hotelId" := (SELECT b."hotelId" FROM "Booking" b WHERE b."id" = NEW."bookingId");`,
-    ],
-    [
-      'trg_folio_transaction_hotel',
-      'FolioTransaction',
-      'folioId',
-      `NEW."hotelId" := (SELECT f."hotelId" FROM "Folio" f WHERE f."id" = NEW."folioId");`,
-    ],
-    [
-      'trg_folio_discount_hotel',
-      'FolioDiscount',
-      'folioId',
-      `NEW."hotelId" := (SELECT f."hotelId" FROM "Folio" f WHERE f."id" = NEW."folioId");`,
-    ],
-    [
-      'trg_scheduled_charge_hotel',
-      'ScheduledCharge',
-      'folioId',
-      `NEW."hotelId" := (SELECT f."hotelId" FROM "Folio" f WHERE f."id" = NEW."folioId");`,
-    ],
-    [
-      'trg_room_charge_hotel',
-      'RoomCharge',
-      'bookingRoomId',
-      `NEW."hotelId" := (SELECT b."hotelId" FROM "BookingRoom" br JOIN "Booking" b ON b."id" = br."bookingId" WHERE br."id" = NEW."bookingRoomId");`,
-    ],
+  const core: TriggerSpec[] = [
+    { trigger: 'trg_folio_hotel', table: 'Folio', hops: [{ from: 'Booking', via: `"Booking"."id" = NEW."bookingId"` }] },
+    { trigger: 'trg_folio_transaction_hotel', table: 'FolioTransaction', hops: [{ from: 'Folio', via: `"Folio"."id" = NEW."folioId"` }] },
+    { trigger: 'trg_folio_discount_hotel', table: 'FolioDiscount', hops: [{ from: 'Folio', via: `"Folio"."id" = NEW."folioId"` }] },
+    { trigger: 'trg_scheduled_charge_hotel', table: 'ScheduledCharge', hops: [{ from: 'Folio', via: `"Folio"."id" = NEW."folioId"` }] },
+    {
+      trigger: 'trg_room_charge_hotel',
+      table: 'RoomCharge',
+      hops: [
+        { from: 'BookingRoom', alias: 'br', via: 'br."id" = NEW."bookingRoomId"' },
+        { from: 'Booking', alias: 'b', via: 'b."id" = br."bookingId"' },
+      ],
+      targetCol: 'b."hotelId"',
+    },
   ];
 
-  const out: string[] = [];
-  for (const [trigger, table, column, body] of helpers) {
-    const name = JSON.stringify(table);
-    const col = JSON.stringify(column);
-    out.push(`DROP TRIGGER IF EXISTS ${trigger} ON ${name};`);
-    const fn = [
-      `CREATE OR REPLACE FUNCTION public.${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$`,
-      `BEGIN`,
-      `  ${body}`,
-      `  IF NEW."hotelId" IS NULL THEN`,
-      `    RAISE EXCEPTION 'cannot derive hotelId for ${table}: parent row missing' USING ERRCODE = 'P0001';`,
-      `  END IF;`,
-      `  RETURN NEW;`,
-      `END $$;`,
-    ].join('\n');
-    out.push(fn);
-    out.push(`CREATE TRIGGER ${trigger} BEFORE INSERT OR UPDATE OF ${col} ON ${name} FOR EACH ROW EXECUTE FUNCTION public.${trigger}();`);
-  }
-  return out;
+  return [
+    '-- Core hotel-scoped triggers (M8 Phase-1; rewired to locked derivation).',
+    ...core.flatMap(renderTrigger),
+    '-- Derived-child triggers (M8 Phase-2-b; single source of truth: generate-child-hotelid-migration.ts).',
+    ...childTriggerSqls(),
+  ];
 }
 
 export async function applyRls(adminUrl: string): Promise<void> {
@@ -222,7 +235,7 @@ export async function applyRls(adminUrl: string): Promise<void> {
       try {
         await client.query(executable[i]);
       } catch (err) {
-        console.error(`[apply-rls] statement #${i} of ${executable.length} failed:\n${executable[i].slice(0, 600)}`);
+        console.error(`[apply-rls] statement #${i} of ${executable.length} failed:\n${executable[i]}`);
         throw err;
       }
     }

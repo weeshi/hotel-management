@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import { createE2eClient } from './setup/db';
+import { resetRateLimitKeys } from './setup/rate-limit';
 import { hashOtpCode } from '../../src/lib/utils/otp';
 import {
   getSudoTokenSecret,
@@ -102,6 +103,8 @@ test.beforeEach(async () => {
     },
   });
   superAdminId = user.id;
+
+  await resetRateLimitKeys();
 
   await prisma.otpChallenge.deleteMany({ where: { userId: superAdminId } });
   await prisma.refreshToken.deleteMany({ where: { userId: superAdminId } });

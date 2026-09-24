@@ -198,6 +198,7 @@ export class BookingService {
       if (isReception) {
         const folio = await tx.folio.create({
           data: {
+            hotelId: data.hotelId,
             bookingId: created.id,
             totalCharges: 0,
             totalPaid: 0,
@@ -213,6 +214,7 @@ export class BookingService {
           );
           await tx.folioTransaction.create({
             data: {
+              hotelId: data.hotelId,
               folioId: folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -243,6 +245,7 @@ export class BookingService {
             });
             await tx.folioTransaction.create({
               data: {
+                hotelId: data.hotelId,
                 folioId: folio.id,
                 type: 'CHARGE',
                 category: 'SERVICE',
@@ -360,6 +363,7 @@ export class BookingService {
 
         await tx.folioTransaction.create({
           data: {
+            hotelId: booking.hotelId,
             folioId: folio.id,
             type: 'PAYMENT',
             category: 'PAYMENT',
@@ -483,6 +487,7 @@ export class BookingService {
         if (roomRefund > 0 && booking.folio) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'REFUND',
               category: 'ROOM_CHARGE',
@@ -599,6 +604,7 @@ for (const room of booking.rooms) {
             // Credit back remaining nights for old room
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'REFUND',
                 category: 'ROOM_CHARGE',
@@ -614,6 +620,7 @@ for (const room of booking.rooms) {
 
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'CHARGE',
                 category: 'ROOM_CHARGE',
@@ -777,6 +784,7 @@ for (const room of booking.rooms) {
         for (const r of roomsWithRates) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -1016,6 +1024,7 @@ for (const room of booking.rooms) {
         if (penaltyAmount > 0) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -1067,6 +1076,7 @@ for (const room of booking.rooms) {
             // Add folio transaction for the refund
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'REFUND',
                 category: 'REFUND',

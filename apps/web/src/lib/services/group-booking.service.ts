@@ -41,6 +41,7 @@ export class GroupBookingService {
 
       const folio = await tx.folio.create({
         data: {
+          hotelId,
           bookingId: placeholderBooking.id,
           status: 'ACTIVE',
         },

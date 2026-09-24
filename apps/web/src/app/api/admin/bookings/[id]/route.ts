@@ -132,6 +132,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
             const amount = (r.nightlyRate || 0) * nights;
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'CHARGE',
                 category: 'ROOM_CHARGE',
@@ -191,6 +192,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
             const chargeAmount = service.price * addedQty;
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'CHARGE',
                 category: 'SERVICE',

@@ -89,13 +89,14 @@ export class IntegrationService {
         });
 
         const folio = await tx.folio.create({
-          data: { bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
+          data: { hotelId, bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
         });
 
         for (const room of bookingRooms) {
           const roomAmount = Number(room.nightlyRate) * nights;
           await tx.folioTransaction.create({
             data: {
+              hotelId,
               folioId: folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -131,6 +132,7 @@ export class IntegrationService {
 
         await tx.folioTransaction.create({
           data: {
+            hotelId,
             folioId: folio.id,
             type: 'PAYMENT',
             category: 'PAYMENT',

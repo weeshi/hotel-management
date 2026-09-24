@@ -70,6 +70,7 @@ export class PaymentService {
       await tenantTx(async (tx) => {
         await tx.folioTransaction.create({
           data: {
+            hotelId: payment.hotelId,
             folioId,
             type: 'REFUND',
             category: 'REFUND',

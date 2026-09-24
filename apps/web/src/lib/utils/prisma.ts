@@ -81,14 +81,120 @@ if (process.env.NODE_ENV !== 'production') {
 
 const SET_CONFIG_SQL = `SELECT set_config($1::text, $2::text, true)`;
 
-type TenantTxType = TenantContext & { inTenantTx: true; tx?: any };
+type TenantTxType = TenantContext & { inTenantTx: true; tx?: TenantTxClient };
 
 /**
  * Models whose `hotelId` is DB-forced (NOT NULL + RLS WITH CHECK + derivation
  * trigger). In TENANT context the interceptor stamps `hotelId` on creates so
  * the app never has to remember it, even for nested relation creates.
  */
-const HOTEL_SCOPED_MODELS = new Set(['Folio', 'FolioTransaction', 'FolioDiscount', 'ScheduledCharge', 'RoomCharge']);
+const HOTEL_SCOPED_MODELS = new Set<string>([
+  'Folio',
+  'FolioTransaction',
+  'FolioDiscount',
+  'ScheduledCharge',
+  'RoomCharge',
+  'BookingRoom',
+  'BookingService',
+  'GuestDocument',
+  'FolioRoutingRule',
+  'Invoice',
+  'Refund',
+  'RestaurantOrderItem',
+  'RoomTypeAmenity',
+  'RoomTypeDefaultService',
+  'RoomTypeExtraBed',
+  'SafeBoxTransaction',
+  'SafeDepositBoxItem',
+  'WalletTransaction',
+  'WebhookEndpoint',
+]);
+
+/** Type-level carve-out of the transaction client: `hotelId` is required. */
+type HotelScopedModelName =
+  | 'Folio'
+  | 'FolioTransaction'
+  | 'FolioDiscount'
+  | 'ScheduledCharge'
+  | 'RoomCharge'
+  | 'BookingRoom'
+  | 'BookingService'
+  | 'GuestDocument'
+  | 'FolioRoutingRule'
+  | 'Invoice'
+  | 'Refund'
+  | 'RestaurantOrderItem'
+  | 'RoomTypeAmenity'
+  | 'RoomTypeDefaultService'
+  | 'RoomTypeExtraBed'
+  | 'SafeBoxTransaction'
+  | 'SafeDepositBoxItem'
+  | 'WalletTransaction'
+  | 'WebhookEndpoint';
+
+type Callable<F> = F extends (...args: never[]) => unknown ? F : never;
+
+type FirstArg<F> = Callable<F> extends (...args: infer A) => unknown
+  ? A extends [infer First, ...unknown[]]
+    ? First
+    : never
+  : never;
+
+type ForceHotelIdOnData<A> = 'data' extends keyof A
+  ? A & { data: A['data'] & { hotelId: string } }
+  : A;
+
+type ForceHotelIdOnMany<A> = 'data' extends keyof A
+  ? A & { data: A['data'] extends readonly (infer E)[] ? (E & { hotelId: string })[] : A['data'] & { hotelId: string } }
+  : A;
+
+type ForceHotelIdOnCreate<A> = 'create' extends keyof A
+  ? A & { create: A['create'] & { hotelId: string } }
+  : A;
+
+type WithHotelIdRequired<D> = {
+  [Op in keyof D]: Op extends 'create'
+    ? (args: ForceHotelIdOnData<FirstArg<D[Op]>>) => ReturnType<Callable<D[Op]>>
+    : Op extends 'createMany' | 'createManyAndReturn'
+    ? (args: ForceHotelIdOnMany<FirstArg<D[Op]>>) => ReturnType<Callable<D[Op]>>
+    : Op extends 'upsert'
+    ? (args: ForceHotelIdOnCreate<FirstArg<D[Op]>>) => ReturnType<Callable<D[Op]>>
+    : D[Op];
+};
+
+type HotelScopedModelKey = Extract<
+  keyof Prisma.TransactionClient,
+  | 'folio'
+  | 'folioTransaction'
+  | 'folioDiscount'
+  | 'scheduledCharge'
+  | 'roomCharge'
+  | 'bookingRoom'
+  | 'bookingService'
+  | 'guestDocument'
+  | 'folioRoutingRule'
+  | 'invoice'
+  | 'refund'
+  | 'restaurantOrderItem'
+  | 'roomTypeAmenity'
+  | 'roomTypeDefaultService'
+  | 'roomTypeExtraBed'
+  | 'safeBoxTransaction'
+  | 'safeDepositBoxItem'
+  | 'walletTransaction'
+  | 'webhookEndpoint'
+>;
+
+/**
+ * TenantTxClient — the STRICT transaction client.
+ *
+ * Every crane operation (`create`/`createMany`/`createManyAndReturn`/`upsert`)
+ * on the hotel-scoped models REQUIRES `hotelId` at compile time. The runtime
+ * Proxy re-stamps it as defense-in-depth, but `tsc` is the first guard.
+ */
+export type TenantTxClient = Omit<Prisma.TransactionClient, '$connect' | '$disconnect' | '$on' | '$transaction'> & {
+  [K in HotelScopedModelKey]: WithHotelIdRequired<Prisma.TransactionClient[K]>;
+};
 
 /** Prisma relation field name → model for nested hotel-scoped creates. */
 const NESTED_HOTEL_MODEL: Record<string, string> = {
@@ -98,54 +204,102 @@ const NESTED_HOTEL_MODEL: Record<string, string> = {
   discounts: 'FolioDiscount',
   scheduledCharges: 'ScheduledCharge',
   roomCharges: 'RoomCharge',
+  bookingRooms: 'BookingRoom',
+  rooms: 'BookingRoom',
+  bookingServices: 'BookingService',
+  documents: 'GuestDocument',
+  routingRules: 'FolioRoutingRule',
+  invoices: 'Invoice',
+  refunds: 'Refund',
+  items: 'RestaurantOrderItem',
+  amenityServices: 'RoomTypeAmenity',
+  roomTypeAmenities: 'RoomTypeAmenity',
+  defaultServices: 'RoomTypeDefaultService',
+  extraBeds: 'RoomTypeExtraBed',
+  safeBoxTransactions: 'SafeBoxTransaction',
+  safeDepositBoxItems: 'SafeDepositBoxItem',
+  walletTransactions: 'WalletTransaction',
+  webhookEndpoints: 'WebhookEndpoint',
 };
 
-function injectHotelId(obj: any | null | undefined, hotelId: string): void {
-  if (!obj || typeof obj !== 'object' || obj.hotelId) return;
-  obj.hotelId = hotelId;
+function injectHotelId(obj: unknown, hotelId: string): void {
+  if (!obj || typeof obj !== 'object') return;
+  const rec = obj as Record<string, unknown>;
+  if (typeof rec.hotelId === 'string') return;
+  rec.hotelId = hotelId;
 }
 
-function injectNestedHotelId(node: any, hotelId: string): void {
-  if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) {
-    for (const item of node) injectNestedHotelId(item, hotelId);
-    return;
-  }
-  for (const [key, val] of Object.entries(node)) {
-    const value = val as any;
-    if (!value || typeof value !== 'object') continue;
+function nestedCreateTargets(node: unknown): Record<string, unknown>[] {
+  if (!node || typeof node !== 'object') return [];
+  const rec = node as Record<string, unknown>;
+  const collected: Record<string, unknown>[] = [];
+  for (const [key, val] of Object.entries(rec)) {
     if (key in NESTED_HOTEL_MODEL) {
-      if (Array.isArray(value)) {
-        for (const entry of value) injectHotelId(entry?.create, hotelId);
-      } else {
-        injectHotelId(value?.create, hotelId);
-        if (Array.isArray(value?.createMany?.data)) {
-          for (const d of value.createMany.data) injectHotelId(d, hotelId);
+      if (Array.isArray(val)) {
+        for (const entry of val) {
+          if (entry && typeof entry === 'object') {
+            const target = (entry as Record<string, unknown>).create;
+            if (target && typeof target === 'object') collected.push(target as Record<string, unknown>);
+          }
+        }
+      } else if (val && typeof val === 'object') {
+        const target = (val as Record<string, unknown>).create;
+        if (target && typeof target === 'object') collected.push(target as Record<string, unknown>);
+        const manyData = (val as Record<string, unknown>).createMany;
+        if (manyData && typeof manyData === 'object') {
+          const rows = (manyData as Record<string, unknown>).data;
+          if (Array.isArray(rows)) {
+            for (const row of rows) if (row && typeof row === 'object') collected.push(row as Record<string, unknown>);
+          }
         }
       }
     }
-    if (value?.create) injectNestedHotelId(value.create, hotelId);
-    else injectNestedHotelId(value, hotelId);
+    const deeper = key === 'create' || key === 'connect' ? undefined : val;
+    if (deeper && typeof deeper === 'object') collected.push(...nestedCreateTargets(deeper));
+  }
+  return collected;
+}
+
+function injectNestedHotelId(node: unknown, hotelId: string): void {
+  for (const target of nestedCreateTargets(node)) injectHotelId(target, hotelId);
+}
+
+function injectTopLevelHotelId(model: string, operation: string, args: unknown, hotelId: string): void {
+  if (!HOTEL_SCOPED_MODELS.has(model)) return;
+  if (!args || typeof args !== 'object') return;
+  const rec = args as Record<string, unknown>;
+  if (operation === 'create' || operation === 'createMany' || operation === 'createManyAndReturn') {
+    if (Array.isArray(rec.data)) {
+      for (const row of rec.data) injectHotelId(row, hotelId);
+    } else {
+      injectHotelId(rec.data, hotelId);
+    }
+  } else if (operation === 'upsert') {
+    injectHotelId(rec.create, hotelId);
   }
 }
 
-function injectTopLevelHotelId(model: string, op: string, args: any, hotelId: string): void {
-  if (!HOTEL_SCOPED_MODELS.has(model)) return;
-  if (op === 'create') {
-    injectHotelId(args.data, hotelId);
-  } else if (op === 'createMany' || op === 'createManyAndReturn') {
-    const rows = Array.isArray(args.data) ? args.data : [args.data];
-    for (const row of rows) injectHotelId(row, hotelId);
-  } else if (op === 'upsert') {
-    injectHotelId(args.create, hotelId);
+/**
+ * Re-dispatches a Prisma middleware param pair to an arbitrary client, since
+ * TypeScript cannot model client[model][operation] over the dynamic union.
+ * Property access is done via Reflect; the resolved callee is asserted once
+ * here (runtime shape matches Prisma's delegate call contract).
+ */
+function relay(client: object, model: string, operation: string, args: unknown): unknown {
+  const delegate = Reflect.get(client, model) as unknown;
+  if (!delegate || typeof delegate !== 'object') {
+    throw new Error(`[prisma] unknown model in relay: ${model}`);
   }
+  const fn = Reflect.get(delegate, operation) as unknown;
+  if (typeof fn !== 'function') {
+    throw new Error(`[prisma] unknown operation relayed: ${model}.${operation}`);
+  }
+  return (fn as (a?: unknown) => unknown).call(delegate, args);
 }
 
 const extended = prismaBase.$extends({
   query: {
-    async $allOperations(this: any, { model, operation, args, query }: any) {
-      // Raw queries are never tenant-wrapped: they run on app_tenant without a
-      // GUC and are therefore FAIL-CLOSED for RLS-protected tables.
+    async $allOperations({ model, operation, args, query }) {
       if (!model) {
         return query(args);
       }
@@ -154,31 +308,28 @@ const extended = prismaBase.$extends({
 
       if (ctx?.mode === 'TENANT') {
         injectTopLevelHotelId(model, operation, args, ctx.hotelId);
-        injectNestedHotelId(args.data ?? args.create ?? {}, ctx.hotelId);
+        injectNestedHotelId(args, ctx.hotelId);
       }
 
       if (ctx?.mode === 'PLATFORM') {
-        const platform = prismaPlatform as any;
-        return platform[model][operation](args);
+        return relay(prismaPlatform, model, operation, args);
       }
 
       if (ctx?.mode === 'TENANT') {
-        const base = prismaBase as any;
         if ((ctx as TenantTxType).inTenantTx) {
-          // Already inside a `tenantTx` transaction: rejoin it (the GUC was set
-          // at its start) via the active transaction client from the context.
+          // Rejoin the active `tenantTx` transaction (its GUC is already set).
           const activeTx = (ctx as TenantTxType).tx;
-          if (activeTx) return activeTx[model][operation](args);
-          return base[model][operation](args);
+          if (activeTx) return relay(activeTx, model, operation, args);
+          return relay(prismaBase, model, operation, args);
         }
-        return base.$transaction(async (tx: any) => {
+        return prismaBase.$transaction(async (tx: Prisma.TransactionClient) => {
           await tx.$executeRawUnsafe(SET_CONFIG_SQL, 'app.current_hotel_id', ctx.hotelId);
-          return (tx as any)[model][operation](args);
+          return relay(tx, model, operation, args);
         });
       }
 
       // No context: fail-closed app_tenant (RLS denies tenant rows).
-      return (prismaBase as any)[model][operation](args);
+      return relay(prismaBase, model, operation, args);
     },
   },
 });
@@ -196,45 +347,23 @@ export const prisma = extended as unknown as PrismaClient;
  *  - with NO context it runs on app_tenant fail-closed (zero tenant rows).
  */
 export async function tenantTx<T>(
-  cb: (tx: any) => Promise<T>,
+  cb: (tx: TenantTxClient) => Promise<T>,
   options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
 ): Promise<T> {
   const ctx = getTenantContext();
 
   if (ctx?.mode === 'PLATFORM') {
-    return (
-      options ? prismaPlatform.$transaction(cb, options) : prismaPlatform.$transaction(cb)
-    ) as unknown as Promise<T>;
+    // Platform tx is BYPASSRLS; it is surfaced through the same hardened
+    // contract (the Proxy is inert outside TENANT mode).
+    const runPlatform = (tx: Prisma.TransactionClient) => cb(withHotelInjection(tx));
+    return options
+      ? prismaPlatform.$transaction(runPlatform, options)
+      : prismaPlatform.$transaction(runPlatform);
   }
-
-  const withHotelInjection = (tx: any): any =>
-    ctx?.mode === 'TENANT'
-      ? new Proxy(tx, {
-          get(target, prop) {
-            if (typeof prop !== 'string') return Reflect.get(target, prop);
-            const value = Reflect.get(target, prop);
-            if (!value || typeof value === 'function') return value;
-            if (prop.startsWith('$')) return value;
-            return new Proxy(value, {
-              get(ops, op: PropertyKey) {
-                const fn = Reflect.get(ops, op);
-                if (typeof fn !== 'function') return fn;
-                const modelName = prop.charAt(0).toUpperCase() + prop.slice(1);
-                return (args: any) => {
-                  injectTopLevelHotelId(modelName, String(op), args ?? {}, ctx.hotelId);
-                  const scope = args?.data ?? args?.create ?? {};
-                  injectNestedHotelId(scope, ctx.hotelId);
-                  return fn.call(ops, args);
-                };
-              },
-            });
-          },
-        })
-      : tx;
 
   const run = () =>
     prismaBase.$transaction(
-      async (tx: any) => {
+      async (tx: Prisma.TransactionClient) => {
         if (ctx?.mode === 'TENANT') {
           await tx.$executeRawUnsafe(SET_CONFIG_SQL, 'app.current_hotel_id', ctx.hotelId);
         }
@@ -244,7 +373,7 @@ export async function tenantTx<T>(
             mode: 'TENANT',
             hotelId: ctx.hotelId,
             inTenantTx: true,
-            tx: wrapped as any,
+            tx: wrapped,
           };
           return runWithTenant(inner, () => cb(wrapped));
         }
@@ -254,4 +383,42 @@ export async function tenantTx<T>(
     );
 
   return run();
+}
+
+/**
+ * Wraps a transaction client so TENANT-mode creates on hotel-scoped models get
+ * `hotelId` stamped at runtime as defense-in-depth. The resulting value is
+ * surfaced as the strict {@link TenantTxClient}; the Proxy only ever narrows
+ * — it never loosens the compile-time contract.
+ */
+function withHotelInjection(tx: Prisma.TransactionClient): TenantTxClient {
+  const ctx = getTenantContext();
+  if (ctx?.mode !== 'TENANT' || !ctx.hotelId) {
+    return tx as TenantTxClient;
+  }
+  const hotelId = ctx.hotelId;
+  const handler: ProxyHandler<Prisma.TransactionClient> = {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (typeof value === 'function') return value;
+      if (typeof prop !== 'string' || prop.startsWith('$') || !value || typeof value !== 'object') {
+        return value;
+      }
+      const delegate = value as Record<string, unknown>;
+      const modelName = prop.charAt(0).toUpperCase() + prop.slice(1);
+      return new Proxy(delegate, {
+        get(delegateTarget, delegateProp) {
+          const fn = Reflect.get(delegateTarget, delegateProp) as unknown;
+          if (typeof fn !== 'function') return fn;
+          const opName = String(delegateProp);
+          return (args?: unknown) => {
+            injectTopLevelHotelId(modelName, opName, args, hotelId);
+            injectNestedHotelId(args, hotelId);
+            return (fn as (a?: unknown) => unknown).call(delegateTarget, args);
+          };
+        },
+      });
+    },
+  };
+  return new Proxy(tx, handler) as TenantTxClient;
 }

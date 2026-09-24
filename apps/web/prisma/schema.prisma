@@ -65,6 +65,20 @@ model Hotel {
   folioDiscounts        FolioDiscount[]
   scheduledCharges      ScheduledCharge[]
   roomCharges           RoomCharge[]
+  bookingRooms          BookingRoom[]
+  bookingServices       BookingService[]
+  guestDocuments        GuestDocument[]
+  folioRoutingRules     FolioRoutingRule[]
+  invoices              Invoice[]
+  refunds               Refund[]
+  restaurantOrderItems  RestaurantOrderItem[]
+  roomTypeAmenities     RoomTypeAmenity[]
+  roomTypeDefaultServices RoomTypeDefaultService[]
+  roomTypeExtraBeds     RoomTypeExtraBed[]
+  safeBoxTransactions   SafeBoxTransaction[]
+  safeDepositBoxItems   SafeDepositBoxItem[]
+  walletTransactions    WalletTransaction[]
+  webhookEndpoints      WebhookEndpoint[]
 }
 
 // ============================================================
@@ -297,6 +311,8 @@ model Guest {
 // ============================================================
 model GuestDocument {
   id           String   @id @default(uuid())
+  hotelId      String
+  hotel        Hotel    @relation(fields: [hotelId], references: [id])
   guestId      String
   guest        Guest    @relation(fields: [guestId], references: [id])
   documentType String
@@ -329,6 +345,8 @@ model Wallet {
 
 model WalletTransaction {
   id             String                @id @default(uuid())
+  hotelId        String
+  hotel          Hotel                 @relation(fields: [hotelId], references: [id])
   walletId       String
   wallet         Wallet                @relation(fields: [walletId], references: [id])
   type           WalletTransactionType
@@ -378,6 +396,8 @@ model RoomType {
 
 model RoomTypeExtraBed {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   bedType    String
@@ -391,6 +411,8 @@ model RoomTypeExtraBed {
 
 model RoomTypeDefaultService {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   serviceId  String
@@ -403,6 +425,8 @@ model RoomTypeDefaultService {
 
 model RoomTypeAmenity {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   serviceId  String
@@ -537,6 +561,8 @@ model Booking {
 
 model BookingRoom {
   id          String    @id @default(uuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
   bookingId   String
   booking     Booking   @relation(fields: [bookingId], references: [id])
   roomId      String?
@@ -599,6 +625,8 @@ model Service {
 
 model BookingService {
   id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
   bookingId String
   booking   Booking  @relation(fields: [bookingId], references: [id])
   serviceId String
@@ -631,6 +659,8 @@ model GroupBooking {
 
 model FolioRoutingRule {
   id             String       @id @default(uuid())
+  hotelId        String
+  hotel          Hotel        @relation(fields: [hotelId], references: [id])
   groupBookingId String
   groupBooking   GroupBooking @relation(fields: [groupBookingId], references: [id])
   chargeType     String
@@ -798,6 +828,8 @@ model Payment {
 
 model Refund {
   id              String   @id @default(uuid())
+  hotelId         String
+  hotel           Hotel    @relation(fields: [hotelId], references: [id])
   paymentId       String
   payment         Payment  @relation(fields: [paymentId], references: [id])
   amount          Float
@@ -985,6 +1017,8 @@ model ChannelPriceSnapshot {
 // ============================================================
 model Invoice {
   id               String          @id @default(uuid())
+  hotelId          String
+  hotel            Hotel           @relation(fields: [hotelId], references: [id])
   folioId          String?
   folio            Folio?          @relation(fields: [folioId], references: [id])
   externalClientId String?
@@ -1118,6 +1152,8 @@ model RestaurantOrder {
 
 model RestaurantOrderItem {
   id         String          @id @default(uuid())
+  hotelId    String
+  hotel      Hotel           @relation(fields: [hotelId], references: [id])
   orderId    String
   order      RestaurantOrder @relation(fields: [orderId], references: [id])
   menuItemId String
@@ -1192,6 +1228,8 @@ model ApiPartner {
 
 model WebhookEndpoint {
   id            String     @id @default(uuid())
+  hotelId       String
+  hotel         Hotel      @relation(fields: [hotelId], references: [id])
   partnerId     String
   partner       ApiPartner @relation(fields: [partnerId], references: [id])
   url           String
@@ -1323,6 +1361,8 @@ model SafeDepositBox {
 
 model SafeDepositBoxItem {
   id               String         @id @default(uuid())
+  hotelId          String
+  hotel            Hotel          @relation(fields: [hotelId], references: [id])
   safeDepositBoxId String
   safeDepositBox   SafeDepositBox @relation(fields: [safeDepositBoxId], references: [id])
   description      String
@@ -1336,6 +1376,8 @@ model SafeDepositBoxItem {
 // --- Audit trail for cash/valuables movement ---
 model SafeBoxTransaction {
   id               String                 @id @default(uuid())
+  hotelId          String
+  hotel            Hotel                  @relation(fields: [hotelId], references: [id])
   safeDepositBoxId String
   safeDepositBox   SafeDepositBox         @relation(fields: [safeDepositBoxId], references: [id])
   type             SafeBoxTransactionType

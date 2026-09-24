@@ -266,12 +266,13 @@ export class ChannelManagerService {
         });
 
         const folio = await tx.folio.create({
-          data: { bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
+          data: { hotelId, bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
         });
 
         const total = Number(rate) * nights;
         await tx.folioTransaction.create({
           data: {
+            hotelId,
             folioId: folio.id,
             type: 'CHARGE',
             category: 'ROOM_CHARGE',
@@ -327,6 +328,7 @@ export class ChannelManagerService {
           paymentId = payment.id;
           await tx.folioTransaction.create({
             data: {
+              hotelId,
               folioId: folio.id,
               type: 'PAYMENT',
               category: 'PAYMENT',
