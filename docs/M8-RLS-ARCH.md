@@ -85,8 +85,8 @@
   - `prisma` — موسَّع (استعلامات المستأجر)، ومختصر بصلاحية `app_tenant` في E2E.
   - `prismaPlatform` — للعمليات المنصّاتية وما فوق المستأجر (BYPASSRLS).
 - **حقن مركزي** في اعتراض `prisma` تحت سياق TENANT:
-  - أعلى مستوى: أي `create`/`createMany`/`upsert` على 40 نموذجاً يستلم `hotelId` تلقائياً.
-  - نسقي (nested): خريطة `NESTED_HOTEL_MODEL` (`folio`/`masterFolio` → `Folio`، `transactions` → `FolioTransaction` …) تملأ ما ينقص داخل `create` الأبوين.
+  - أعلى مستوى: أي `create`/`createMany`/`upsert` على النماذج المستأجَرة يستلم `hotelId` تلقائياً.
+  - نسقي (nested): خريطة `NESTED_HOTEL_MODEL` **تُشتق حياً من `Prisma.dmmf`** وقت التحميل — كل حقل علاقة هدفه نموذج مستأجَر يدخل الخريطة تلقائياً (لا قائمة موازية تُصان يدوياً؛ غياب `dmmf` → فشل إقلاع صاخب).
   - **تجاهل مقصود**: عمليات `connect`/قراءة غير إنشائية لا تُتلمس.
 - **`tenantTx(cb, options)`**:
   1. يقرأ سياق المستأجر من AsyncLocalStorage (`getTenantContext`).
@@ -111,15 +111,35 @@
 - طُبّق على `hotel_management` و`hotel_e2e` (idempotent — `--dry-run` لإعادة توليد الملف فقط)؛ `schema.prisma` محدَّث بالـ14 حقلاً و`prisma db push` أعاد «in sync».
 - التحقق النهائي على القاعدتين: `54` سياسة `tenant_isolation`/`0` `tenant_derived`/`5` `allow_all`، `59` FORCE RLS، `19` تطويقات `trg_*_hotel`.
 
+### سياسة FK — «الفندق لا يُحذف مادياً»
+
+- كل جدول مستأجَر (النواة الخمسة + الـ14 المشتقة = 19) قيدُه `"<Model>_hotelId_fkey"` → `"Hotel"("id")` هو **`ON DELETE RESTRICT ON UPDATE CASCADE`** — قاعدة قياسية موحدة.
+- المنطق: الأصول (فوليو/مدفوعات/فواتير/أنظمة جرد…) **مقدّسة**؛ لا تُمسح بمسح الفندق. أصبح الحذف يتم بإعادة تخصيص الأب أو إعادة تخصيص العلاقة، لا بحذف صفوف مالية.
+- دلالة `RESTRICT` هنا (وليس `NO ACTION`): الرفض يحدث **فوراً داخل الجملة** (لا يُؤجَّل إلى نهاية المعاملة) — يدق إنذار المطوّر بذاته عند محاولة `DELETE FROM "Hotel"`.
+- `verify:rls` يتحقق من القيد نفسه على الـ19 جدولاً (يمنع الانحراف الصامت).
+
+## 6ب. مصدر الحقيقة الواحد + حارس السياق (M8 close-out)
+
+- **مصدر حقيقة واحد** للنماذج المستأجَرة في `src/lib/utils/prisma.ts`:
+  - توبّل `HOTEL_SCOPED_MODEL_NAMES` (`as const`، 19 نموذجاً) يغذّي: `HOTEL_SCOPED_MODELS` (Set تشغيلي)، `HotelScopedModelName` (اتحاد الأسماء)، `HotelScopedModelKey = Extract<keyof Prisma.TransactionClient, Uncapitalize<HotelScopedModelName>>` (مفاتيح الـ txn الصارم)، وخريطة `NESTED_HOTEL_MODEL` المشتقة **حياً من `Prisma.dmmf`** وقت التحميل.
+  - لا توجد قائمة موازية تُصان يدوياً بعد الآن؛ إضافة نموذج مستأجَر = تعديل موضع واحد (`dmmf` يغذّي الخريطة التسلسلية تلقائياً).
+- **حارس «لا سياق = Bug»**: في `$allOperations` وبدون أي سياق (NONE):
+  - أي **كتابة** (`create`/`update`/`delete`/`upsert`/`createMany`/…) على النماذج المستأجَرة → **رفض صاخب** (`assertMutationContext`) — لا «نجاح» صامت بصفر صفوف.
+  - القراءات تبقى fail-closed (0 صفوف) — لا بيانات مستأجر بلا سياق، أبداً.
+  - `tenantTx` بدون سياق → رفض صاخب كذلك (نية معاملة بأثر تنظيمي بلا سياق خطأ دائم).
+- **`withTenantJob(processor)`** (`src/lib/tenant/with-tenant-job.ts`): الغلاف الوحيد المسموح لمعالجات BullMQ — `job.data.hotelId` → TENANT، وإلا PLATFORM. فلا يمكن لأي وظيفة خلفية لمس جداول مستأجَرة بلا سياق. استُبدل بدالة `withTenantContext` المحلية في `workers/index.ts`.
+
 ## 7. سلسلة E2E
 
 - `apps/web/tests/e2e/setup/env.ts`: `APP_DATABASE_URL` (=`app_tenant` بصلاحية RLS) + `PLATFORM_DATABASE_URL` (=`app_platform`) تمرَّران للتطبيق عبر `APP_ENV_EXTRA` → **الخادم E2E يركض تحت RLS فعلياً**.
-- `apps/web/scripts/e2e-prepare-db.ts` = إنشاء القاعدة → `provisionRoles` → `pushSchema` → `applyRls` — والـ `applyRls` يثبّت الآن كامل الـ54/5 مع **الـ19 تطويقاً**، فالخط الجديد E2E يحاكي الإنتاج تماماً.
+- `apps/web/scripts/e2e-prepare-db.ts` = إنشاء القاعدة → `provisionRoles` → `pushSchema` → `applyRls` → **`verifyRls`** — والـ `applyRls` يثبّت الآن كامل الـ54/5 مع **الـ19 تطويقاً**، والتحقق يثبت الحصر العددي ويجعل السلسلة تفشل بصخب عند أي انحراف، فالخط الجديد E2E يحاكي الإنتاج تماماً.
+- **`scripts/verify-rls.ts`** (يُشغَّل أيضاً بـ `npm run verify:rls`): يتصل بـ `ADMIN_DATABASE_URL`/superuser ويؤكد — قبل وبعد تطبيق RLS — `54|0|5` سياسة، `59` FORCE RLS، **19** `trg_*_hotel` (المطابقة الاسمية الدقيقة مبنية على `derivedChildTables()` + النواة الخمسة)، و`RESTRICT/CASCADE` على قيود `_hotelId_fkey` للـ19 جدولاً.
 - **عزل حدّ الطلبات (Redis):** اختبارات السوبر أدمن الحساسة لحصة `stepup:request` (`3/15min`) وأخواتها كانت تتراكم عبر اختبارات الجلسة الواحدة فتضرب `429 RATE_LIMITED` (اختباران من 22). أُضيف `tests/e2e/setup/rate-limit.ts` — `resetRateLimitKeys()` يمسح مفاتيح `stepup:*/otp:*/ratelimit:payment-session:*` من Redis **قبل كل اختبار** (يقترن بمسح DB الموجود في `beforeEach`)، فيعود كل اختبار لحالة نظيفة ويبقى الحد الفعلي فاعلاً داخل نطاق الاختبار الواحد.
 - إعادة تعيين كاملة: `E2E_FRESH_DB=1` (إلزامية أول مرة بعد الترحيل إن كانت `hotel_e2e` تملك صفوفاً لأن `db push` لا يضيف عمود NOT NULL فوق صفوف موجودة).
 
 ## 8. بوابات التحقق
 
 - `tsc`/`lint`/`build` نظيف؛ E2E **22/22** على `hotel_e2e` (بوصف `app_tenant`).
+- **`npm run verify:rls`** يعمل ضد `hotel_management` و`hotel_e2e` → `tenant_isolation=54 tenant_derived=0 allow_all=5 forceRls=59 triggers=19` — وأي انحراف يفشل الخروج بصخب.
 - تحقق يدوي: `psql -U app_tenant hotel_e2e` → بدون `set_config` **0 صفوف** في أي جدول مستأجَر؛ مع GUC الصحيح → صفوف ذلك الفندق فقط.
 - تحقق التعداد (أمر): `SELECT polname, count(*) FROM pg_policy GROUP BY 1;` → `tenant_isolation 54 / tenant_derived 0 / allow_all 5` و`review p.tgname` من `pg_trigger` → `19 × trg_*_hotel`.

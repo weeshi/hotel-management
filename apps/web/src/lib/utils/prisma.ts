@@ -87,8 +87,14 @@ type TenantTxType = TenantContext & { inTenantTx: true; tx?: TenantTxClient };
  * Models whose `hotelId` is DB-forced (NOT NULL + RLS WITH CHECK + derivation
  * trigger). In TENANT context the interceptor stamps `hotelId` on creates so
  * the app never has to remember it, even for nested relation creates.
+ *
+ * SINGLE SOURCE OF TRUTH (M8 close-out): the tuple below feeds
+ *   - the runtime Set            → HOTEL_SCOPED_MODELS
+ *   - the strict txn type        → HotelScopedModelKey (Uncapitalize of each)
+ *   - the nested relation map    → derived live from Prisma.dmmf
+ * No parallel lists remain to drift apart.
  */
-const HOTEL_SCOPED_MODELS = new Set<string>([
+const HOTEL_SCOPED_MODEL_NAMES = [
   'Folio',
   'FolioTransaction',
   'FolioDiscount',
@@ -108,29 +114,12 @@ const HOTEL_SCOPED_MODELS = new Set<string>([
   'SafeDepositBoxItem',
   'WalletTransaction',
   'WebhookEndpoint',
-]);
+] as const;
+
+const HOTEL_SCOPED_MODELS = new Set<string>(HOTEL_SCOPED_MODEL_NAMES);
 
 /** Type-level carve-out of the transaction client: `hotelId` is required. */
-type HotelScopedModelName =
-  | 'Folio'
-  | 'FolioTransaction'
-  | 'FolioDiscount'
-  | 'ScheduledCharge'
-  | 'RoomCharge'
-  | 'BookingRoom'
-  | 'BookingService'
-  | 'GuestDocument'
-  | 'FolioRoutingRule'
-  | 'Invoice'
-  | 'Refund'
-  | 'RestaurantOrderItem'
-  | 'RoomTypeAmenity'
-  | 'RoomTypeDefaultService'
-  | 'RoomTypeExtraBed'
-  | 'SafeBoxTransaction'
-  | 'SafeDepositBoxItem'
-  | 'WalletTransaction'
-  | 'WebhookEndpoint';
+type HotelScopedModelName = (typeof HOTEL_SCOPED_MODEL_NAMES)[number];
 
 type Callable<F> = F extends (...args: never[]) => unknown ? F : never;
 
@@ -164,25 +153,7 @@ type WithHotelIdRequired<D> = {
 
 type HotelScopedModelKey = Extract<
   keyof Prisma.TransactionClient,
-  | 'folio'
-  | 'folioTransaction'
-  | 'folioDiscount'
-  | 'scheduledCharge'
-  | 'roomCharge'
-  | 'bookingRoom'
-  | 'bookingService'
-  | 'guestDocument'
-  | 'folioRoutingRule'
-  | 'invoice'
-  | 'refund'
-  | 'restaurantOrderItem'
-  | 'roomTypeAmenity'
-  | 'roomTypeDefaultService'
-  | 'roomTypeExtraBed'
-  | 'safeBoxTransaction'
-  | 'safeDepositBoxItem'
-  | 'walletTransaction'
-  | 'webhookEndpoint'
+  Uncapitalize<HotelScopedModelName>
 >;
 
 /**
@@ -196,31 +167,40 @@ export type TenantTxClient = Omit<Prisma.TransactionClient, '$connect' | '$disco
   [K in HotelScopedModelKey]: WithHotelIdRequired<Prisma.TransactionClient[K]>;
 };
 
-/** Prisma relation field name → model for nested hotel-scoped creates. */
-const NESTED_HOTEL_MODEL: Record<string, string> = {
-  folio: 'Folio',
-  masterFolio: 'Folio',
-  transactions: 'FolioTransaction',
-  discounts: 'FolioDiscount',
-  scheduledCharges: 'ScheduledCharge',
-  roomCharges: 'RoomCharge',
-  bookingRooms: 'BookingRoom',
-  rooms: 'BookingRoom',
-  bookingServices: 'BookingService',
-  documents: 'GuestDocument',
-  routingRules: 'FolioRoutingRule',
-  invoices: 'Invoice',
-  refunds: 'Refund',
-  items: 'RestaurantOrderItem',
-  amenityServices: 'RoomTypeAmenity',
-  roomTypeAmenities: 'RoomTypeAmenity',
-  defaultServices: 'RoomTypeDefaultService',
-  extraBeds: 'RoomTypeExtraBed',
-  safeBoxTransactions: 'SafeBoxTransaction',
-  safeDepositBoxItems: 'SafeDepositBoxItem',
-  walletTransactions: 'WalletTransaction',
-  webhookEndpoints: 'WebhookEndpoint',
+/**
+ * Prisma relation field name → model for nested hotel-scoped creates, derived
+ * live from `Prisma.dmmf` so it can never drift from the generated client:
+ * every relation field whose target is a hotel-scoped model joins the map.
+ *
+ * Derived LAZILY on first use (not at module load): `Prisma.dmmf` throws in
+ * Edge runtimes, and this module's import graph reaches the app middleware —
+ * an eager read here would crash every request before any DB work happens.
+ */
+type DmmfModel = {
+  name: string;
+  fields: Array<{ name: string; kind: string; type: string }>;
 };
+
+let nestedHotelModelCache: ReadonlyMap<string, string> | undefined;
+
+function getNestedHotelModel(): ReadonlyMap<string, string> {
+  if (nestedHotelModelCache) return nestedHotelModelCache;
+  const models = (Prisma.dmmf as unknown as { datamodel?: { models?: DmmfModel[] } })
+    ?.datamodel?.models;
+  if (!models) {
+    throw new Error('[prisma] Prisma.dmmf unavailable — cannot derive nested hotel-scoped relations');
+  }
+  const map = new Map<string, string>();
+  for (const model of models) {
+    for (const field of model.fields) {
+      if (field.kind === 'object' && HOTEL_SCOPED_MODELS.has(field.type)) {
+        map.set(field.name, field.type);
+      }
+    }
+  }
+  nestedHotelModelCache = map;
+  return map;
+}
 
 function injectHotelId(obj: unknown, hotelId: string): void {
   if (!obj || typeof obj !== 'object') return;
@@ -233,8 +213,9 @@ function nestedCreateTargets(node: unknown): Record<string, unknown>[] {
   if (!node || typeof node !== 'object') return [];
   const rec = node as Record<string, unknown>;
   const collected: Record<string, unknown>[] = [];
+  const nestedHotelModel = getNestedHotelModel();
   for (const [key, val] of Object.entries(rec)) {
-    if (key in NESTED_HOTEL_MODEL) {
+    if (nestedHotelModel.has(key)) {
       if (Array.isArray(val)) {
         for (const entry of val) {
           if (entry && typeof entry === 'object') {
@@ -297,6 +278,32 @@ function relay(client: object, model: string, operation: string, args: unknown):
   return (fn as (a?: unknown) => unknown).call(delegate, args);
 }
 
+const MUTATING_OPS = new Set([
+  'create',
+  'createMany',
+  'createManyAndReturn',
+  'upsert',
+  'update',
+  'updateMany',
+  'delete',
+  'deleteMany',
+]);
+
+/**
+ * M8 — no-context guard. Running a mutating operation against a hotel-scoped
+ * model without a tenant context (NONE) is ALWAYS a bug: RLS makes it silently
+ * match zero rows, so a background job or script would "succeed" while doing
+ * nothing. Prefer a loud failure over that quiet no-op.
+ */
+function assertMutationContext(model: string, operation: string): void {
+  if (!HOTEL_SCOPED_MODELS.has(model)) return;
+  if (!MUTATING_OPS.has(operation)) return;
+  if (getTenantContext()) return;
+  throw new Error(
+    `[prisma] ${model}.${operation} without tenant context — hotel-scoped writes must run under runWithTenant/tenantTx/withTenantJob`
+  );
+}
+
 const extended = prismaBase.$extends({
   query: {
     async $allOperations({ model, operation, args, query }) {
@@ -329,6 +336,7 @@ const extended = prismaBase.$extends({
       }
 
       // No context: fail-closed app_tenant (RLS denies tenant rows).
+      assertMutationContext(model, operation);
       return relay(prismaBase, model, operation, args);
     },
   },
@@ -351,6 +359,12 @@ export async function tenantTx<T>(
   options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
 ): Promise<T> {
   const ctx = getTenantContext();
+
+  if (!ctx) {
+    throw new Error(
+      '[prisma] tenantTx executed without tenant context — wrap the caller in runWithTenant (TENANT or PLATFORM) or withTenantJob'
+    );
+  }
 
   if (ctx?.mode === 'PLATFORM') {
     // Platform tx is BYPASSRLS; it is surfaced through the same hardened
