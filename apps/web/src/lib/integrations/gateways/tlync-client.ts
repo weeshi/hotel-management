@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'tlync-client' });
 
 export interface TLyncConfig {
   merchantId: string;
@@ -64,7 +67,7 @@ export function getTLyncConfig(): TLyncConfig {
   const callbackUrl = process.env.TLYNC_CALLBACK_URL || 'https://example.com/api/external/gateways/tlync/webhook';
 
   if (!merchantId || !secretKey) {
-    console.warn('[T-Lync] Credentials not set (TLYNC_MERCHANT_ID / TLYNC_SECRET_KEY) — operations will fail in production');
+    log.warn('Credentials not set (TLYNC_MERCHANT_ID / TLYNC_SECRET_KEY) — operations will fail in production');
   }
 
   return { merchantId, secretKey, baseUrl, returnUrl, callbackUrl };

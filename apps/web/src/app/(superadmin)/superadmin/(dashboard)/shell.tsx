@@ -13,7 +13,7 @@ const NAV_GROUPS: { section: string; items: { href: string; label: string }[] }[
       { href: '/superadmin/hotels', label: '🏨 الفنادق' },
       { href: '/superadmin/integrations', label: '🔌 التكاملات' },
       { href: '/superadmin/invitations', label: '📨 الدعوات' },
-      { href: '/admin/queues', label: '⚙️ مراقبة الطوابير' },
+      { href: '/superadmin/jobs', label: '⚙️ مراقبة الطوابير (Bull Board)' },
     ],
   },
 ];

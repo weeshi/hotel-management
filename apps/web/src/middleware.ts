@@ -58,11 +58,11 @@ export async function middleware(request: NextRequest) {
     if (BLOCKED_ROLES.includes(payload.role)) {
       return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
     }
-    // `/superadmin` and `/admin/queues` (Bull Board) are reserved for the
-    // platform owner AND require a session that passed the Email-OTP gate
-    // (`tv: true`, see docs/SUPER-ADMIN-ARCH.md §4.3). A first-factor-only
+    // `/superadmin` (including the Bull Board at `/superadmin/jobs`) is reserved
+    // for the platform owner AND requires a session that passed the Email-OTP
+    // gate (`tv: true`, see docs/SUPER-ADMIN-ARCH.md §4.3). A first-factor-only
     // session is sent to the dedicated OTP flow, not the legacy `/auth/login`.
-    if (pathname.startsWith('/superadmin') || pathname.startsWith('/admin/queues')) {
+    if (pathname.startsWith('/superadmin')) {
       if (payload.role !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL(ALLOWED_REDIRECT, request.url));
       }

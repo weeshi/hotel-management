@@ -12,8 +12,19 @@ export interface QueueConfig {
 const DEFAULT_JOB_OPTIONS: JobsOptions = {
   removeOnComplete: { age: 3600, count: 1000 },
   removeOnFail: { age: 24 * 3600, count: 1000 },
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5000 },
+  attempts: 5,
+  backoff: { type: 'exponential', delay: 5000, jitter: 0.2 },
+};
+
+/**
+ * M9 — dead-letter queue. Every production queue dies forward into `cm-dlq`
+ * (one unified DLQ, not one per queue) so Bull Board surfaces a single
+ * "dead letters" surface and replay is one resend away.
+ */
+export const DLQ_QUEUE_CONFIG: QueueConfig = {
+  key: 'dlq',
+  name: 'cm-dlq',
+  concurrency: getConcurrency('dlq', 1),
 };
 
 export function createQueue(config: QueueConfig): Queue {
@@ -37,6 +48,8 @@ export const QUEUE_CONFIGS: QueueConfig[] = [
   { key: 'rates', name: 'cm-rates-push', concurrency: getConcurrency('rates', 1) },
   { key: 'reconcile', name: 'cm-inventory-reconcile', concurrency: getConcurrency('reconcile', 1) },
   { key: 'purge', name: 'cm-vcc-purge', concurrency: getConcurrency('purge', 2) },
+  { key: 'webhook', name: 'cm-webhook-delivery', concurrency: getConcurrency('webhook', 1) },
+  DLQ_QUEUE_CONFIG,
 ];
 
 export const JOB_PRIORITY = {

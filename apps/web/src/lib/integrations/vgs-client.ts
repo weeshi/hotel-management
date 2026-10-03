@@ -1,4 +1,7 @@
 import { getRedis } from '@/lib/redis';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'vgs-client' });
 
 export interface VGSDeleteResult {
   ok: boolean;
@@ -10,7 +13,7 @@ const VGS_MANAGEMENT_BASE = 'https://api.verygoodsecurity.com';
 const VGS_API_KEY = process.env.VGS_MANAGEMENT_API_KEY;
 
 if (!VGS_API_KEY) {
-  console.warn('[VGS Client] VGS_MANAGEMENT_API_KEY not set — purge operations will fail');
+  log.warn('VGS_MANAGEMENT_API_KEY not set — purge operations will fail');
 }
 
 function buildAuthHeaders(): Record<string, string> {

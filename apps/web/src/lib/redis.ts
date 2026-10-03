@@ -1,4 +1,7 @@
 import Redis from 'ioredis';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'redis' });
 
 let redisInstance: Redis | null = null;
 
@@ -18,11 +21,11 @@ export function getRedis(): Redis {
   });
 
   redisInstance.on('error', (err) => {
-    console.error('[Redis] Connection error:', err.message);
+    log.error({ error: err.message }, 'Redis connection error');
   });
 
   redisInstance.on('connect', () => {
-    console.log('[Redis] Connected');
+    log.info('Redis connected');
   });
 
   return redisInstance;

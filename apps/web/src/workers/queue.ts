@@ -4,6 +4,9 @@ import { getRedis } from '@/lib/redis';
 import { prisma } from '@/lib/utils/prisma';
 import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { enqueuePurgeJobsForPayment } from '@/workers/jobs/purgeVCC.job';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ component: 'worker', module: 'queues' });
 
 export const queues = {
   snapshot: createQueue(QUEUE_CONFIGS[0]),
@@ -12,6 +15,8 @@ export const queues = {
   rates: createQueue(QUEUE_CONFIGS[3]),
   reconcile: createQueue(QUEUE_CONFIGS[4]),
   purge: createQueue(QUEUE_CONFIGS[5]),
+  webhook: createQueue(QUEUE_CONFIGS[6]),
+  dlq: createQueue(QUEUE_CONFIGS[7]),
 } as const;
 
 export function getQueue(key: QueueKey) {
@@ -62,7 +67,7 @@ export async function registerRepeatableJobs(): Promise<void> {
     { override: true }
   );
 
-  console.log('[Worker] Repeatable jobs registered via JobScheduler: daily-snapshot-all (02:00), daily-reconcile-all (03:00), daily-vcc-purge-scan (03:00 Tripoli)');
+  log.info('Repeatable jobs registered via JobScheduler: daily-snapshot-all (02:00), daily-reconcile-all (03:00), daily-vcc-purge-scan (03:00 Tripoli)');
 }
 
 export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueued: number }> {
@@ -94,7 +99,10 @@ export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueue
       enqueued++;
     }
 
-    console.log(`[Purge Scanner] Scanned ${vccPayments.length} expired VCC payments, enqueued ${enqueued} purge job sets`);
+    log.info(
+      { scanned: vccPayments.length, enqueued },
+      'Purge Scanner scanned expired VCC payments'
+    );
     return { scanned: vccPayments.length, enqueued };
   });
 }
@@ -103,7 +111,7 @@ export async function getQueueHealth(): Promise<
   Record<string, { waiting: number; active: number; failed: number }>
 > {
   const out: Record<string, { waiting: number; active: number; failed: number }> = {};
-  for (const [key, q] of Object.entries(queues)) {
+  for (const [key, q] of Object.entries(queues) as Array<[QueueKey, (typeof queues)[QueueKey]]>) {
     const [waiting, active, failed] = await Promise.all([
       q.getWaitingCount(),
       q.getActiveCount(),
@@ -176,4 +184,56 @@ export async function enqueuePublishJobs(params: {
   }
 
   return { mappings: mappings.length, accepted, skipped };
+}
+
+export interface WebhookDeliveryParams {
+  hotelId: string;
+  provider: string;
+  url: string;
+  method?: 'POST' | 'PUT' | 'PATCH';
+  headers?: Record<string, string>;
+  body?: unknown;
+}
+
+/**
+ * M9 — producer for the outbound webhook delivery lane.
+ * Idempotent jobId per (hotel × provider × url) so re-delivery attempts do not
+ * stack up while a previous job for the same callback is still in flight.
+ */
+export async function enqueueWebhookDelivery(params: WebhookDeliveryParams): Promise<string> {
+  const { hotelId, provider, url, method = 'POST', headers, body } = params;
+  const jobId = buildJobId(['webhook', hotelId, provider, url]);
+  await queues.webhook.add(
+    'webhook-delivery',
+    { hotelId, provider, url, method, headers, body },
+    { jobId, priority: JOB_PRIORITY.HIGH }
+  );
+  return jobId;
+}
+
+/**
+ * M9 — move a finally-failed job to the unified DLQ (`cm-dlq`) preserving the
+ * original data, the queue it came from, and the terminal failure detail. The
+ * DLQ never runs a processor; dead letters are inspected and replayed manually
+ * from Bull Board (matching retry is one `Retry` click away).
+ */
+export async function moveToDlq(
+  origin: string,
+  job: { id?: string; name?: string; data?: unknown; attemptsMade?: number },
+  err: { message?: string; stack?: string }
+): Promise<void> {
+  await queues.dlq.add(
+    'dead-letter',
+    {
+      originQueue: origin,
+      originalJobId: job.id,
+      originalJobName: job.name,
+      originalData: job.data,
+      attemptsMade: job.attemptsMade,
+      failedReason: err.message,
+      stacktrace: err.stack,
+      failedAt: new Date().toISOString(),
+    },
+    { removeOnComplete: { age: 7 * 24 * 3600, count: 5000 }, removeOnFail: { age: 30 * 24 * 3600, count: 5000 } }
+  );
 }

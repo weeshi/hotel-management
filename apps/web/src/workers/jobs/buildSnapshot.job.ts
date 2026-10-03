@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { ChannelManagerService } from '@/lib/services/channel-manager.service';
 import { queues, formatLocalDate, enqueuePublishJobs } from '@/workers/queue';
 import { JOB_PRIORITY } from '@/lib/bullmq';
+import { childLogger } from '@/lib/observability/logger';
 
 const BATCH_SIZE = 200; // days per batch for cursor pagination
 const MAX_DAYS_PER_RUN = 365; // safety cap
@@ -30,6 +31,8 @@ interface SnapshotResult {
  */
 export async function buildSnapshotProcessor(job: Job<BuildSnapshotData>): Promise<SnapshotResult> {
   const { hotelId, provider, from, to, cursor, processedHotels = [] } = job.data;
+  const jobId = job.id || `snapshot:${hotelId || 'all'}:${provider || 'all'}:${from || ''}`;
+  const log = childLogger({ component: 'worker', queue: 'snapshot', jobId, hotelId: hotelId || undefined });
   const startDate = from ? new Date(from + 'T00:00:00') : new Date();
   const endDate = to ? new Date(to + 'T00:00:00') : new Date(Date.now() + 30 * 86400000);
 
@@ -70,7 +73,7 @@ export async function buildSnapshotProcessor(job: Job<BuildSnapshotData>): Promi
   });
 
   if (hotels.length === 0) {
-    console.log('[buildSnapshot] No hotels with enabled mappings found');
+    log.info('no hotels with enabled mappings found');
     return { hotelId: '', provider: '', snapshotsStored: 0, jobsEnqueued: 0 };
   }
 
@@ -98,9 +101,7 @@ export async function buildSnapshotProcessor(job: Job<BuildSnapshotData>): Promi
       const chunkEnd = new Date(cursorDate.getTime() + daysLeft * 86400000);
       if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
-      console.log(
-        `[buildSnapshot] hotel=${hotel.id} provider=${prov} range=${formatLocalDate(cursorDate)}..${formatLocalDate(chunkEnd)}`
-      );
+      log.info({ provider: prov, from: formatLocalDate(cursorDate), to: formatLocalDate(chunkEnd) }, 'building range');
 
       const { snapshots } = await cmService.buildAvailabilitySnapshot(
         hotel.id,
@@ -151,7 +152,7 @@ export async function buildSnapshotProcessor(job: Job<BuildSnapshotData>): Promi
       removeOnComplete: { age: 3600, count: 100 },
       removeOnFail: { age: 86400, count: 1000 },
     } as JobsOptions);
-    console.log('[buildSnapshot] Re-enqueued self for continuation', { cursor: formatLocalDate(cursorDate) });
+    log.info({ cursor: formatLocalDate(cursorDate) }, 're-enqueued self for continuation');
   }
 
   return {

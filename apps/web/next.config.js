@@ -5,7 +5,7 @@ const nextConfig = {
   },
   serverExternalPackages: ['@bull-board/api', '@bull-board/ui', '@bull-board/hono', 'bullmq'],
   outputFileTracingIncludes: {
-    '/admin/queues/*': ['./node_modules/@bull-board/ui/dist/**/*'],
+    '/superadmin/jobs/*': ['./node_modules/@bull-board/ui/dist/**/*'],
   },
   outputFileTracingRoot: require('path').join(__dirname, '../../'),
 };

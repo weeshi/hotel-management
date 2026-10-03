@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/utils/prisma';
 import { vgsDeleteToken } from '@/lib/integrations/vgs-client';
 import { createAuditLog } from '@/lib/services';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ component: 'worker', queue: 'purge' });
 
 export interface PurgeVCCJobData {
   paymentId: string;
@@ -70,28 +73,28 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
   });
 
   if (!payment) {
-    console.warn(`[PurgeVCC] Payment ${paymentId} not found — skipping`);
+    log.warn({ paymentId }, 'payment not found — skipping');
     return;
   }
 
   if (payment.vccPurgedAt) {
-    console.log(`[PurgeVCC] Payment ${paymentId} already fully purged — skipping`);
+    log.info({ paymentId }, 'already fully purged — skipping');
     return;
   }
 
   const token = await getTokenValue(payment, tokenType);
   if (!token) {
-    console.log(`[PurgeVCC] Payment ${paymentId} token ${tokenType} already null — skipping`);
+    log.info({ paymentId, tokenType }, 'token already null — skipping');
     return;
   }
 
   const vaultId = payment.vgsVaultId;
   if (!vaultId) {
-    console.error(`[PurgeVCC] Payment ${paymentId} missing vgsVaultId — cannot purge`);
+    log.error({ paymentId }, 'missing vgsVaultId — cannot purge');
     throw new Error('Missing vgsVaultId');
   }
 
-  console.log(`[PurgeVCC] Attempt ${attempt}/10 — purging ${tokenType} for payment ${paymentId}`);
+  log.info({ paymentId, tokenType, attempt, maxAttempts: 10 }, 'purging token');
 
   const result = await vgsDeleteToken(vaultId, token);
 
@@ -157,14 +160,14 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
         userAgent: 'cm-vcc-purge-worker',
       });
 
-      console.log(`[PurgeVCC] Payment ${paymentId} FULLY PURGED`);
+      log.info({ paymentId }, 'FULLY PURGED');
     }
 
     return;
   }
 
   if (result.status === 404) {
-    console.log(`[PurgeVCC] Token ${tokenType} not found in VGS (404) — treating as purged`);
+    log.info({ paymentId, tokenType }, 'token not found in VGS (404) — treating as purged');
     await markTokenPurged(paymentId, tokenType);
 
     await prisma.vCCAuditLog.create({
@@ -227,7 +230,7 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
     return;
   }
 
-  console.error(`[PurgeVCC] VGS delete failed for payment ${paymentId} token ${tokenType}: ${result.status} - ${result.error}`);
+  log.error({ paymentId, tokenType, status: result.status, error: result.error }, 'VGS delete failed');
   throw new Error(`VGS purge failed: ${result.status} - ${result.error}`);
 }
 

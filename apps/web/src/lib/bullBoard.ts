@@ -5,7 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { queues } from '@/workers/queue';
 
-const basePath = '/admin/queues';
+const basePath = '/superadmin/jobs';
 
 const serverAdapter = new HonoAdapter(serveStatic);
 serverAdapter.setBasePath(basePath);
@@ -17,6 +17,9 @@ createBullBoard({
     new BullMQAdapter(queues.ingest),
     new BullMQAdapter(queues.rates),
     new BullMQAdapter(queues.reconcile),
+    new BullMQAdapter(queues.purge),
+    new BullMQAdapter(queues.webhook),
+    new BullMQAdapter(queues.dlq),
   ],
   serverAdapter,
 });

@@ -1,8 +1,9 @@
-import { Job, JobsOptions } from 'bullmq';
+﻿import { Job, JobsOptions } from 'bullmq';
 import { prisma } from '@/lib/utils/prisma';
 import { queues, formatLocalDate } from '@/workers/queue';
 import { JOB_PRIORITY } from '@/lib/bullmq';
 import { getRedis } from '@/lib/redis';
+import { childLogger } from '@/lib/observability/logger';
 
 const MAX_ATTEMPTS = 5;
 const BASE_BACKOFF_MS = 60_000; // 1 minute base
@@ -31,15 +32,16 @@ interface PushResult {
 export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushResult> {
   const { hotelId, provider, roomTypeId, date, attempt = 1 } = job.data;
   const jobId = job.id || `push:${hotelId}:${provider}:${roomTypeId}:${date}`;
+  const log = childLogger({ component: 'worker', queue: 'publish', jobId, hotelId, provider });
 
-  console.log(`[pushToOTA] ${jobId} attempt=${attempt}/${MAX_ATTEMPTS}`);
+  log.info({ attempt, maxAttempts: MAX_ATTEMPTS }, 'pushToOTA start');
 
   // Bucket key to prevent duplicate pushes for the same date/hotel/provider/roomType
   const redis = getRedis();
   const bucketKey = `ota_push_bucket:${hotelId}:${provider}:${roomTypeId}:${date}`;
   const bucketExists = await redis.get(bucketKey);
   if (bucketExists) {
-    console.log(`[pushToOTA] ${jobId} skipped — already pushed (bucket exists)`);
+    log.info('skipped — already pushed (bucket exists)');
     return { ok: true, status: 200 };
   }
 
@@ -63,7 +65,7 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
   });
 
   if (!snap) {
-    console.warn(`[pushToOTA] ${jobId} no snapshot found`);
+    log.warn('no snapshot found');
     return { ok: false, status: 404, responseBody: 'Snapshot not found' };
   }
 
@@ -83,7 +85,7 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
   });
 
   if (!mapping) {
-    console.warn(`[pushToOTA] ${jobId} no enabled channel mapping`);
+    log.warn('no enabled channel mapping');
     return { ok: false, status: 400, responseBody: 'No enabled channel mapping' };
   }
 
@@ -93,7 +95,7 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
   // Determine endpoint URL (would come from hotel settings / env in real impl)
   const endpoint = getEndpoint(provider, hotelId);
   if (!endpoint) {
-    console.error(`[pushToOTA] ${jobId} no endpoint configured for provider ${provider}`);
+    log.error('no endpoint configured for provider');
     return { ok: false, status: 500, responseBody: 'Endpoint not configured' };
   }
 
@@ -113,10 +115,10 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
     clearTimeout(timeoutId);
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      console.warn(`[pushToOTA] ${jobId} timeout after 30s`);
+      log.warn('timeout after 30s');
       return handleRetry(job, attempt, { ok: false, status: 504, responseBody: 'Timeout' });
     }
-    console.error(`[pushToOTA] ${jobId} fetch error:`, err);
+    log.error({ error: String(err) }, 'fetch error');
     return handleRetry(job, attempt, { ok: false, status: 502, responseBody: String(err) });
   }
 
@@ -125,7 +127,7 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
   if (response.status === 200 || response.status === 201 || response.status === 202) {
     // Success — set bucket to prevent re-push (TTL 48h)
     await redis.set(bucketKey, '1', 'EX', 172800);
-    console.log(`[pushToOTA] ${jobId} success ${response.status}`);
+    log.info({ status: response.status }, 'push success');
     return { ok: true, status: response.status, responseBody: responseText };
   }
 
@@ -137,20 +139,20 @@ export async function pushToOTAProcessor(job: Job<PushToOTAData>): Promise<PushR
       const parsed = parseRetryAfter(retryAfter);
       if (parsed > 0) retryAfterMs = Math.min(parsed, 3600_000); // cap at 1h
     }
-    console.warn(`[pushToOTA] ${jobId} rate limited ${response.status}, retryAfter=${retryAfterMs}ms`);
+    log.warn({ status: response.status, retryAfterMs }, 'rate limited');
     return handleRetry(job, attempt, { ok: false, status: response.status, responseBody: responseText, retryAfterMs });
   }
 
   if (response.status >= 400 && response.status < 500) {
     // 4xx = fatal error (bad request, auth, not found) — do NOT retry
-    console.error(`[pushToOTA] ${jobId} fatal ${response.status}:`, responseText);
+    log.error({ status: response.status, responseBody: responseText.slice(0, 500) }, 'fatal (4xx) — not retrying');
     // Mark bucket as failed to prevent re-processing
     await redis.set(`${bucketKey}:failed`, responseText, 'EX', 86400);
     return { ok: false, status: response.status, responseBody: responseText };
   }
 
   // 5xx — retry with backoff
-  console.warn(`[pushToOTA] ${jobId} server error ${response.status}, retrying`);
+  log.warn({ status: response.status }, 'server error, retrying');
   return handleRetry(job, attempt, { ok: false, status: response.status, responseBody: responseText });
 }
 
@@ -163,7 +165,6 @@ async function handleRetry(
   result: PushResult
 ): Promise<PushResult> {
   if (attempt >= MAX_ATTEMPTS) {
-    console.error(`[pushToOTA] ${job.id} max attempts (${MAX_ATTEMPTS}) reached — moving to DLQ`);
     return { ...result, ok: false };
   }
 

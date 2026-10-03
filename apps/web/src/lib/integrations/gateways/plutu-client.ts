@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'plutu-client' });
 
 export interface PlutuConfig {
   merchantId: string;
@@ -64,7 +67,7 @@ export function getPlutuConfig(): PlutuConfig {
   const callbackUrl = process.env.PLUTU_CALLBACK_URL || 'https://example.com/api/external/gateways/plutu/webhook';
 
   if (!merchantId || !secretKey) {
-    console.warn('[Plutu] Credentials not set (PLUTU_MERCHANT_ID / PLUTU_SECRET_KEY) — operations will fail in production');
+    log.warn('Credentials not set (PLUTU_MERCHANT_ID / PLUTU_SECRET_KEY) — operations will fail in production');
   }
 
   return { merchantId, secretKey, baseUrl, returnUrl, callbackUrl };

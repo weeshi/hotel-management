@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { connectRedis, disconnectRedis, getRedis } from '@/lib/redis';
-import { registerRepeatableJobs, getQueueHealth, QueueKey } from './queue';
+import { registerRepeatableJobs, getQueueHealth, moveToDlq, queues, QueueKey } from './queue';
 import { QUEUE_CONFIGS } from '@/lib/bullmq';
 import { withTenantJob } from '@/lib/tenant/with-tenant-job';
 import { buildSnapshotProcessor } from './jobs/buildSnapshot.job';
@@ -10,6 +10,10 @@ import { processInboundBookingProcessor } from './jobs/processInboundBooking.job
 import { pushRatePlanProcessor } from './jobs/pushRatePlan.job';
 import { reconcileInventoryProcessor } from './jobs/reconcileInventory.job';
 import { processPurgeVCCProcessor } from './jobs/purgeVCC.job';
+import { webhookDeliveryProcessor } from './jobs/webhookDelivery.job';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ component: 'worker' });
 
 /**
  * M8 — every job processor runs under an RLS context via {@link withTenantJob}:
@@ -18,6 +22,9 @@ import { processPurgeVCCProcessor } from './jobs/purgeVCC.job';
  *     or the platform-wide VCC purge scan) run as app_platform BYPASSRLS;
  *     they are trusted internal code and always write tenant attribution
  *     (`hotelId`) explicitly per row.
+ * M9 — `webhook` consumes outbound webhook deliveries; `dlq` is the unified
+ * dead-letter queue that never runs a processor (dead letters are inspected and
+ * replayed manually from Bull Board).
  */
 const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
   snapshot: withTenantJob(buildSnapshotProcessor),
@@ -26,6 +33,8 @@ const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
   rates: withTenantJob(pushRatePlanProcessor),
   reconcile: withTenantJob(reconcileInventoryProcessor),
   purge: withTenantJob(processPurgeVCCProcessor),
+  webhook: withTenantJob(webhookDeliveryProcessor),
+  dlq: async () => undefined,
 };
 
 function startHealthServer(port: number): void {
@@ -43,15 +52,17 @@ function startHealthServer(port: number): void {
       res.writeHead(404);
       res.end('Not Found');
     }
-  }).listen(port, () => console.log(`[Worker] Health server listening on :${port}`));
+  }).listen(port, () => log.info(`Health server listening on :${port}`));
 }
 
 async function main() {
   const port = parseInt(process.env.PORT || '3001', 10);
-  const targets: QueueKey[] = ['snapshot', 'publish', 'ingest', 'rates', 'reconcile', 'purge'];
+  const consumedKeys = QUEUE_CONFIGS.map((c) => c.key as QueueKey).filter((k) => k !== 'dlq');
+  const targets: QueueKey[] = consumedKeys;
 
-  console.log(`[Worker] Starting worker | NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`[Worker] Consuming queues: ${targets.join(', ')}`);
+  log.info(
+    `Starting worker | NODE_ENV: ${process.env.NODE_ENV || 'development'} | consuming queues: ${targets.join(', ')}`
+  );
 
   await connectRedis();
   await registerRepeatableJobs();
@@ -64,17 +75,29 @@ async function main() {
       concurrency: config.concurrency,
     });
 
-    worker.on('completed', (job) => console.log(`[${config.name}] Job ${job.id} completed`));
-    worker.on('failed', (job, err) =>
-      console.error(`[${config.name}] Job ${job?.id} failed: ${err.message}`)
-    );
-    worker.on('error', (err) => console.error(`[${config.name}] Worker error: ${err.message}`));
+    const qLog = childLogger({ component: 'worker', queue: config.name });
+    worker.on('completed', (job) => qLog.info({ jobId: job?.id }, 'job completed'));
+    worker.on('failed', async (job, err) => {
+      qLog.error({ jobId: job?.id, error: err.message }, 'job failed');
+      if (job) {
+        const maxAttempts = job.opts?.attempts ?? 1;
+        if (job.attemptsMade >= maxAttempts) {
+          try {
+            await moveToDlq(config.name, job, err);
+            qLog.warn({ jobId: job.id, dlq: queues.dlq.name }, 'moved to DLQ');
+          } catch (dlqErr: any) {
+            qLog.error({ error: dlqErr.message }, 'failed moving job to DLQ');
+          }
+        }
+      }
+    });
+    worker.on('error', (err) => qLog.error({ error: err.message }, 'worker error'));
 
     return worker;
   });
 
   const shutdown = async (signal: string) => {
-    console.log(`[Worker] ${signal} received, shutting down...`);
+    log.info(`Received ${signal}, shutting down...`);
     await Promise.all(workers.map((w) => w.close()));
     await disconnectRedis();
     process.exit(0);
@@ -83,10 +106,10 @@ async function main() {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  console.log('[Worker] All workers started successfully');
+  log.info('All workers started successfully');
 }
 
 main().catch((e) => {
-  console.error('[Worker] Fatal error:', e);
+  log.error({ error: e }, 'Fatal worker error');
   process.exit(1);
 });

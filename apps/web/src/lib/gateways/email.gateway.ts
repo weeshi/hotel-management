@@ -1,4 +1,8 @@
-﻿interface Attachment {
+﻿import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'email-gateway' });
+
+interface Attachment {
   filename: string;
   content: string;
   contentType?: string;
@@ -57,9 +61,7 @@ function buildTemplate(params: EmailTemplateParams): string {
 
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string }> {
   if (process.env.NODE_ENV === 'development' || !process.env.RESEND_API_KEY) {
-    console.log(`[EMAIL] To: ${params.to}`);
-    console.log(`[EMAIL] Subject: ${params.subject}`);
-    console.log(`[EMAIL] Body length: ${params.html.length} chars`);
+    log.info({ to: params.to, subject: params.subject, bodyLength: params.html.length }, 'email (dev)');
     return { success: true, messageId: 'dev-mode' };
   }
 
@@ -83,7 +85,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
     const data = await res.json();
     return { success: true, messageId: data.id };
   } catch (error: any) {
-    console.error('[EMAIL] Failed:', error.message);
+    log.error({ error: error.message }, 'email send failed');
     return { success: false };
   }
 }

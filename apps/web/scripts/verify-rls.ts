@@ -64,7 +64,19 @@ function renderOk(obj: Record<string, unknown>): string {
     .join(' ');
 }
 
-export async function verifyRls(adminUrl: string): Promise<void> {
+export interface RlsCensusSummary {
+  policies: { tenant_isolation: number; tenant_derived: number; allow_all: number };
+  forceRls: number;
+  triggers: number;
+}
+
+export interface RlsCensusResult {
+  ok: boolean;
+  summary: RlsCensusSummary | null;
+  failures: string[];
+}
+
+export async function runRlsCensus(adminUrl: string): Promise<RlsCensusResult> {
   const client = new Client({ connectionString: adminUrl });
   await client.connect();
   const failures: string[] = [];
@@ -138,17 +150,33 @@ export async function verifyRls(adminUrl: string): Promise<void> {
       }
     }
 
-    if (failures.length > 0) {
-      throw new Error(`[verify-rls] FAILED against ${adminUrl.replace(/:[^:@/]+@/, ':***@')}:\n- ${failures.join('\n- ')}`);
-    }
-
-    console.log(
-      `[verify-rls] OK against ${adminUrl.replace(/:[^:@/]+@/, ':***@')} — ` +
-        renderOk({ ...EXPECTED_POLICIES, forceRls: EXPECTED_FORCE_RLS, triggers: expectedTriggers.size })
-    );
+    return {
+      ok: failures.length === 0,
+      summary: {
+        policies: { ...EXPECTED_POLICIES },
+        forceRls: EXPECTED_FORCE_RLS,
+        triggers: expectedTriggers.size,
+      },
+      failures,
+    };
   } finally {
     await client.end();
   }
+}
+
+export async function verifyRls(adminUrl: string): Promise<void> {
+  const result = await runRlsCensus(adminUrl);
+
+  if (!result.ok) {
+    throw new Error(
+      `[verify-rls] FAILED against ${adminUrl.replace(/:[^:@/]+@/, ':***@')}:\n- ${result.failures.join('\n- ')}`
+    );
+  }
+
+  console.log(
+    `[verify-rls] OK against ${adminUrl.replace(/:[^:@/]+@/, ':***@')} — ` +
+      renderOk({ ...result.summary!.policies, forceRls: result.summary!.forceRls, triggers: result.summary!.triggers })
+  );
 }
 
 async function main() {
