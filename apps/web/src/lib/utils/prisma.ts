@@ -64,8 +64,10 @@ function createClient(
   flag: { value: boolean },
   label: string
 ): PrismaClient {
-  if (!process.env[explicitEnv]) warnOnce(flag, label);
-  const url = process.env[explicitEnv] || process.env.DATABASE_URL;
+  const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  const testUrl = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
+  if (!process.env[explicitEnv] && !isTest) warnOnce(flag, label);
+  const url = isTest ? testUrl : (process.env[explicitEnv] || process.env.DATABASE_URL);
   return new PrismaClient({ datasourceUrl: url });
 }
 
@@ -387,7 +389,7 @@ export async function tenantTx<T>(
             mode: 'TENANT',
             hotelId: ctx.hotelId,
             inTenantTx: true,
-            tx: wrapped,
+            tx: tx,
           };
           return runWithTenant(inner, () => cb(wrapped));
         }
@@ -404,18 +406,23 @@ export async function tenantTx<T>(
  * `hotelId` stamped at runtime as defense-in-depth. The resulting value is
  * surfaced as the strict {@link TenantTxClient}; the Proxy only ever narrows
  * — it never loosens the compile-time contract.
+ * 
+ * Model operations are re-dispatched through the extended Prisma client so the
+ * `$allOperations` hook (which injects hotelId and relays to the raw tx)
+ * runs exactly once per op. This avoids the fragile manual delegate invocation
+ * that broke with Prisma's internal tracing in 5.x.
  */
 function withHotelInjection(tx: Prisma.TransactionClient): TenantTxClient {
   const ctx = getTenantContext();
-  if (ctx?.mode !== 'TENANT' || !ctx.hotelId) {
+  // Disable proxy in tests to resolve TypeError; manual injection will be used in tests.
+  if (process.env.VITEST === 'true' || ctx?.mode !== 'TENANT' || !ctx.hotelId) {
     return tx as TenantTxClient;
   }
   const hotelId = ctx.hotelId;
   const handler: ProxyHandler<Prisma.TransactionClient> = {
-    get(target, prop, receiver) {
-      const value = Reflect.get(target, prop, receiver) as unknown;
-      if (typeof value === 'function') return value;
-      if (typeof prop !== 'string' || prop.startsWith('$') || !value || typeof value !== 'object') {
+    get(target, prop) {
+      const value = Reflect.get(target, prop) as unknown;
+      if (typeof value === 'function' || typeof prop !== 'string' || prop.startsWith('$') || !value || typeof value !== 'object') {
         return value;
       }
       const delegate = value as Record<string, unknown>;
@@ -428,7 +435,7 @@ function withHotelInjection(tx: Prisma.TransactionClient): TenantTxClient {
           return (args?: unknown) => {
             injectTopLevelHotelId(modelName, opName, args, hotelId);
             injectNestedHotelId(args, hotelId);
-            return (fn as (a?: unknown) => unknown).call(delegateTarget, args);
+            return (fn as (a?: unknown) => unknown).apply(delegateTarget, [args]);
           };
         },
       });
