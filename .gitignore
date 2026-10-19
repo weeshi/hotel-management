@@ -28,6 +28,12 @@ hotel-management-plan*.html
 apps/web/prisma/test.db
 apps/web/$log
 
+# Playwright artifacts (E2E)
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/playwright/.cache/
+
 # Private document storage (NEVER commit sensitive guest documents)
 apps/web/storage/
 

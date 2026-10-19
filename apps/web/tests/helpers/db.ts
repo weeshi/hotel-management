@@ -41,6 +41,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 export async function resetDb() {
   await prisma.$transaction([
+    prisma.vCCAuditLog.deleteMany(),
     prisma.auditLog.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.invitation.deleteMany(),
@@ -58,6 +59,7 @@ export async function resetDb() {
     prisma.invoice.deleteMany(),
     prisma.payment.deleteMany(),
     prisma.gatewayWebhook.deleteMany(),
+    prisma.paymentSession.deleteMany(),
     prisma.integrationConfig.deleteMany(),
     prisma.groupBooking.deleteMany(),
     prisma.folio.deleteMany(),

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { FolioRepository } from '@/lib/repositories/folio.repository';
 import { createAuditLog } from './audit.service';
@@ -27,7 +27,7 @@ export class GroupBookingService {
   async create(params: CreateGroupParams) {
     const { name, hotelId, createdById } = params;
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       const placeholderBooking = await tx.booking.create({
         data: {
           bookingNo: `GRP-${Date.now()}`,
@@ -41,6 +41,7 @@ export class GroupBookingService {
 
       const folio = await tx.folio.create({
         data: {
+          hotelId,
           bookingId: placeholderBooking.id,
           status: 'ACTIVE',
         },
@@ -153,7 +154,7 @@ export class GroupBookingService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       for (const booking of bookings) {
         await tx.booking.update({
           where: { id: booking.id },
@@ -222,7 +223,7 @@ export class GroupBookingService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       await tx.folioRoutingRule.deleteMany({
         where: { groupBookingId: groupId },
       });

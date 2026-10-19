@@ -47,7 +47,9 @@ export default function LoginPage() {
 
       const role = data.data.user?.role;
       if (role === 'SUPER_ADMIN') {
-        router.push('/superadmin');
+        // Legacy staff login must never short-circuit the platform-owner 2FA
+        // gate (SA.5): route the owner into the dedicated first-factor screen.
+        router.push('/superadmin/login');
       } else {
         router.push('/reception');
       }

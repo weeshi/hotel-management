@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "provider": "plutu",
+    "apiVersion": "plutu@2025-sandbox",
+    "scenario": "webhook-pending",
+    "signedWith": "sec_key_test_plutu_9e3f",
+    "updatedAt": "2026-09-17"
+  },
+  "payload": {
+    "transaction_id": "plu_txn_golden_2026_00003",
+    "order_id": "ord_golden_plutu_00003",
+    "amount": 400,
+    "currency": "LYD",
+    "status": "PENDING",
+    "payment_method": "card",
+    "paid_at": "2026-09-17T10:30:00Z",
+    "signature": "79d4b5af4f58b636977c182b6569b0692a1547af34f82fde7510b6ff88e677ee"
+  }
+}

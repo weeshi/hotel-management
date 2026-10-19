@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/utils/prisma';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 import { resolveTenantFromRequest } from '@/lib/utils/tenant';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 import { PricingService } from '@/lib/services/pricing.service';
 import { WebsiteSettingsService } from '@/lib/services/website-settings.service';
 
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
       return errorResponse('فندق غير موجود لهذا النطاق', 404);
     }
 
+    // M8 — after the platform-side tenant resolution, all tenant queries run as
+    // app_tenant scoped to the resolved hotel.
+    return runWithTenant({ mode: 'TENANT', hotelId: hotel.id }, async () => {
     const { searchParams } = new URL(request.url);
     const checkIn = searchParams.get('checkIn');
     const checkOut = searchParams.get('checkOut');
@@ -189,6 +193,7 @@ export async function GET(request: NextRequest) {
       checkOut,
       nights,
       availableRooms: availability,
+    });
     });
   } catch (error: any) {
     return errorResponse(error.message || 'فحص التوفر فشل', 500);

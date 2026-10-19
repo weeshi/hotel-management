@@ -1,0 +1,13 @@
+0447970746fcb9d188a7dc216eb186df9c974638
+
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp",
+      "enabled": true
+    }
+  }
+}

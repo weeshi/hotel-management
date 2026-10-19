@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { createNotification } from '@/lib/services';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -239,7 +239,7 @@ export class ChannelManagerService {
 
       const bookingNo = await generateBookingNumber();
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await tenantTx(async (tx) => {
         const booking = await tx.booking.create({
           data: {
             bookingNo,
@@ -266,12 +266,13 @@ export class ChannelManagerService {
         });
 
         const folio = await tx.folio.create({
-          data: { bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
+          data: { hotelId, bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
         });
 
         const total = Number(rate) * nights;
         await tx.folioTransaction.create({
           data: {
+            hotelId,
             folioId: folio.id,
             type: 'CHARGE',
             category: 'ROOM_CHARGE',
@@ -327,6 +328,7 @@ export class ChannelManagerService {
           paymentId = payment.id;
           await tx.folioTransaction.create({
             data: {
+              hotelId,
               folioId: folio.id,
               type: 'PAYMENT',
               category: 'PAYMENT',

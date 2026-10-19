@@ -1,8 +1,9 @@
 import { randomBytes, createHash } from 'crypto';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { hashPassword } from '@/lib/utils/password';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { createAuditLog } from './audit.service';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 
 const INVITATION_TTL_DAYS = 7;
 
@@ -28,6 +29,14 @@ async function resolveValidInvitation(token: string) {
 }
 
 export class InvitationService {
+  /**
+   * M8 — invitations resolve against & create rows across tenants (a brand-new
+   * hotel has no RLS session yet), so every public method runs as app_platform.
+   */
+  private platform<T>(fn: () => Promise<T>): Promise<T> {
+    return runWithTenant({ mode: 'PLATFORM' }, fn);
+  }
+
   async createHotelWithInvitation(params: {
     hotel: {
       name: string;
@@ -43,6 +52,7 @@ export class InvitationService {
     manager: { email: string; name?: string };
     createdById: string;
   }) {
+    return this.platform(async () => {
     const { hotel: hotelData, manager, createdById } = params;
 
     const existingEmail = await prisma.user.findUnique({
@@ -72,7 +82,7 @@ export class InvitationService {
     };
 
     try {
-      result = await prisma.$transaction(async (tx) => {
+      result = await tenantTx(async (tx) => {
         const hotel = await tx.hotel.create({
           data: {
             name: hotelData.name,
@@ -135,9 +145,11 @@ export class InvitationService {
       },
       token,
     };
+    });
   }
 
   async validateToken(token: string) {
+    return this.platform(async () => {
     const invitation = await resolveValidInvitation(token);
     return {
       email: invitation.email,
@@ -146,6 +158,7 @@ export class InvitationService {
       hotelName: invitation.hotel.name,
       expiresAt: invitation.expiresAt,
     };
+    });
   }
 
   async acceptInvitation(params: {
@@ -154,6 +167,7 @@ export class InvitationService {
     password: string;
     phone?: string;
   }) {
+    return this.platform(async () => {
     const { token, name, password, phone } = params;
     const invitation = await resolveValidInvitation(token);
 
@@ -167,7 +181,7 @@ export class InvitationService {
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await tenantTx(async (tx) => {
       const created = await tx.user.create({
         data: {
           email: invitation.email,
@@ -206,5 +220,6 @@ export class InvitationService {
     });
 
     return user;
+    });
   }
 }

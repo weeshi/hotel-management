@@ -26,39 +26,59 @@ model Hotel {
   settings     String?
   createdAt    DateTime @default(now())
 
-  rooms                Room[]
-  roomTypes            RoomType[]
-  ratePlans            RatePlan[]
-  cancellationPolicies CancellationPolicy[]
-  services             Service[]
-  serviceCategories    ServiceCategory[]
-  bookings             Booking[]
-  users                User[]
-  guests               Guest[]
-  apiPartners          ApiPartner[]
-  taxRules             TaxRule[]
-  housekeepingTasks    HousekeepingTask[]
-  taskTypes            TaskType[]
-  notifications        Notification[]
-  auditLogs            AuditLog[]
-  menuCategories       MenuCategory[]
-  menuItems            MenuItem[]
-  restaurantOrders     RestaurantOrder[]
-  safeDepositBoxes     SafeDepositBox[]
-  safeboxPackages      SafeBoxPackage[]
-  externalClients      ExternalClient[]
-  lostItems            LostItem[]
-  reportSetting        ReportSetting?
-  websiteSetting       WebsiteSetting?
-  groupBookings        GroupBooking[]
-  invitations          Invitation[]
-  payments             Payment[]
-  integrationConfigs   IntegrationConfig[]
-  gatewayWebhooks      GatewayWebhook[]
-  apiKeys              ApiKey[]
-  channelMappings      ChannelMapping[]
+  rooms                 Room[]
+  roomTypes             RoomType[]
+  ratePlans             RatePlan[]
+  cancellationPolicies  CancellationPolicy[]
+  services              Service[]
+  serviceCategories     ServiceCategory[]
+  bookings              Booking[]
+  users                 User[]
+  guests                Guest[]
+  apiPartners           ApiPartner[]
+  taxRules              TaxRule[]
+  housekeepingTasks     HousekeepingTask[]
+  taskTypes             TaskType[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  menuCategories        MenuCategory[]
+  menuItems             MenuItem[]
+  restaurantOrders      RestaurantOrder[]
+  safeDepositBoxes      SafeDepositBox[]
+  safeboxPackages       SafeBoxPackage[]
+  externalClients       ExternalClient[]
+  lostItems             LostItem[]
+  reportSetting         ReportSetting?
+  websiteSetting        WebsiteSetting?
+  groupBookings         GroupBooking[]
+  invitations           Invitation[]
+  payments              Payment[]
+  integrationConfigs    IntegrationConfig[]
+  gatewayWebhooks       GatewayWebhook[]
+  paymentSessions       PaymentSession[]
+  apiKeys               ApiKey[]
+  channelMappings       ChannelMapping[]
   channelPriceSnapshots ChannelPriceSnapshot[]
-  vccAuditLogs        VCCAuditLog[]
+  vccAuditLogs          VCCAuditLog[]
+  folios                Folio[]
+  folioTransactions     FolioTransaction[]
+  folioDiscounts        FolioDiscount[]
+  scheduledCharges      ScheduledCharge[]
+  roomCharges           RoomCharge[]
+  bookingRooms          BookingRoom[]
+  bookingServices       BookingService[]
+  guestDocuments        GuestDocument[]
+  folioRoutingRules     FolioRoutingRule[]
+  invoices              Invoice[]
+  refunds               Refund[]
+  restaurantOrderItems  RestaurantOrderItem[]
+  roomTypeAmenities     RoomTypeAmenity[]
+  roomTypeDefaultServices RoomTypeDefaultService[]
+  roomTypeExtraBeds     RoomTypeExtraBed[]
+  safeBoxTransactions   SafeBoxTransaction[]
+  safeDepositBoxItems   SafeDepositBoxItem[]
+  walletTransactions    WalletTransaction[]
+  webhookEndpoints      WebhookEndpoint[]
 }
 
 // ============================================================
@@ -88,22 +108,25 @@ enum PartnerType {
 }
 
 model User {
-  id                  String         @id @default(uuid())
-  email               String         @unique
+  id                  String          @id @default(uuid())
+  email               String          @unique
   password            String
   name                String
   phone               String?
-  role                Role           @default(RECEPTION)
+  role                Role            @default(RECEPTION)
   hotelId             String?
-  hotel               Hotel?         @relation(fields: [hotelId], references: [id])
-  isActive            Boolean        @default(true)
+  hotel               Hotel?          @relation(fields: [hotelId], references: [id])
+  isActive            Boolean         @default(true)
   twoFactorSecret     String?
-  twoFactorEnabled    Boolean        @default(false)
+  twoFactorEnabled    Boolean         @default(false)
+  twoFactorMethod     TwoFactorMethod @default(NONE)
+  lastTwoFactorAt     DateTime?
   lastLoginAt         DateTime?
-  failedLoginAttempts Int            @default(0)
+  failedLoginAttempts Int             @default(0)
   lockedUntil         DateTime?
   refreshTokens       RefreshToken[]
-  createdAt           DateTime       @default(now())
+  otpChallenges       OtpChallenge[]
+  createdAt           DateTime        @default(now())
 
   createdTransactions FolioTransaction[]   @relation("TransactionCreatedBy")
   settledFolios       Folio[]              @relation("FolioSettledBy")
@@ -130,6 +153,68 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+}
+
+// ============================================================
+//  المصادقة الثنائية لمالك المنصة (Super Admin 2FA · Email OTP)
+// ============================================================
+// See docs/SUPER-ADMIN-ARCH.md. The OTP code is NEVER stored in plaintext:
+// only an HMAC-SHA256 digest (keyed by SUPERADMIN_OTP_SECRET, bound to the
+// userId + purpose) is persisted. Challenges are single-use and short-lived.
+enum TwoFactorMethod {
+  NONE
+  EMAIL_OTP
+  TOTP
+}
+
+enum OtpPurpose {
+  SUPER_ADMIN_LOGIN
+  SUPER_ADMIN_STEP_UP
+}
+
+model OtpChallenge {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  purpose     OtpPurpose @default(SUPER_ADMIN_LOGIN)
+  codeHash    String
+  sentTo      String
+  expiresAt   DateTime
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  consumedAt     DateTime?
+  lastCodeSentAt DateTime?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime   @default(now())
+
+  @@index([userId, purpose, consumedAt])
+  @@index([expiresAt])
+}
+
+// ============================================================
+//  سجل تدقيق المنصة (Platform Audit) — مستقل عن AuditLog المستأجَر
+// ============================================================
+// Tenant AuditLog requires a hotelId. Platform-wide actions (OTP lifecycle,
+// super-admin key management for a hotel) have no single tenant, so they are
+// recorded here. Secrets and OTP codes are NEVER written to this ledger.
+model PlatformAuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actorEmail  String?
+  action      String
+  entity      String
+  entityId    String?
+  hotelId     String?
+  oldValue    String?
+  newValue    String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([entity, entityId])
 }
 
 // ============================================================
@@ -161,6 +246,8 @@ enum PaymentMethod {
   MOBICASH
   SADAD
   TADAWUL
+  PLUTU
+  TLYNC
   BANK_TRANSFER
   IDFA3LY
   YASERPAY
@@ -208,9 +295,10 @@ model Guest {
   notes         String?
   createdAt     DateTime @default(now())
 
-  bookings  Booking[]
-  wallets   Wallet[]
-  documents GuestDocument[]
+  bookings        Booking[]
+  wallets         Wallet[]
+  paymentSessions PaymentSession[]
+  documents       GuestDocument[]
 
   @@unique([hotelId, email])
   @@unique([hotelId, phone])
@@ -223,6 +311,8 @@ model Guest {
 // ============================================================
 model GuestDocument {
   id           String   @id @default(uuid())
+  hotelId      String
+  hotel        Hotel    @relation(fields: [hotelId], references: [id])
   guestId      String
   guest        Guest    @relation(fields: [guestId], references: [id])
   documentType String
@@ -255,6 +345,8 @@ model Wallet {
 
 model WalletTransaction {
   id             String                @id @default(uuid())
+  hotelId        String
+  hotel          Hotel                 @relation(fields: [hotelId], references: [id])
   walletId       String
   wallet         Wallet                @relation(fields: [walletId], references: [id])
   type           WalletTransactionType
@@ -304,6 +396,8 @@ model RoomType {
 
 model RoomTypeExtraBed {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   bedType    String
@@ -317,6 +411,8 @@ model RoomTypeExtraBed {
 
 model RoomTypeDefaultService {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   serviceId  String
@@ -329,6 +425,8 @@ model RoomTypeDefaultService {
 
 model RoomTypeAmenity {
   id         String   @id @default(uuid())
+  hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   serviceId  String
@@ -384,7 +482,7 @@ model RatePlan {
   isActive             Boolean             @default(true)
   createdAt            DateTime            @default(now())
 
-  bookingRooms BookingRoom[]
+  bookingRooms    BookingRoom[]
   channelMappings ChannelMapping[]
 
   @@index([hotelId, roomTypeId])
@@ -450,6 +548,7 @@ model Booking {
   folio            Folio?
   bookingServices  BookingService[]
   payments         Payment[]
+  paymentSessions  PaymentSession[]
   notifications    Notification[]
   auditLogs        AuditLog[]
   restaurantOrders RestaurantOrder[]
@@ -462,6 +561,8 @@ model Booking {
 
 model BookingRoom {
   id          String    @id @default(uuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
   bookingId   String
   booking     Booking   @relation(fields: [bookingId], references: [id])
   roomId      String?
@@ -524,6 +625,8 @@ model Service {
 
 model BookingService {
   id        String   @id @default(uuid())
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
   bookingId String
   booking   Booking  @relation(fields: [bookingId], references: [id])
   serviceId String
@@ -556,6 +659,8 @@ model GroupBooking {
 
 model FolioRoutingRule {
   id             String       @id @default(uuid())
+  hotelId        String
+  hotel          Hotel        @relation(fields: [hotelId], references: [id])
   groupBookingId String
   groupBooking   GroupBooking @relation(fields: [groupBookingId], references: [id])
   chargeType     String
@@ -572,6 +677,8 @@ model FolioRoutingRule {
 // ============================================================
 model Folio {
   id           String    @id @default(uuid())
+  hotelId      String
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
   bookingId    String    @unique
   booking      Booking   @relation(fields: [bookingId], references: [id])
   status       String    @default("ACTIVE")
@@ -586,6 +693,7 @@ model Folio {
 
   transactions       FolioTransaction[]
   payments           Payment[]
+  paymentSessions    PaymentSession[]
   invoices           Invoice[]
   discounts          FolioDiscount[]
   scheduledCharges   ScheduledCharge[]
@@ -593,11 +701,14 @@ model Folio {
   routingRuleTargets FolioRoutingRule[]
 
   @@index([bookingId])
+  @@index([hotelId])
   @@index([status])
 }
 
 model ScheduledCharge {
   id          String    @id @default(uuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
   folioId     String
   folio       Folio     @relation(fields: [folioId], references: [id])
   description String
@@ -607,10 +718,13 @@ model ScheduledCharge {
   processedAt DateTime?
 
   @@index([folioId, chargeDate])
+  @@index([hotelId])
 }
 
 model RoomCharge {
   id              String      @id @default(uuid())
+  hotelId         String
+  hotel           Hotel       @relation(fields: [hotelId], references: [id])
   bookingRoomId   String
   bookingRoom     BookingRoom @relation(fields: [bookingRoomId], references: [id])
   date            DateTime
@@ -622,10 +736,13 @@ model RoomCharge {
   folioTransaction FolioTransaction?
 
   @@index([bookingRoomId, date])
+  @@index([hotelId])
 }
 
 model FolioTransaction {
   id            String      @id @default(uuid())
+  hotelId       String
+  hotel         Hotel       @relation(fields: [hotelId], references: [id])
   folioId       String
   folio         Folio       @relation(fields: [folioId], references: [id])
   type          String
@@ -644,10 +761,13 @@ model FolioTransaction {
 
   @@index([folioId])
   @@index([createdAt])
+  @@index([hotelId])
 }
 
 model FolioDiscount {
   id          String   @id @default(uuid())
+  hotelId     String
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
   folioId     String
   folio       Folio    @relation(fields: [folioId], references: [id])
   type        String
@@ -658,6 +778,7 @@ model FolioDiscount {
   createdAt   DateTime @default(now())
 
   @@index([folioId])
+  @@index([hotelId])
 }
 
 // ============================================================
@@ -685,15 +806,17 @@ model Payment {
   createdAt        DateTime @default(now())
 
   // VGS / VCC fields (PCI-DSS compliant — no PAN/CVV stored)
-  vccToken         String?  // Tokenized card number (e.g., tok_visa_...)
-  vccExpiryToken   String?  // Tokenized expiry date
-  vccCVVToken      String?  // Tokenized CVV
-  vccProvider      String?  // Tokenization provider (e.g., 'vgs')
-  vgsVaultId       String?  // VGS Vault ID reference
-  vccHolderName    String?  // Cardholder name (non-sensitive)
-  vccPurgedAt      DateTime? // When VCC data was purged (retention policy)
+  vccToken       String? // Tokenized card number (e.g., tok_visa_...)
+  vccExpiryToken String? // Tokenized expiry date
+  vccCVVToken    String? // Tokenized CVV
+  vccProvider    String? // Tokenization provider (e.g., 'vgs')
+  vgsVaultId     String? // VGS Vault ID reference
+  vccHolderName  String? // Cardholder name (non-sensitive)
+  vccPurgedAt    DateTime? // When VCC data was purged (retention policy)
 
-  refunds Refund[]
+  refunds         Refund[]
+  gatewayWebhooks GatewayWebhook[]
+  paymentSessions PaymentSession[]
 
   @@index([bookingId])
   @@index([folioId])
@@ -705,6 +828,8 @@ model Payment {
 
 model Refund {
   id              String   @id @default(uuid())
+  hotelId         String
+  hotel           Hotel    @relation(fields: [hotelId], references: [id])
   paymentId       String
   payment         Payment  @relation(fields: [paymentId], references: [id])
   amount          Float
@@ -717,22 +842,64 @@ model Refund {
 }
 
 // ============================================================
+//  جلسات الدفع عبر البوابات المحلية (Local Payment Gateways)
+// ============================================================
+// PaymentSession يتبع محاولة دفع واحدة في الحجز المباشر: (ضيف → بوابة → دفعة).
+// الجلسة لا تمسّ الـ Ledger إطلاقاً — فقط عند تأكيد الـ Webhook ننشئ الـ Payment
+// المكتمل ثم نطبقه على الـ Folio عبر applyPayment. الجلسات لا تُحذف أبداً
+// (أرشيف تدقيق مرحلة PCI، بنفس روح VCCAuditLog).
+model PaymentSession {
+  id                   String    @id @default(uuid())
+  hotelId              String
+  hotel                Hotel     @relation(fields: [hotelId], references: [id])
+  bookingId            String
+  booking              Booking   @relation(fields: [bookingId], references: [id])
+  folioId              String?
+  folio                Folio?    @relation(fields: [folioId], references: [id])
+  guestId              String?
+  guest                Guest?    @relation(fields: [guestId], references: [id])
+  method               String // PLUTU | TLYNC | CASH | BANK_TRANSFER
+  gateway              String // plutu | tlync | bank_transfer | cash
+  amount               Float
+  currency             String    @default("LYD")
+  status               String    @default("PENDING") // PENDING | SUCCEEDED | FAILED | EXPIRED
+  merchantTxId         String? // معرّف المعاملة لدينا (مرسل للبوابة عند الإنشاء)
+  gatewayTransactionId String? // أيد البوابة الرسمي (يعود في الـ webhook)
+  gatewayReference     String? // رقم المرجع/الفاتورة من البوابة
+  signature            String?
+  idempotencyKey       String?   @unique
+  returnUrl            String?
+  paymentId            String?
+  payment              Payment?  @relation(fields: [paymentId], references: [id])
+  expiresAt            DateTime?
+  gatewayConfig        String? // Snapshot of gateway credentials at session creation (prevents config mutation issues)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  gatewayWebhooks GatewayWebhook[]
+
+  @@index([hotelId, status, createdAt])
+  @@index([gateway, gatewayTransactionId])
+  @@index([bookingId])
+}
+
+// ============================================================
 //  VCC Audit Log (PCI-DSS compliance tracking)
 // ============================================================
 model VCCAuditLog {
-  id            String   @id @default(uuid())
-  hotelId       String
-  hotel         Hotel    @relation(fields: [hotelId], references: [id])
-  paymentId     String?
-  bookingId     String?
-  action        String   // 'tokenized' | 'revealed' | 'purged' | 'charge_attempted' | 'charge_succeeded' | 'charge_failed'
-  vccTokenRef   String?  // Reference to token (not the token itself)
-  vgsVaultId    String?
-  performedBy   String?  // User ID or 'system' for automated jobs
-  ipAddress     String?
-  userAgent     String?
-  metadata      String?  // JSON with additional context
-  createdAt     DateTime @default(now())
+  id          String   @id @default(uuid())
+  hotelId     String
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  paymentId   String?
+  bookingId   String?
+  action      String // 'tokenized' | 'revealed' | 'purged' | 'charge_attempted' | 'charge_succeeded' | 'charge_failed'
+  vccTokenRef String? // Reference to token (not the token itself)
+  vgsVaultId  String?
+  performedBy String? // User ID or 'system' for automated jobs
+  ipAddress   String?
+  userAgent   String?
+  metadata    String? // JSON with additional context
+  createdAt   DateTime @default(now())
 
   @@index([hotelId, createdAt])
   @@index([paymentId])
@@ -743,19 +910,27 @@ model VCCAuditLog {
 // ============================================================
 //  تكاملات محركات الحجز الخارجية (Decoupled PMS Ledger)
 // ============================================================
+enum IntegrationKind {
+  BOOKING_ENGINE
+  PAYMENT_GATEWAY
+}
+
 model IntegrationConfig {
-  id        String   @id @default(uuid())
-  hotelId   String
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
-  engine    String
-  apiKeyEnc String?
-  isActive  Boolean  @default(false)
-  config    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String            @id @default(uuid())
+  hotelId     String
+  hotel       Hotel             @relation(fields: [hotelId], references: [id])
+  engine      String
+  kind        IntegrationKind   @default(BOOKING_ENGINE)
+  apiKeyEnc   String?
+  isActive    Boolean           @default(false)
+  config      String?
+  updatedById String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@unique([hotelId, engine])
   @@index([hotelId])
+  @@index([kind])
 }
 
 model GatewayWebhook {
@@ -771,8 +946,15 @@ model GatewayWebhook {
   processedAt DateTime?
   createdAt   DateTime  @default(now())
 
+  paymentId        String?
+  payment          Payment?        @relation(fields: [paymentId], references: [id])
+  paymentSessionId String?
+  paymentSession   PaymentSession? @relation(fields: [paymentSessionId], references: [id])
+
   @@unique([provider, hotelId, eventId])
   @@index([hotelId])
+  @@index([paymentId])
+  @@index([paymentSessionId])
 }
 
 // ============================================================
@@ -790,21 +972,21 @@ enum ChannelProvider {
 }
 
 model ChannelMapping {
-  id                  String          @id @default(uuid())
-  hotelId             String
-  hotel               Hotel           @relation(fields: [hotelId], references: [id])
-  provider            ChannelProvider
-  channelRoomTypeId   String          // OTA's room type ID
-  channelRatePlanId   String?         // OTA's rate plan ID
-  channelName         String?         // human label from OTA
-  roomTypeId          String
-  roomType            RoomType        @relation(fields: [roomTypeId], references: [id])
-  ratePlanId          String?
-  ratePlan            RatePlan?       @relation(fields: [ratePlanId], references: [id])
-  enabled             Boolean         @default(true)
-  lastPushedAt        DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  id                String          @id @default(uuid())
+  hotelId           String
+  hotel             Hotel           @relation(fields: [hotelId], references: [id])
+  provider          ChannelProvider
+  channelRoomTypeId String // OTA's room type ID
+  channelRatePlanId String? // OTA's rate plan ID
+  channelName       String? // human label from OTA
+  roomTypeId        String
+  roomType          RoomType        @relation(fields: [roomTypeId], references: [id])
+  ratePlanId        String?
+  ratePlan          RatePlan?       @relation(fields: [ratePlanId], references: [id])
+  enabled           Boolean         @default(true)
+  lastPushedAt      DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@unique([hotelId, roomTypeId, channelRoomTypeId])
   @@index([hotelId, provider])
@@ -815,16 +997,16 @@ model ChannelMapping {
 // Nativity: one row per roomType per date — a simple high-watermark stream the
 // job layer reads to diff and push to the OTA. Kept audit-grade.
 model ChannelPriceSnapshot {
-  id            String          @id @default(uuid())
-  hotelId       String
-  hotel         Hotel           @relation(fields: [hotelId], references: [id])
-  provider      ChannelProvider
-  roomTypeId    String
-  roomType      RoomType        @relation(fields: [roomTypeId], references: [id])
-  date          DateTime        @db.Date
-  available     Int             @default(0)
-  nightlyRate   Float
-  createdAt     DateTime        @default(now())
+  id          String          @id @default(uuid())
+  hotelId     String
+  hotel       Hotel           @relation(fields: [hotelId], references: [id])
+  provider    ChannelProvider
+  roomTypeId  String
+  roomType    RoomType        @relation(fields: [roomTypeId], references: [id])
+  date        DateTime        @db.Date
+  available   Int             @default(0)
+  nightlyRate Float
+  createdAt   DateTime        @default(now())
 
   @@unique([hotelId, provider, roomTypeId, date])
   @@index([hotelId, provider, date])
@@ -835,6 +1017,8 @@ model ChannelPriceSnapshot {
 // ============================================================
 model Invoice {
   id               String          @id @default(uuid())
+  hotelId          String
+  hotel            Hotel           @relation(fields: [hotelId], references: [id])
   folioId          String?
   folio            Folio?          @relation(fields: [folioId], references: [id])
   externalClientId String?
@@ -968,6 +1152,8 @@ model RestaurantOrder {
 
 model RestaurantOrderItem {
   id         String          @id @default(uuid())
+  hotelId    String
+  hotel      Hotel           @relation(fields: [hotelId], references: [id])
   orderId    String
   order      RestaurantOrder @relation(fields: [orderId], references: [id])
   menuItemId String
@@ -1042,6 +1228,8 @@ model ApiPartner {
 
 model WebhookEndpoint {
   id            String     @id @default(uuid())
+  hotelId       String
+  hotel         Hotel      @relation(fields: [hotelId], references: [id])
   partnerId     String
   partner       ApiPartner @relation(fields: [partnerId], references: [id])
   url           String
@@ -1173,6 +1361,8 @@ model SafeDepositBox {
 
 model SafeDepositBoxItem {
   id               String         @id @default(uuid())
+  hotelId          String
+  hotel            Hotel          @relation(fields: [hotelId], references: [id])
   safeDepositBoxId String
   safeDepositBox   SafeDepositBox @relation(fields: [safeDepositBoxId], references: [id])
   description      String
@@ -1186,6 +1376,8 @@ model SafeDepositBoxItem {
 // --- Audit trail for cash/valuables movement ---
 model SafeBoxTransaction {
   id               String                 @id @default(uuid())
+  hotelId          String
+  hotel            Hotel                  @relation(fields: [hotelId], references: [id])
   safeDepositBoxId String
   safeDepositBox   SafeDepositBox         @relation(fields: [safeDepositBoxId], references: [id])
   type             SafeBoxTransactionType
@@ -1255,3 +1447,4 @@ model WebsiteSetting {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
+

@@ -10,7 +10,8 @@
     "build": "npm run build -w @hotel/web",
     "lint": "npm run lint -w @hotel/web",
     "typecheck": "npm run typecheck -w @hotel/web",
-    "test": "npm run test -w @hotel/web"
+    "test": "npm run test -w @hotel/web",
+    "test:e2e": "npm run test:e2e -w @hotel/web"
   },
   "devDependencies": {
     "typescript": "^5.5"

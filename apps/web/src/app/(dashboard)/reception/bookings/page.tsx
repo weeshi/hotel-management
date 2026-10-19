@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Badge, Input, Modal, Card, EmptyState } from '@/components/ui';
 import { apiGet } from '@/lib/utils/api-client';
+import { useAuth } from '@/contexts/auth-context';
+import { VCCReveal } from '@/components/bookings/VCCReveal';
 
 interface Booking {
   id: string;
@@ -14,6 +16,22 @@ interface Booking {
   createdAt: string;
   rooms: { room: { roomNumber: string } }[];
   folio?: { balance: number };
+}
+
+interface BookingDetail {
+  id: string;
+  folio?: {
+    id: string;
+    payments?: {
+      id: string;
+      method: string;
+      status: string;
+      amount: number;
+      currency: string;
+      gateway?: string | null;
+      createdAt: string;
+    }[];
+  };
 }
 
 const statusConfig: Record<string, { label: string; variant: 'gold' | 'green' | 'red' | 'blue' | 'yellow' }> = {
@@ -27,11 +45,23 @@ const statusConfig: Record<string, { label: string; variant: 'gold' | 'green' | 
 
 export default function BookingsPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [bookingDetail, setBookingDetail] = useState<BookingDetail | null>(null);
+  const [vccOpen, setVccOpen] = useState(false);
+
+  async function openBookingDetails(booking: Booking) {
+    setSelectedBooking(booking);
+    setBookingDetail(null);
+    try {
+      const res = await apiGet<BookingDetail>(`/api/admin/bookings/${booking.id}`);
+      if (res.success) setBookingDetail(res.data);
+    } catch {}
+  }
 
   async function fetchBookings() {
     setLoading(true);
@@ -107,7 +137,7 @@ export default function BookingsPage() {
             return (
               <div
                 key={booking.id}
-                onClick={() => setSelectedBooking(booking)}
+                onClick={() => openBookingDetails(booking)}
                 className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 transition-all hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-gold)] cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -172,6 +202,12 @@ export default function BookingsPage() {
               <Button size="sm" onClick={() => router.push(`/reception/folio?bookingId=${selectedBooking.id}`)}>
                 💰 عرض الفاتورة
               </Button>
+              {bookingDetail?.folio?.payments?.some((p) => p.method === 'VCC') &&
+                ['ADMIN', 'MANAGER', 'RECEPTION'].includes(user?.role || '') && (
+                  <Button size="sm" onClick={() => setVccOpen(true)}>
+                    💳 عرض بيانات البطاقة (VCC)
+                  </Button>
+                )}
               <Button size="sm" variant="secondary" onClick={() => setSelectedBooking(null)}>
                 إغلاق
               </Button>
@@ -179,6 +215,12 @@ export default function BookingsPage() {
           </div>
         )}
       </Modal>
+
+      <VCCReveal
+        isOpen={vccOpen}
+        onClose={() => setVccOpen(false)}
+        bookingId={selectedBooking?.id || ''}
+      />
     </div>
   );
 }

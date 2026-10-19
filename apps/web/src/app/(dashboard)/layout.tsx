@@ -15,7 +15,7 @@ const roleNavItems: Record<string, { section: string; items: { href: string; lab
       { href: '/superadmin/invitations', label: '📨 الدعوات' },
     ]},
     { section: '⚙️ مراقبة الطوابير', items: [
-      { href: '/admin/queues', label: '📋 لوحة الطوابير (Bull Board)' },
+      { href: '/superadmin/jobs', label: '📋 لوحة الطوابير (Bull Board)' },
     ]},
   ],
   ADMIN: [

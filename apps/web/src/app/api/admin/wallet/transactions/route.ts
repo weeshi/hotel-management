@@ -1,5 +1,5 @@
 ﻿import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { withAuth } from '@/middlewares/auth';
 import { withRateLimit } from '@/middlewares/rate-limit';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
@@ -39,8 +39,8 @@ async function getHandler(request: NextRequest) {
     const skip = exportAll ? 0 : (page - 1) * limit;
     const take = exportAll ? undefined : limit;
 
-    const [transactions, total, summary] = await prisma.$transaction([
-      prisma.walletTransaction.findMany({
+    const { transactions, total, summary } = await tenantTx(async (tx) => {
+      const list = await tx.walletTransaction.findMany({
         where,
         include: {
           wallet: {
@@ -50,14 +50,15 @@ async function getHandler(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip,
         take,
-      }),
-      prisma.walletTransaction.count({ where }),
-      prisma.wallet.aggregate({
+      });
+      const count = await tx.walletTransaction.count({ where });
+      const agg = await tx.wallet.aggregate({
         where: { hotelId: user.hotelId },
         _count: true,
         _sum: { balance: true },
-      }),
-    ]);
+      });
+      return { transactions: list, total: count, summary: agg };
+    });
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -76,7 +77,7 @@ async function getHandler(request: NextRequest) {
     ]);
 
     const enriched = await Promise.all(
-      transactions.map(async (tx) => {
+      transactions.map(async (tx: any) => {
         let createdByName = '';
         if (tx.createdById) {
           const creator = await prisma.user.findFirst({

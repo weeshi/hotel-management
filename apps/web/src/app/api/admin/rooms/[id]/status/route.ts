@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { withAuth } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { withValidation } from '@/middlewares/validate';
@@ -24,25 +24,23 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
     const triggersCleaningTask =
       body.housekeepingStatus === 'DIRTY' && room.housekeepingStatus !== 'DIRTY';
 
-    const operations: any[] = [
-      prisma.room.update({
+    const updatedRoom = await tenantTx(async (tx) => {
+      const updated = await tx.room.update({
         where: { id: roomId },
         data: updateData,
-      }),
-    ];
-
-    if (triggersCleaningTask) {
-      const existingTask = await prisma.housekeepingTask.findFirst({
-        where: {
-          roomId,
-          taskType: 'CLEANING',
-          status: { in: ['PENDING', 'IN_PROGRESS'] },
-        },
       });
 
-      if (!existingTask) {
-        operations.push(
-          prisma.housekeepingTask.create({
+      if (triggersCleaningTask) {
+        const existingTask = await tx.housekeepingTask.findFirst({
+          where: {
+            roomId,
+            taskType: 'CLEANING',
+            status: { in: ['PENDING', 'IN_PROGRESS'] },
+          },
+        });
+
+        if (!existingTask) {
+          await tx.housekeepingTask.create({
             data: {
               hotelId: user.hotelId,
               roomId,
@@ -50,12 +48,12 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
               priority: 'NORMAL',
               status: 'PENDING',
             },
-          }),
-        );
+          });
+        }
       }
-    }
 
-    const [updatedRoom] = await prisma.$transaction(operations);
+      return updated;
+    });
 
     return successResponse(updatedRoom);
   } catch (error: any) {

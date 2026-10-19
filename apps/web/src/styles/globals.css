@@ -71,3 +71,41 @@
     direction: ltr;
   }
 }
+
+/* SA.5 — 6-box OTP entry (apps/web/src/app/(superadmin)/superadmin/(auth)/otp) */
+.otp-input {
+  @apply h-14 w-12 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-center text-2xl font-bold text-[var(--text-primary)] transition-colors focus:border-[var(--gold)] focus:outline-none focus:ring-1 focus:ring-[var(--gold)] [appearance:textfield];
+}
+.otp-input::-webkit-outer-spin-button,
+.otp-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Wrong-code feedback: a tight horizontal shake on the code row only. */
+@keyframes otp-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.otp-shake {
+  animation: otp-shake 0.4s ease-in-out;
+}
+
+/* Small fade-in for error messages so they don't pop abruptly. */
+@keyframes otp-fade-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.otp-fade-in {
+  animation: otp-fade-in 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otp-shake,
+  .otp-fade-in {
+    animation: none;
+  }
+}

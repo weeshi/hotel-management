@@ -5,6 +5,7 @@ import { queues } from '@/workers/queue';
 import { JOB_PRIORITY } from '@/lib/bullmq';
 import { normalizeVCCWebhook, NormalizedVCCBooking, validateVCCPaymentTokens } from '@/lib/integrations/vcc-normalizer';
 import { VCCAuditLog } from '@prisma/client';
+import { childLogger } from '@/lib/observability/logger';
 
 interface InboundBookingJobData {
   hotelId: string;
@@ -56,8 +57,9 @@ interface IngestResult {
 export async function processInboundBookingProcessor(job: Job<InboundBookingJobData>): Promise<IngestResult> {
   const { hotelId, provider, externalRef, vccTokens, vgsMetadata, ...bookingData } = job.data;
   const jobId = job.id || `ingest:${hotelId}:${provider}:${externalRef}`;
+  const log = childLogger({ component: 'worker', queue: 'ingest', jobId, hotelId, provider });
 
-  console.log(`[processInboundBooking] ${jobId} start`, { hasVCC: !!vccTokens, provider });
+  log.info({ hasVCC: !!vccTokens }, 'inbound booking start');
 
   const cmService = new ChannelManagerService();
 
@@ -65,10 +67,10 @@ export async function processInboundBookingProcessor(job: Job<InboundBookingJobD
   if (vccTokens) {
     const validation = validateVCCPaymentTokens(vccTokens);
     if (!validation.valid) {
-      console.error(`[processInboundBooking] ${jobId} invalid VCC tokens:`, validation.errors);
+      log.error({ errors: validation.errors }, 'invalid VCC tokens');
       return { ok: false, status: 400, error: `VCC token validation failed: ${validation.errors.join(', ')}` };
     }
-    console.log(`[processInboundBooking] ${jobId} VCC tokens validated`);
+    log.info('VCC tokens validated');
   }
 
   // Use ChannelManagerService for core ingestion logic
@@ -106,23 +108,23 @@ export async function processInboundBookingProcessor(job: Job<InboundBookingJobD
   }
 
   if (result.status === 200 && result.body.duplicate) {
-    console.log(`[processInboundBooking] ${jobId} duplicate — ignored`);
+    log.info('duplicate — ignored');
     return { ok: true, status: 200, bookingNo: result.body.bookingNo, duplicate: true };
   }
 
   if (result.status === 201) {
-    console.log(`[processInboundBooking] ${jobId} created booking ${result.body.bookingNo}`);
+    log.info({ bookingNo: result.body.bookingNo }, 'created booking');
     return { ok: true, status: 201, bookingNo: result.body.bookingNo, duplicate: false };
   }
 
   // 4xx errors are logged but not retried (bad data)
   if (result.status && result.status >= 400 && result.status < 500) {
-    console.error(`[processInboundBooking] ${jobId} client error ${result.status}:`, result.body);
+    log.error({ status: result.status, body: result.body }, 'client error');
     return { ok: false, status: result.status, error: result.body?.error };
   }
 
   // 5xx or unexpected
-  console.error(`[processInboundBooking] ${jobId} server error:`, result.body);
+  log.error({ status: result.status, body: result.body }, 'server error');
   return { ok: false, status: result.status || 500, error: result.body?.error };
 }
 
@@ -161,7 +163,7 @@ async function storeVCCDataOnPayment(
     },
   });
 
-  console.log(`[processInboundBooking] VCC tokens stored on payment ${paymentId}`);
+  childLogger({ component: 'worker', queue: 'ingest', paymentId, hotelId }).info('VCC tokens stored on payment');
 }
 
 /**
@@ -196,7 +198,7 @@ export async function processNormalizedVCCBooking(
 ): Promise<IngestResult> {
   const jobId = `ingest:vcc:${hotelId}:${provider}:${normalized.externalRef}`;
 
-  console.log(`[processInboundBooking] ${jobId} processing normalized VCC booking`);
+  childLogger({ component: 'worker', queue: 'ingest', jobId, hotelId, provider }).info('processing normalized VCC booking');
 
   // Validate tokens before proceeding
   const validation = validateVCCPaymentTokens(normalized.payment.tokens);

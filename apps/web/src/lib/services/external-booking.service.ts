@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { createAuditLog, createNotification } from '@/lib/services';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
@@ -124,7 +124,7 @@ export class ExternalBookingService {
 
       let totalCharges = 0;
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await tenantTx(async (tx) => {
         const hotel = await tx.hotel.findUnique({
           where: { id: hotelId },
           select: { currency: true },
@@ -273,13 +273,14 @@ export class ExternalBookingService {
         });
 
         const folio = await tx.folio.create({
-          data: { bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
+          data: { hotelId, bookingId: booking.id, totalCharges: 0, totalPaid: 0, balance: 0 },
         });
 
         for (const r of bookingRooms) {
           const roomAmount = Number(r.nightlyRate) * nights;
           await tx.folioTransaction.create({
             data: {
+              hotelId,
               folioId: folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -314,6 +315,7 @@ export class ExternalBookingService {
 
           await tx.folioTransaction.create({
             data: {
+              hotelId,
               folioId: folio.id,
               type: 'PAYMENT',
               category: 'PAYMENT',

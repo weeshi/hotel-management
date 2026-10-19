@@ -69,6 +69,7 @@ export class FolioService {
 
     await prisma.folioDiscount.create({
       data: {
+        hotelId,
         folioId,
         type: data.type,
         value: data.value,

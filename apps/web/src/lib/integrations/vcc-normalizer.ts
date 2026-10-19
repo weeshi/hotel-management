@@ -27,6 +27,7 @@ export interface NormalizedVCCBooking {
   // Core booking identification
   externalRef: string;
   provider: VCCProvider;
+  hotelId?: string;           // Resolved from mapping or payload
 
   // Guest info
   guestName: string;
@@ -75,6 +76,7 @@ const vccMetadataSchema = z.object({
 export const normalizedVCCBookingSchema = z.object({
   externalRef: z.string().min(1, 'externalRef مطلوب'),
   provider: z.enum(['booking.com', 'expedia', 'airbnb', 'agoda', 'trip', 'other']),
+  hotelId: z.string().optional(),
   guestName: z.string().min(1, 'guestName مطلوب'),
   guestEmail: z.string().email('بريد إلكتروني غير صالح').optional().nullable(),
   guestPhone: z.string().optional().nullable(),
@@ -191,10 +193,14 @@ function extractExpediaVCC(payload: RawProviderPayload): NormalizedVCCBooking {
 
   const vgsMeta = itinerary.vgs_metadata || payload.vgs_metadata || {};
 
+  const firstName = pick(guest, ['guestFirstName', 'first_name']) || '';
+  const lastName = pick(guest, ['guestLastName', 'last_name']) || '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || String(pick(guest, ['name', 'guest_name']) || '');
+
   return {
     externalRef: String(pick(itinerary, ['itinerary_id', 'confirmation_number', 'itineraryId', 'id']) || ''),
     provider: 'expedia',
-    guestName: String(pick(guest, ['guestFirstName', 'guestLastName', 'name', 'guest_name']) || ''),
+    guestName: fullName,
     guestEmail: pick(guest, ['email', 'guest_email']) || null,
     guestPhone: pick(guest, ['phone', 'guest_phone']) || null,
     adults: Number(pick(itinerary, ['adults', 'adultCount']) || 1),
@@ -220,14 +226,32 @@ function extractExpediaVCC(payload: RawProviderPayload): NormalizedVCCBooking {
 
 function extractGenericVCC(payload: RawProviderPayload): NormalizedVCCBooking {
   // Fallback for other providers - assumes VGS already processed
+  const payment = payload.payment || {};
+
   const tokens: VCCPaymentTokens = {
-    cardToken: String(pick(payload, ['card_token', 'cardToken', 'pan_token']) || ''),
-    expiryToken: String(pick(payload, ['expiry_token', 'expiryToken', 'exp_token']) || ''),
-    cvvToken: String(pick(payload, ['cvv_token', 'cvvToken', 'cvc_token']) || ''),
-    holderName: String(pick(payload, ['holder_name', 'holderName', 'cardholder_name']) || ''),
+    cardToken: String(
+      pick(payload, ['card_token', 'cardToken', 'pan_token']) ||
+      pick(payment, ['card_token', 'cardToken', 'pan_token', 'card_number', 'cardNumber', 'pan']) ||
+      ''
+    ),
+    expiryToken: String(
+      pick(payload, ['expiry_token', 'expiryToken', 'exp_token']) ||
+      pick(payment, ['expiry_token', 'expiryToken', 'exp_token', 'expiry_date', 'expiryDate', 'expiry']) ||
+      ''
+    ),
+    cvvToken: String(
+      pick(payload, ['cvv_token', 'cvvToken', 'cvc_token']) ||
+      pick(payment, ['cvv_token', 'cvvToken', 'cvc_token', 'cvv', 'cvc', 'security_code']) ||
+      ''
+    ),
+    holderName: String(
+      pick(payload, ['holder_name', 'holderName', 'cardholder_name']) ||
+      pick(payment, ['holder_name', 'holderName', 'cardholder_name']) ||
+      ''
+    ),
   };
 
-  const vgsMeta = payload.vgs_metadata || {};
+  const vgsMeta = payload.vgs_metadata || payment.vgs_metadata || {};
 
   return {
     externalRef: String(pick(payload, ['external_ref', 'externalRef', 'booking_id', 'bookingId', 'id']) || ''),
@@ -242,8 +266,8 @@ function extractGenericVCC(payload: RawProviderPayload): NormalizedVCCBooking {
     channelRoomTypeId: String(pick(payload, ['channel_room_type_id', 'channelRoomTypeId', 'room_type_id', 'roomTypeId']) || ''),
     channelRatePlanId: pick(payload, ['channel_rate_plan_id', 'channelRatePlanId', 'rate_plan_id']) || null,
     payment: {
-      amount: Number(pick(payload, ['amount', 'total_amount', 'price']) || 0),
-      currency: String(pick(payload, ['currency', 'curr']) || 'LYD'),
+      amount: Number(pick(payload, ['amount', 'total_amount', 'price']) || pick(payment, ['amount', 'total_amount', 'price']) || 0),
+      currency: String(pick(payload, ['currency', 'curr']) || pick(payment, ['currency', 'curr']) || 'LYD'),
       tokens,
     },
     vgsMetadata: {

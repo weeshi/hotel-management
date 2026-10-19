@@ -1,4 +1,4 @@
-﻿import { prisma } from '@/lib/utils/prisma';
+﻿import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { Prisma } from '@prisma/client';
 import { generateBookingNumber } from '@/lib/utils/booking-number';
 import { BookingRepository } from '@/lib/repositories/booking.repository';
@@ -162,7 +162,7 @@ export class BookingService {
       }
     }
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await tenantTx(async (tx) => {
       const created = await tx.booking.create({
         data: {
           bookingNo,
@@ -198,6 +198,7 @@ export class BookingService {
       if (isReception) {
         const folio = await tx.folio.create({
           data: {
+            hotelId: data.hotelId,
             bookingId: created.id,
             totalCharges: 0,
             totalPaid: 0,
@@ -213,6 +214,7 @@ export class BookingService {
           );
           await tx.folioTransaction.create({
             data: {
+              hotelId: data.hotelId,
               folioId: folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -243,6 +245,7 @@ export class BookingService {
             });
             await tx.folioTransaction.create({
               data: {
+                hotelId: data.hotelId,
                 folioId: folio.id,
                 type: 'CHARGE',
                 category: 'SERVICE',
@@ -328,7 +331,7 @@ export class BookingService {
     });
     if (!folio) throw new NotFoundError('الفاتورة غير موجودة للحجز');
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       // --- Charges are already posted at booking creation time (create()). ---
       // checkIn() ONLY: occupies rooms, records payment, deducts wallet, updates status.
 
@@ -360,6 +363,7 @@ export class BookingService {
 
         await tx.folioTransaction.create({
           data: {
+            hotelId: booking.hotelId,
             folioId: folio.id,
             type: 'PAYMENT',
             category: 'PAYMENT',
@@ -440,7 +444,7 @@ export class BookingService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       let refundPct = 100;
       if (booking.cancellationPolicy) {
         try {
@@ -483,6 +487,7 @@ export class BookingService {
         if (roomRefund > 0 && booking.folio) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'REFUND',
               category: 'ROOM_CHARGE',
@@ -574,7 +579,7 @@ for (const room of booking.rooms) {
 
     const moveDate = new Date();
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
         data: { status: 'CHECKED_IN' },
@@ -599,6 +604,7 @@ for (const room of booking.rooms) {
             // Credit back remaining nights for old room
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'REFUND',
                 category: 'ROOM_CHARGE',
@@ -614,6 +620,7 @@ for (const room of booking.rooms) {
 
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'CHARGE',
                 category: 'ROOM_CHARGE',
@@ -738,7 +745,7 @@ for (const room of booking.rooms) {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       const oldCheckOut = booking.rooms[0].checkOut;
       const originalCheckIn = booking.rooms[0].checkIn;
       const totalOldNights = Math.ceil(
@@ -777,6 +784,7 @@ for (const room of booking.rooms) {
         for (const r of roomsWithRates) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -999,7 +1007,7 @@ for (const room of booking.rooms) {
     // Determine new status
     const newStatus = options?.noShow ? 'NO_SHOW' : 'CANCELLED';
 
-    return prisma.$transaction(async (tx) => {
+    return tenantTx(async (tx) => {
       // 1. Update booking status
       await tx.booking.update({
         where: { id: bookingId },
@@ -1016,6 +1024,7 @@ for (const room of booking.rooms) {
         if (penaltyAmount > 0) {
           await tx.folioTransaction.create({
             data: {
+              hotelId: booking.hotelId,
               folioId: booking.folio.id,
               type: 'CHARGE',
               category: 'ROOM_CHARGE',
@@ -1067,6 +1076,7 @@ for (const room of booking.rooms) {
             // Add folio transaction for the refund
             await tx.folioTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 folioId: booking.folio.id,
                 type: 'REFUND',
                 category: 'REFUND',

@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/utils/prisma';
+import { childLogger } from '@/lib/observability/logger';
+
+const log = childLogger({ module: 'queue-service' });
 
 export type QueueJobType = 'SEND_EMAIL' | 'SEND_SMS';
 
@@ -58,8 +61,7 @@ export class QueueService {
 
   private async deliverEmail(notification: any): Promise<void> {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[QUEUE] Email to ${notification.recipient}: ${notification.subject}`);
-      console.log(`[QUEUE] Body: ${notification.body?.slice(0, 200)}`);
+      log.info({ recipient: notification.recipient, subject: notification.subject }, 'Email (dev): {subject} to {recipient}');
       return;
     }
 

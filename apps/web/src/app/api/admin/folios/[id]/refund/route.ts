@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, tenantTx } from '@/lib/utils/prisma';
 import { Prisma } from '@prisma/client';
 import { withAuth } from '@/middlewares/auth';
+import type { AuthenticatedRequest } from '@/middlewares/auth';
 import { withCsrf } from '@/middlewares/csrf';
 import { errorResponse, successResponse } from '@/lib/utils/api-response';
 import { AppError, NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -9,22 +10,22 @@ import { AppError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 const MAX_RETRIES = 3;
 
 async function runWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error) {
       lastError = error;
-      if (error?.code === 'P2034' && attempt < MAX_RETRIES - 1) continue;
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034' && attempt < MAX_RETRIES - 1) continue;
       throw error;
     }
   }
-  throw lastError;
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-async function executeRefund(user: any, folioId: string, amount: number, method: 'WALLET' | 'CASH') {
+async function executeRefund(user: { userId: string; hotelId: string }, folioId: string, amount: number, method: 'WALLET' | 'CASH') {
   return runWithRetry(() =>
-    prisma.$transaction(
+    tenantTx(
       async (tx) => {
         // --- Re-read folio INSIDE the transaction to guard against concurrent refunds ---
         const folio = await tx.folio.findUnique({
@@ -47,7 +48,7 @@ async function executeRefund(user: any, folioId: string, amount: number, method:
 
         if (method === 'CASH') {
           const hasCashPayments = folio.payments.some(
-            (p: any) => p.method === 'CASH',
+            (p) => p.method === 'CASH',
           );
           if (!hasCashPayments) {
             throw new ValidationError('لا يمكن الاسترداد نقداً. لم يسدد النزيل نقداً في هذه الفاتورة');
@@ -58,6 +59,7 @@ async function executeRefund(user: any, folioId: string, amount: number, method:
 
         await tx.folioTransaction.create({
           data: {
+            hotelId: folio.booking.hotelId,
             folioId,
             type: 'REFUND',
             category: 'REFUND',
@@ -137,7 +139,9 @@ async function executeRefund(user: any, folioId: string, amount: number, method:
 
 async function handler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const user = (request as any).user;
+    const authUser = (request as AuthenticatedRequest).user;
+    if (!authUser?.hotelId) return errorResponse('جلسة غير مرتبطة بفندق', 401);
+    const user = { userId: authUser.userId, hotelId: authUser.hotelId };
     const body = await request.json();
     const { amount, method } = body;
 
@@ -146,11 +150,11 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
 
     const result = await executeRefund(user, params.id, amount, method);
     return successResponse(result);
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof AppError) {
       return errorResponse(error.message, error.statusCode);
     }
-    return errorResponse(error.message || 'فشل تسوية الرصيد الزائد', error.statusCode || 400);
+    return errorResponse(error instanceof Error ? error.message : 'فشل تسوية الرصيد الزائد', 400);
   }
 }
 

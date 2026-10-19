@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "provider": "tlync",
+    "apiVersion": "tlync@2024-11",
+    "scenario": "create-request",
+    "note": "Canonical documented template (create is NOT signed). Runtime assertions validate the schema of the actually-sent request."
+  },
+  "payload": {
+    "merchant_id": "mer_test_tlync_0002",
+    "amount": 300,
+    "currency": "LYD",
+    "order_id": "ord_golden_tlync_00001",
+    "customer_name": "KHADIJA AL-GHARYANI",
+    "customer_email": "guest2@example.ly",
+    "customer_phone": "+218920000000",
+    "description": "Test booking payment",
+    "return_url": "https://example.com/payment/return/tlync",
+    "callback_url": "https://example.com/api/external/gateways/tlync/webhook"
+  }
+}

@@ -14,6 +14,10 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/lib/services/**/*.ts', 'src/lib/utils/**/*.ts'],
     },
+    env: {
+      APP_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/hotel_test',
+      PLATFORM_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/hotel_test',
+    },
   },
   resolve: {
     alias: {

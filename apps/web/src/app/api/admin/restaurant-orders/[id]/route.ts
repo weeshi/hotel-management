@@ -73,6 +73,7 @@ async function postChargeHandler(request: NextRequest, { params }: { params: { i
 
     const transaction = await prisma.folioTransaction.create({
       data: {
+        hotelId: order.hotelId,
         folioId: order.booking.folio.id,
         type: 'CHARGE',
         category: 'SERVICE',

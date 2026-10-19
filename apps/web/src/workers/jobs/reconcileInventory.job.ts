@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { queues, formatLocalDate } from '@/workers/queue';
 import { JOB_PRIORITY, buildJobId } from '@/lib/bullmq';
 import { getRedis } from '@/lib/redis';
+import { childLogger } from '@/lib/observability/logger';
 
 interface ReconcileInventoryData {
   hotelId?: string;       // optional: specific hotel
@@ -29,9 +30,11 @@ interface ReconcileResult {
  */
 export async function reconcileInventoryProcessor(job: Job<ReconcileInventoryData>): Promise<ReconcileResult> {
   const { hotelId, provider, date: targetDate, cursor, processedCount = 0 } = job.data;
+  const jobId = job.id || `reconcile:${hotelId || 'all'}:${provider || 'all'}:${targetDate || ''}`;
+  const log = childLogger({ component: 'worker', queue: 'reconcile', jobId, hotelId });
   const checkDate = targetDate ? new Date(targetDate + 'T00:00:00') : new Date(Date.now() - 86400000); // default: yesterday
 
-  console.log(`[reconcileInventory] start date=${formatLocalDate(checkDate)} hotel=${hotelId || 'all'} provider=${provider || 'all'}`);
+  log.info({ date: formatLocalDate(checkDate), hotelId: hotelId || 'all', provider: provider || 'all' }, 'reconcile start');
 
   const where: any = { date: checkDate };
   if (hotelId) where.hotelId = hotelId;
@@ -113,7 +116,7 @@ export async function reconcileInventoryProcessor(job: Job<ReconcileInventoryDat
       };
 
       // Log to audit (using existing AuditLog model if exists, else console)
-      console.warn('[reconcileInventory] MISMATCH', drift);
+      log.warn({ drift }, 'MISMATCH');
 
       // In a real impl, write to an AuditLog or MismatchLog table
       // await prisma.inventoryMismatch.create({ data: drift });
@@ -146,9 +149,9 @@ export async function reconcileInventoryProcessor(job: Job<ReconcileInventoryDat
       hotelId, provider, date: targetDate || formatLocalDate(checkDate),
       cursor: nextCursor!, processedCount: processedCount + batch.length,
     }, { priority: JOB_PRIORITY.LOW, delay: 500, removeOnComplete: { age: 3600, count: 100 } } as JobsOptions);
-    console.log(`[reconcileInventory] re-enqueued for continuation, cursor=${nextCursor}`);
+    log.info({ cursor: nextCursor }, 're-enqueued for continuation');
   }
 
-  console.log(`[reconcileInventory] done date=${formatLocalDate(checkDate)} mismatches=${mismatchesFound} requeued=${requeuedForPush} processed=${processedCount + batch.length}`);
+  log.info({ mismatches: mismatchesFound, requeued: requeuedForPush, processed: processedCount + batch.length }, 'reconcile done');
   return { hotelId: hotelId || 'all', provider: provider || 'all', date: formatLocalDate(checkDate), mismatchesFound, requeuedForPush };
 }

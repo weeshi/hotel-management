@@ -3,6 +3,7 @@ import { prisma } from '@/lib/utils/prisma';
 import { queues, formatLocalDate } from '@/workers/queue';
 import { JOB_PRIORITY } from '@/lib/bullmq';
 import { getRedis } from '@/lib/redis';
+import { childLogger } from '@/lib/observability/logger';
 
 const MAX_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 30_000; // 30s base for rate plans (less aggressive)
@@ -32,8 +33,9 @@ interface PushRatePlanResult {
 export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise<PushRatePlanResult> {
   const { hotelId, provider, ratePlanId, from, to, attempt = 1 } = job.data;
   const jobId = job.id || `rates:${hotelId}:${provider}:${ratePlanId}:${from}:${to}`;
+  const log = childLogger({ component: 'worker', queue: 'rates', jobId, hotelId, provider });
 
-  console.log(`[pushRatePlan] ${jobId} attempt=${attempt}/${MAX_ATTEMPTS}`);
+  log.info({ attempt, maxAttempts: MAX_ATTEMPTS }, 'pushRatePlan start');
 
   // Fetch the rate plan
   const ratePlan = await prisma.ratePlan.findUnique({
@@ -41,7 +43,7 @@ export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise
     include: { roomType: true },
   });
   if (!ratePlan || ratePlan.hotelId !== hotelId) {
-    console.warn(`[pushRatePlan] ${jobId} rate plan not found or hotel mismatch`);
+    log.warn('rate plan not found or hotel mismatch');
     return { ok: false, status: 404, responseBody: 'Rate plan not found' };
   }
 
@@ -56,7 +58,7 @@ export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise
     select: { channelRoomTypeId: true, channelRatePlanId: true },
   });
   if (!mapping) {
-    console.warn(`[pushRatePlan] ${jobId} no enabled channel mapping for roomType ${ratePlan.roomTypeId}`);
+    log.warn({ roomTypeId: ratePlan.roomTypeId }, 'no enabled channel mapping for roomType');
     return { ok: false, status: 400, responseBody: 'No enabled channel mapping' };
   }
 
@@ -89,7 +91,7 @@ export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise
     const headers = getHeaders(provider, hotelId);
 
     if (!endpoint) {
-      console.error(`[pushRatePlan] ${jobId} no endpoint for provider ${provider}`);
+      log.error('no endpoint for provider');
       lastResult = { ok: false, status: 500, responseBody: 'Endpoint not configured' };
       allOk = false;
       break;
@@ -121,7 +123,7 @@ export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise
 
     if ([200, 201, 202].includes(response.status)) {
       await redis.set(bucketKey, '1', 'EX', 172800); // 48h TTL
-      console.log(`[pushRatePlan] ${jobId} ${dateStr} success ${response.status}`);
+      log.info({ dateStr, status: response.status }, 'rate plan pushed');
     } else if (response.status === 429 || response.status === 503) {
       const retryAfter = response.headers.get('Retry-After');
       let retryAfterMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
@@ -131,12 +133,12 @@ export async function pushRatePlanProcessor(job: Job<PushRatePlanData>): Promise
       break;
     } else if (response.status >= 400 && response.status < 500) {
       await redis.set(`${bucketKey}:failed`, responseText, 'EX', 86400);
-      console.error(`[pushRatePlan] ${jobId} ${dateStr} fatal ${response.status}:`, responseText);
+      log.error({ dateStr, status: response.status, responseBody: responseText.slice(0, 500) }, 'fatal (4xx) — not retrying');
       lastResult = { ok: false, status: response.status, responseBody: responseText };
       allOk = false;
       break;
     } else {
-      console.warn(`[pushRatePlan] ${jobId} ${dateStr} server error ${response.status}`);
+      log.warn({ dateStr, status: response.status }, 'server error, retrying');
       lastResult = handleRatePlanRetry(job, attempt, { ok: false, status: response.status, responseBody: responseText });
       allOk = false;
       break;
@@ -154,7 +156,7 @@ function handleRatePlanRetry(
   result: PushRatePlanResult
 ): PushRatePlanResult {
   if (attempt >= MAX_ATTEMPTS) {
-    console.error(`[pushRatePlan] ${job.id} max attempts reached`);
+    childLogger({ component: 'worker', queue: 'rates', jobId: job.id }).error('max attempts reached');
     return { ...result, ok: false };
   }
   const delayMs = result.retryAfterMs ?? BASE_BACKOFF_MS * Math.pow(2, attempt - 1);

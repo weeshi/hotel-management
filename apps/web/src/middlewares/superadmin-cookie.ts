@@ -45,5 +45,13 @@ export async function requireSuperAdminCookie(
     );
   }
 
+  // Must be a 2FA-verified session (`tv`), not a first-factor-only login.
+  if (payload.tv !== true) {
+    return NextResponse.json(
+      { success: false, error: { message: 'مطلوب تحقق ثنائي للوصول' } },
+      { status: 403 }
+    );
+  }
+
   return null;
 }

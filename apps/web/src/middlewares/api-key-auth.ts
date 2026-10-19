@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/utils/prisma';
+import { prismaPlatform } from '@/lib/utils/prisma';
 import { hashApiKey } from '@/lib/utils/api-key';
 import { errorResponse } from '@/lib/utils/api-response';
 import { rateLimit } from '@/middlewares/rate-limit';
+import { runWithTenant } from '@/lib/tenant/runtime-context';
 
 export interface ApiKeyContext {
   keyId: string;
@@ -87,7 +88,8 @@ export function withApiKeyAuth(
     } | null;
 
     try {
-      stored = await prisma.apiKey.findUnique({ where: { keyHash: digest } });
+      // M8 — key lookup is a cross-tenant bootstrap (app_platform BYPASSRLS).
+      stored = await prismaPlatform.apiKey.findUnique({ where: { keyHash: digest } });
     } catch (error) {
       return errorResponse('فشل التحقق من مفتاح API', 500, 'API_KEY_CHECK_FAILED');
     }
@@ -127,7 +129,8 @@ export function withApiKeyAuth(
     }
 
     // Non-blocking: don't slow down the response for bookkeeping.
-    prisma.apiKey
+    // Runs on the BYPASSRLS platform client so the ping succeeds for any key.
+    prismaPlatform.apiKey
       .update({ where: { id: stored.id }, data: { lastUsedAt: new Date() } })
       .catch(() => {});
 
@@ -140,7 +143,15 @@ export function withApiKeyAuth(
       rateLimit: stored.rateLimit,
     };
 
-    return handler(request, context);
+    // M8 — tenant-scoped keys (hotel) run as app_tenant for that hotel;
+    // platform (global) keys run as app_platform.
+    if (stored.hotelId) {
+      return runWithTenant(
+        { mode: 'TENANT', hotelId: stored.hotelId },
+        () => handler(request, context)
+      );
+    }
+    return runWithTenant({ mode: 'PLATFORM' }, () => handler(request, context));
   };
 }
 
