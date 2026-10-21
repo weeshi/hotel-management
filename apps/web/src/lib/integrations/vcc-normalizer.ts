@@ -99,184 +99,200 @@ export const normalizedVCCBookingSchema = z.object({
 //  Provider-specific field mappers (pre-VGS payload shape)
 // ============================================================
 
-interface RawProviderPayload {
-  // Booking.com
-  reservation_number?: string;
-  confirmation_number?: string;
-  reservation?: any;
-  booking?: any;
-  guest?: any;
-  rooms?: any[];
-  payment?: any;
-  virtual_card?: boolean;
+type RawProviderPayload = Record<string, unknown>;
 
-  // Expedia
-  itinerary_id?: string;
-  hotelConfirmation?: any;
-  itinerary?: any;
-  guestInfo?: any;
-
-  // Generic
-  [key: string]: any;
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
-function pick(value: any, keys: string[]): any {
-  if (!value) return undefined;
+function asString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function pick(value: unknown, keys: string[]): unknown {
+  const rec = asRecord(value);
+  if (!rec) return undefined;
   for (const k of keys) {
-    const v = value[k];
+    const v = rec[k];
     if (v !== undefined && v !== null && v !== '') return v;
   }
   return undefined;
 }
 
-function normalizeDate(value: any): string {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString().split('T')[0];
+function pickString(value: unknown, keys: string[]): string | undefined {
+  return asString(pick(value, keys));
+}
+
+function toProvider(value: unknown): VCCProvider | undefined {
+  const normalized = asString(value)?.toLowerCase();
+  return normalized && isValidVCCProvider(normalized) ? normalized : undefined;
+}
+
+function normalizeDate(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '';
+  const input =
+    value instanceof Date
+      ? value
+      : typeof value === 'string' || typeof value === 'number'
+        ? new Date(value)
+        : null;
+  if (!input || Number.isNaN(input.getTime())) return '';
+  return input.toISOString().split('T')[0];
 }
 
 function extractBookingComVCC(payload: RawProviderPayload): NormalizedVCCBooking {
-  const reservation = payload.reservation || payload.booking || payload;
-  const guest = reservation.guest || {};
-  const payment = reservation.payment || {};
-  const virtualCard = payment.virtual_card || reservation.virtual_card;
+  const reservation = asRecord(payload.reservation) ?? asRecord(payload.booking) ?? payload;
+  const guest = asRecord(reservation.guest) ?? {};
+  const payment = asRecord(reservation.payment) ?? {};
 
   // Extract tokens from VGS-processed payload
   const tokens: VCCPaymentTokens = {
-    cardToken: String(pick(payment, ['card_number', 'cardNumber', 'pan', 'token', 'card_token']) || ''),
-    expiryToken: String(pick(payment, ['expiry_date', 'expiryDate', 'expiry', 'exp_date', 'exp_token']) || ''),
-    cvvToken: String(pick(payment, ['cvv', 'cvc', 'security_code', 'cvv_token']) || ''),
-    holderName: String(pick(payment, ['holder_name', 'holderName', 'cardholder_name', 'cardholderName']) || ''),
+    cardToken: pickString(payment, ['card_number', 'cardNumber', 'pan', 'token', 'card_token']) ?? '',
+    expiryToken: pickString(payment, ['expiry_date', 'expiryDate', 'expiry', 'exp_date', 'exp_token']) ?? '',
+    cvvToken: pickString(payment, ['cvv', 'cvc', 'security_code', 'cvv_token']) ?? '',
+    holderName: pickString(payment, ['holder_name', 'holderName', 'cardholder_name', 'cardholderName']) ?? '',
   };
 
-  const vgsMeta = reservation.vgs_metadata || payload.vgs_metadata || {};
+  const vgsMeta = asRecord(reservation.vgs_metadata) ?? asRecord(payload.vgs_metadata) ?? {};
 
   return {
-    externalRef: String(pick(reservation, ['reservation_number', 'confirmation_number', 'id']) || ''),
+    externalRef: pickString(reservation, ['reservation_number', 'confirmation_number', 'id']) ?? '',
     provider: 'booking.com',
-    guestName: String(pick(guest, ['name', 'full_name', 'guest_name', 'guestName']) || ''),
-    guestEmail: pick(guest, ['email', 'guest_email', 'guestEmail']) || null,
-    guestPhone: pick(guest, ['phone', 'phone_number', 'guest_phone', 'guestPhone']) || null,
-    adults: Number(pick(reservation, ['adults', 'adult_count', 'guest_count']) || 1),
-    children: Number(pick(reservation, ['children', 'child_count', 'childCount']) || 0),
+    guestName: pickString(guest, ['name', 'full_name', 'guest_name', 'guestName']) ?? '',
+    guestEmail: pickString(guest, ['email', 'guest_email', 'guestEmail']) ?? null,
+    guestPhone: pickString(guest, ['phone', 'phone_number', 'guest_phone', 'guestPhone']) ?? null,
+    adults: asNumber(pick(reservation, ['adults', 'adult_count', 'guest_count'])) || 1,
+    children: asNumber(pick(reservation, ['children', 'child_count', 'childCount'])) || 0,
     checkIn: normalizeDate(pick(reservation, ['arrival_date', 'check_in', 'checkIn', 'arrival'])),
     checkOut: normalizeDate(pick(reservation, ['departure_date', 'check_out', 'checkOut', 'departure'])),
-    channelRoomTypeId: String(pick(reservation, ['room_type_id', 'roomTypeId', 'room_type', 'room_id']) || ''),
-    channelRatePlanId: pick(reservation, ['rate_plan_id', 'ratePlanId', 'rate_plan']) || null,
+    channelRoomTypeId: pickString(reservation, ['room_type_id', 'roomTypeId', 'room_type', 'room_id']) ?? '',
+    channelRatePlanId: pickString(reservation, ['rate_plan_id', 'ratePlanId', 'rate_plan']) ?? null,
     payment: {
-      amount: Number(pick(payment, ['amount', 'total_amount', 'total', 'price']) || 0),
-      currency: String(pick(payment, ['currency', 'curr']) || 'EUR'),
+      amount: asNumber(pick(payment, ['amount', 'total_amount', 'total', 'price'])) || 0,
+      currency: pickString(payment, ['currency', 'curr']) ?? 'EUR',
       tokens,
     },
     vgsMetadata: {
-      vaultId: vgsMeta.vault_id || vgsMeta.vaultId,
-      tokenizedAt: vgsMeta.tokenized_at || vgsMeta.tokenizedAt,
-      proxyVersion: vgsMeta.proxy_version || vgsMeta.proxyVersion,
+      vaultId: pickString(vgsMeta, ['vault_id', 'vaultId']),
+      tokenizedAt: pickString(vgsMeta, ['tokenized_at', 'tokenizedAt']),
+      proxyVersion: pickString(vgsMeta, ['proxy_version', 'proxyVersion']),
       originalProvider: 'booking.com',
     },
-    status: pick(reservation, ['status', 'booking_status']),
+    status: pickString(reservation, ['status', 'booking_status']),
   };
 }
 
 function extractExpediaVCC(payload: RawProviderPayload): NormalizedVCCBooking {
-  const itinerary = payload.itinerary || payload.hotelConfirmation || payload;
-  const guest = itinerary.guestInfo || {};
-  const payment = itinerary.payment || {};
+  const itinerary = asRecord(payload.itinerary) ?? asRecord(payload.hotelConfirmation) ?? payload;
+  const guest = asRecord(itinerary.guestInfo) ?? {};
+  const payment = asRecord(itinerary.payment) ?? {};
 
   const tokens: VCCPaymentTokens = {
-    cardToken: String(pick(payment, ['card_number', 'cardNumber', 'pan', 'token']) || ''),
-    expiryToken: String(pick(payment, ['expiry_date', 'expiryDate', 'expiry', 'exp_token']) || ''),
-    cvvToken: String(pick(payment, ['cvv', 'cvc', 'security_code', 'cvv_token']) || ''),
-    holderName: String(pick(payment, ['holder_name', 'holderName', 'cardholder_name']) || ''),
+    cardToken: pickString(payment, ['card_number', 'cardNumber', 'pan', 'token']) ?? '',
+    expiryToken: pickString(payment, ['expiry_date', 'expiryDate', 'expiry', 'exp_token']) ?? '',
+    cvvToken: pickString(payment, ['cvv', 'cvc', 'security_code', 'cvv_token']) ?? '',
+    holderName: pickString(payment, ['holder_name', 'holderName', 'cardholder_name']) ?? '',
   };
 
-  const vgsMeta = itinerary.vgs_metadata || payload.vgs_metadata || {};
+  const vgsMeta = asRecord(itinerary.vgs_metadata) ?? asRecord(payload.vgs_metadata) ?? {};
 
-  const firstName = pick(guest, ['guestFirstName', 'first_name']) || '';
-  const lastName = pick(guest, ['guestLastName', 'last_name']) || '';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || String(pick(guest, ['name', 'guest_name']) || '');
+  const firstName = pickString(guest, ['guestFirstName', 'first_name']) ?? '';
+  const lastName = pickString(guest, ['guestLastName', 'last_name']) ?? '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || pickString(guest, ['name', 'guest_name']) || '';
 
   return {
-    externalRef: String(pick(itinerary, ['itinerary_id', 'confirmation_number', 'itineraryId', 'id']) || ''),
+    externalRef: pickString(itinerary, ['itinerary_id', 'confirmation_number', 'itineraryId', 'id']) ?? '',
     provider: 'expedia',
     guestName: fullName,
-    guestEmail: pick(guest, ['email', 'guest_email']) || null,
-    guestPhone: pick(guest, ['phone', 'guest_phone']) || null,
-    adults: Number(pick(itinerary, ['adults', 'adultCount']) || 1),
-    children: Number(pick(itinerary, ['children', 'childCount']) || 0),
+    guestEmail: pickString(guest, ['email', 'guest_email']) ?? null,
+    guestPhone: pickString(guest, ['phone', 'guest_phone']) ?? null,
+    adults: asNumber(pick(itinerary, ['adults', 'adultCount'])) || 1,
+    children: asNumber(pick(itinerary, ['children', 'childCount'])) || 0,
     checkIn: normalizeDate(pick(itinerary, ['checkIn', 'checkin', 'arrival_date', 'startDate'])),
     checkOut: normalizeDate(pick(itinerary, ['checkOut', 'checkout', 'departure_date', 'endDate'])),
-    channelRoomTypeId: String(pick(itinerary, ['room_type_id', 'roomTypeId', 'room_type']) || ''),
-    channelRatePlanId: pick(itinerary, ['rate_plan_id', 'ratePlanId']) || null,
+    channelRoomTypeId: pickString(itinerary, ['room_type_id', 'roomTypeId', 'room_type']) ?? '',
+    channelRatePlanId: pickString(itinerary, ['rate_plan_id', 'ratePlanId']) ?? null,
     payment: {
-      amount: Number(pick(payment, ['amount', 'total_amount', 'total']) || 0),
-      currency: String(pick(payment, ['currency']) || 'USD'),
+      amount: asNumber(pick(payment, ['amount', 'total_amount', 'total'])) || 0,
+      currency: pickString(payment, ['currency']) ?? 'USD',
       tokens,
     },
     vgsMetadata: {
-      vaultId: vgsMeta.vault_id || vgsMeta.vaultId,
-      tokenizedAt: vgsMeta.tokenized_at || vgsMeta.tokenizedAt,
-      proxyVersion: vgsMeta.proxy_version || vgsMeta.proxyVersion,
+      vaultId: pickString(vgsMeta, ['vault_id', 'vaultId']),
+      tokenizedAt: pickString(vgsMeta, ['tokenized_at', 'tokenizedAt']),
+      proxyVersion: pickString(vgsMeta, ['proxy_version', 'proxyVersion']),
       originalProvider: 'expedia',
     },
-    status: pick(itinerary, ['status', 'booking_status']),
+    status: pickString(itinerary, ['status', 'booking_status']),
   };
 }
 
 function extractGenericVCC(payload: RawProviderPayload): NormalizedVCCBooking {
   // Fallback for other providers - assumes VGS already processed
-  const payment = payload.payment || {};
+  const payment = asRecord(payload.payment) ?? {};
+  const provider = toProvider(pick(payload, ['provider', 'source'])) ?? 'other';
 
   const tokens: VCCPaymentTokens = {
-    cardToken: String(
-      pick(payload, ['card_token', 'cardToken', 'pan_token']) ||
-      pick(payment, ['card_token', 'cardToken', 'pan_token', 'card_number', 'cardNumber', 'pan']) ||
-      ''
-    ),
-    expiryToken: String(
-      pick(payload, ['expiry_token', 'expiryToken', 'exp_token']) ||
-      pick(payment, ['expiry_token', 'expiryToken', 'exp_token', 'expiry_date', 'expiryDate', 'expiry']) ||
-      ''
-    ),
-    cvvToken: String(
-      pick(payload, ['cvv_token', 'cvvToken', 'cvc_token']) ||
-      pick(payment, ['cvv_token', 'cvvToken', 'cvc_token', 'cvv', 'cvc', 'security_code']) ||
-      ''
-    ),
-    holderName: String(
-      pick(payload, ['holder_name', 'holderName', 'cardholder_name']) ||
-      pick(payment, ['holder_name', 'holderName', 'cardholder_name']) ||
-      ''
-    ),
+    cardToken:
+      pickString(payload, ['card_token', 'cardToken', 'pan_token']) ??
+      pickString(payment, ['card_token', 'cardToken', 'pan_token', 'card_number', 'cardNumber', 'pan']) ??
+      '',
+    expiryToken:
+      pickString(payload, ['expiry_token', 'expiryToken', 'exp_token']) ??
+      pickString(payment, ['expiry_token', 'expiryToken', 'exp_token', 'expiry_date', 'expiryDate', 'expiry']) ??
+      '',
+    cvvToken:
+      pickString(payload, ['cvv_token', 'cvvToken', 'cvc_token']) ??
+      pickString(payment, ['cvv_token', 'cvvToken', 'cvc_token', 'cvv', 'cvc', 'security_code']) ??
+      '',
+    holderName:
+      pickString(payload, ['holder_name', 'holderName', 'cardholder_name']) ??
+      pickString(payment, ['holder_name', 'holderName', 'cardholder_name']) ??
+      '',
   };
 
-  const vgsMeta = payload.vgs_metadata || payment.vgs_metadata || {};
+  const vgsMeta = asRecord(payload.vgs_metadata) ?? asRecord(payment.vgs_metadata) ?? {};
 
   return {
-    externalRef: String(pick(payload, ['external_ref', 'externalRef', 'booking_id', 'bookingId', 'id']) || ''),
-    provider: (pick(payload, ['provider', 'source']) as VCCProvider) || 'other',
-    guestName: String(pick(payload, ['guest_name', 'guestName', 'name']) || ''),
-    guestEmail: pick(payload, ['guest_email', 'guestEmail', 'email']) || null,
-    guestPhone: pick(payload, ['guest_phone', 'guestPhone', 'phone']) || null,
-    adults: Number(pick(payload, ['adults', 'adult_count']) || 1),
-    children: Number(pick(payload, ['children', 'child_count']) || 0),
+    externalRef: pickString(payload, ['external_ref', 'externalRef', 'booking_id', 'bookingId', 'id']) ?? '',
+    provider,
+    guestName: pickString(payload, ['guest_name', 'guestName', 'name']) ?? '',
+    guestEmail: pickString(payload, ['guest_email', 'guestEmail', 'email']) ?? null,
+    guestPhone: pickString(payload, ['guest_phone', 'guestPhone', 'phone']) ?? null,
+    adults: asNumber(pick(payload, ['adults', 'adult_count'])) || 1,
+    children: asNumber(pick(payload, ['children', 'child_count'])) || 0,
     checkIn: normalizeDate(pick(payload, ['check_in', 'checkIn', 'arrival_date', 'arrival'])),
     checkOut: normalizeDate(pick(payload, ['check_out', 'checkOut', 'departure_date', 'departure'])),
-    channelRoomTypeId: String(pick(payload, ['channel_room_type_id', 'channelRoomTypeId', 'room_type_id', 'roomTypeId']) || ''),
-    channelRatePlanId: pick(payload, ['channel_rate_plan_id', 'channelRatePlanId', 'rate_plan_id']) || null,
+    channelRoomTypeId: pickString(payload, ['channel_room_type_id', 'channelRoomTypeId', 'room_type_id', 'roomTypeId']) ?? '',
+    channelRatePlanId: pickString(payload, ['channel_rate_plan_id', 'channelRatePlanId', 'rate_plan_id']) ?? null,
     payment: {
-      amount: Number(pick(payload, ['amount', 'total_amount', 'price']) || pick(payment, ['amount', 'total_amount', 'price']) || 0),
-      currency: String(pick(payload, ['currency', 'curr']) || pick(payment, ['currency', 'curr']) || 'LYD'),
+      amount:
+        asNumber(pick(payload, ['amount', 'total_amount', 'price'])) ||
+        asNumber(pick(payment, ['amount', 'total_amount', 'price'])) ||
+        0,
+      currency: pickString(payload, ['currency', 'curr']) ?? pickString(payment, ['currency', 'curr']) ?? 'LYD',
       tokens,
     },
     vgsMetadata: {
-      vaultId: vgsMeta.vault_id || vgsMeta.vaultId,
-      tokenizedAt: vgsMeta.tokenized_at || vgsMeta.tokenizedAt,
-      proxyVersion: vgsMeta.proxy_version || vgsMeta.proxyVersion,
-      originalProvider: (pick(payload, ['provider', 'source']) as VCCProvider) || 'other',
+      vaultId: pickString(vgsMeta, ['vault_id', 'vaultId']),
+      tokenizedAt: pickString(vgsMeta, ['tokenized_at', 'tokenizedAt']),
+      proxyVersion: pickString(vgsMeta, ['proxy_version', 'proxyVersion']),
+      originalProvider: provider,
     },
-    status: pick(payload, ['status', 'booking_status']),
+    status: pickString(payload, ['status', 'booking_status']),
   };
 }
 
@@ -288,22 +304,22 @@ function extractGenericVCC(payload: RawProviderPayload): NormalizedVCCBooking {
  * Normalizes a VGS-tokenized webhook payload into our canonical VCC booking shape.
  * @throws Error if validation fails or required tokens are missing
  */
-export function normalizeVCCWebhook(provider: string, body: any): NormalizedVCCBooking {
+export function normalizeVCCWebhook(provider: string, body: unknown): NormalizedVCCBooking {
   let raw: NormalizedVCCBooking;
 
   switch (provider.toLowerCase()) {
     case 'booking.com':
-      raw = extractBookingComVCC(body);
+      raw = extractBookingComVCC(asRecord(body) ?? {});
       break;
     case 'expedia':
-      raw = extractExpediaVCC(body);
+      raw = extractExpediaVCC(asRecord(body) ?? {});
       break;
     case 'airbnb':
     case 'agoda':
     case 'trip':
     case 'other':
     default:
-      raw = extractGenericVCC(body);
+      raw = extractGenericVCC(asRecord(body) ?? {});
       break;
   }
 

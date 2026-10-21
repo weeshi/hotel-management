@@ -4,8 +4,8 @@ import { normalizeDomain, getEffectiveHost, resolveTenantFromRequest } from '@/l
 import { PricingService } from '@/lib/services/pricing.service';
 import { BookingService } from '@/lib/services/booking.service';
 
-vi.mock('@/lib/utils/prisma', () => ({
-  prisma: {
+vi.mock('@/lib/utils/prisma', () => {
+  const prisma = {
     $transaction: vi.fn(),
     hotel: {
       findUnique: vi.fn(),
@@ -50,10 +50,19 @@ vi.mock('@/lib/utils/prisma', () => ({
       create: vi.fn(),
       upsert: vi.fn(),
     },
-  },
-}));
+  };
+  return {
+    prisma,
+    prismaBase: prisma,
+    prismaPlatform: {
+      hotel: { findUnique: vi.fn(), findFirst: vi.fn() },
+      $transaction: vi.fn(),
+    },
+    tenantTx: vi.fn(async (cb: (tx: unknown) => unknown) => prisma.$transaction(cb)),
+  };
+});
 
-import { prisma } from '@/lib/utils/prisma';
+import { prisma, prismaPlatform } from '@/lib/utils/prisma';
 
 describe('Tenant Resolution', () => {
   beforeEach(() => {
@@ -126,7 +135,7 @@ describe('Tenant Resolution', () => {
 
   describe('resolveTenantFromRequest', () => {
     it('returns hotel when customDomain matches', async () => {
-      (prisma.hotel.findUnique as vi.Mock).mockResolvedValue({ id: 'hotel-1', name: 'Test Hotel' });
+      (prismaPlatform.hotel.findUnique as vi.Mock).mockResolvedValue({ id: 'hotel-1', name: 'Test Hotel' });
 
       const req = new Request('https://myhotel.example.com', {
         headers: { host: 'myhotel.example.com' },
@@ -134,14 +143,14 @@ describe('Tenant Resolution', () => {
 
       const result = await resolveTenantFromRequest(req);
       expect(result).toEqual({ id: 'hotel-1', name: 'Test Hotel' });
-      expect(prisma.hotel.findUnique).toHaveBeenCalledWith({
+      expect(prismaPlatform.hotel.findUnique).toHaveBeenCalledWith({
         where: { customDomain: 'myhotel.example.com' },
         select: { id: true, name: true },
       });
     });
 
     it('returns null when customDomain not found', async () => {
-      (prisma.hotel.findUnique as vi.Mock).mockResolvedValue(null);
+      (prismaPlatform.hotel.findUnique as vi.Mock).mockResolvedValue(null);
 
       const req = new Request('https://unknown.example.com', {
         headers: { host: 'unknown.example.com' },

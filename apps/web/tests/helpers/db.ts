@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+﻿import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import path from 'path';
+import { prisma as appPrisma } from '@/lib/utils/prisma';
 
 const TEST_DB_URL = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
 
@@ -34,50 +35,61 @@ function createTestClient() {
 }
 
 const globalForTest = globalThis as { testPrisma?: PrismaClient };
-export const prisma = globalForTest.testPrisma ?? createTestClient();
+const rawClient = globalForTest.testPrisma ?? createTestClient();
 if (process.env.NODE_ENV !== 'production') {
-  globalForTest.testPrisma = prisma;
+  globalForTest.testPrisma = rawClient;
 }
 
+/**
+ * The tenancy-aware application client. Tests should use THIS for fixtures and
+ * assertions so the same `hotelId` injection + `tenantTx` semantics that run in
+ * production are exercised here (the ambient tenant context is installed by
+ * `tests/setup.ts`). Bulk teardown that must span tenants uses {@link prismaRaw}.
+ */
+export const prisma = appPrisma;
+
+/** Superuser/BYPASSRLS client reserved for cross-tenant teardown and seeding. */
+export const prismaRaw = rawClient;
+
 export async function resetDb() {
-  await prisma.$transaction([
-    prisma.vCCAuditLog.deleteMany(),
-    prisma.auditLog.deleteMany(),
-    prisma.notification.deleteMany(),
-    prisma.invitation.deleteMany(),
-    prisma.guestDocument.deleteMany(),
-    prisma.housekeepingTask.deleteMany(),
-    prisma.refreshToken.deleteMany(),
-    prisma.apiKey.deleteMany(),
-    prisma.channelPriceSnapshot.deleteMany(),
-    prisma.channelMapping.deleteMany(),
-    prisma.bookingService.deleteMany(),
-    prisma.folioRoutingRule.deleteMany(),
-    prisma.folioTransaction.deleteMany(),
-    prisma.folioDiscount.deleteMany(),
-    prisma.scheduledCharge.deleteMany(),
-    prisma.invoice.deleteMany(),
-    prisma.payment.deleteMany(),
-    prisma.gatewayWebhook.deleteMany(),
-    prisma.paymentSession.deleteMany(),
-    prisma.integrationConfig.deleteMany(),
-    prisma.groupBooking.deleteMany(),
-    prisma.folio.deleteMany(),
-    prisma.bookingRoom.deleteMany(),
-    prisma.booking.deleteMany(),
-    prisma.service.deleteMany(),
-    prisma.serviceCategory.deleteMany(),
-    prisma.cancellationPolicy.deleteMany(),
-    prisma.room.deleteMany(),
-    prisma.roomType.deleteMany(),
-    prisma.wallet.deleteMany(),
-    prisma.walletTransaction.deleteMany(),
-    prisma.guest.deleteMany(),
-    prisma.restaurantOrder.deleteMany(),
-    prisma.menuItem.deleteMany(),
-    prisma.menuCategory.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.hotel.deleteMany(),
+  await prismaRaw.$transaction([
+    prismaRaw.vCCAuditLog.deleteMany(),
+    prismaRaw.auditLog.deleteMany(),
+    prismaRaw.notification.deleteMany(),
+    prismaRaw.invitation.deleteMany(),
+    prismaRaw.guestDocument.deleteMany(),
+    prismaRaw.housekeepingTask.deleteMany(),
+    prismaRaw.refreshToken.deleteMany(),
+    prismaRaw.apiKey.deleteMany(),
+    prismaRaw.channelPriceSnapshot.deleteMany(),
+    prismaRaw.channelMapping.deleteMany(),
+    prismaRaw.bookingService.deleteMany(),
+    prismaRaw.folioRoutingRule.deleteMany(),
+    prismaRaw.folioTransaction.deleteMany(),
+    prismaRaw.folioDiscount.deleteMany(),
+    prismaRaw.scheduledCharge.deleteMany(),
+    prismaRaw.invoice.deleteMany(),
+    prismaRaw.payment.deleteMany(),
+    prismaRaw.gatewayWebhook.deleteMany(),
+    prismaRaw.paymentSession.deleteMany(),
+    prismaRaw.integrationConfig.deleteMany(),
+    prismaRaw.groupBooking.deleteMany(),
+    prismaRaw.folio.deleteMany(),
+    prismaRaw.bookingRoom.deleteMany(),
+    prismaRaw.booking.deleteMany(),
+    prismaRaw.service.deleteMany(),
+    prismaRaw.serviceCategory.deleteMany(),
+    prismaRaw.cancellationPolicy.deleteMany(),
+    prismaRaw.room.deleteMany(),
+    prismaRaw.roomType.deleteMany(),
+    prismaRaw.wallet.deleteMany(),
+    prismaRaw.walletTransaction.deleteMany(),
+    prismaRaw.guest.deleteMany(),
+    prismaRaw.restaurantOrder.deleteMany(),
+    prismaRaw.menuItem.deleteMany(),
+    prismaRaw.menuCategory.deleteMany(),
+    prismaRaw.user.deleteMany(),
+    prismaRaw.hotel.deleteMany(),
   ]);
 }
 
@@ -85,7 +97,7 @@ export async function seedTestData() {
   const bcrypt = await import('bcryptjs');
   const password = await bcrypt.hash('TestPass123', 4);
 
-  const hotel = await prisma.hotel.create({
+  const hotel = await prismaRaw.hotel.create({
     data: {
       id: 'test-hotel',
       name: 'Test Hotel',
@@ -93,7 +105,7 @@ export async function seedTestData() {
     },
   });
 
-  const admin = await prisma.user.create({
+  const admin = await prismaRaw.user.create({
     data: {
       email: 'test@hotel.com',
       password,
@@ -103,7 +115,7 @@ export async function seedTestData() {
     },
   });
 
-  const receptionist = await prisma.user.create({
+  const receptionist = await prismaRaw.user.create({
     data: {
       email: 'reception@test.com',
       password,
@@ -113,7 +125,7 @@ export async function seedTestData() {
     },
   });
 
-  const singleType = await prisma.roomType.create({
+  const singleType = await prismaRaw.roomType.create({
     data: {
       id: 'test-single',
       hotelId: hotel.id,
@@ -123,7 +135,7 @@ export async function seedTestData() {
     },
   });
 
-  const doubleType = await prisma.roomType.create({
+  const doubleType = await prismaRaw.roomType.create({
     data: {
       id: 'test-double',
       hotelId: hotel.id,
@@ -133,7 +145,7 @@ export async function seedTestData() {
     },
   });
 
-  const room101 = await prisma.room.create({
+  const room101 = await prismaRaw.room.create({
     data: {
       hotelId: hotel.id,
       roomNumber: '101',
@@ -143,7 +155,7 @@ export async function seedTestData() {
     },
   });
 
-  const room102 = await prisma.room.create({
+  const room102 = await prismaRaw.room.create({
     data: {
       hotelId: hotel.id,
       roomNumber: '102',
@@ -153,7 +165,7 @@ export async function seedTestData() {
     },
   });
 
-  await prisma.cancellationPolicy.create({
+  await prismaRaw.cancellationPolicy.create({
     data: {
       hotelId: hotel.id,
       name: 'Flexible',
@@ -168,5 +180,6 @@ export async function seedTestData() {
 }
 
 export async function closeDb() {
-  await prisma.$disconnect();
+  await prismaRaw.$disconnect();
+  await appPrisma.$disconnect();
 }

@@ -90,12 +90,16 @@ export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueue
           },
         },
       },
-      select: { id: true },
+      select: { id: true, hotelId: true, bookingId: true },
     });
 
     let enqueued = 0;
     for (const payment of vccPayments) {
-      await enqueuePurgeJobsForPayment(payment.id);
+      await enqueuePurgeJobsForPayment({
+        hotelId: payment.hotelId,
+        paymentId: payment.id,
+        bookingId: payment.bookingId,
+      });
       enqueued++;
     }
 

@@ -36,7 +36,12 @@ export function withAuth(handler: Function, allowedRoles?: (Role | string)[]) {
       // M8 — the whole request runs as app_tenant scoped to the JWT's hotel.
       // If the token carries no hotel (e.g. a global session), fail closed:
       // authenticated-but-untenanted requests get NO tenant data access.
+      // Platform owners (SUPER_ADMIN) are cross-tenant by design and run as
+      // app_platform so routes like /api/admin/api-keys can manage global rows.
       if (!payload.hotelId) {
+        if (payload.role === 'SUPER_ADMIN') {
+          return runWithTenant({ mode: 'PLATFORM' }, () => handler(request, context));
+        }
         throw new UnauthorizedError('جلسة غير مرتبطة بفندق');
       }
 

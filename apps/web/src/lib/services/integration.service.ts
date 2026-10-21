@@ -79,6 +79,7 @@ export class IntegrationService {
             externalRef: data.externalRef,
             rooms: {
               create: bookingRooms.map((r) => ({
+                hotelId,
                 roomId: r.roomId,
                 nightlyRate: r.nightlyRate,
                 checkIn: checkInDate,

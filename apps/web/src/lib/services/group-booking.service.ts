@@ -231,6 +231,7 @@ export class GroupBookingService {
       if (rules.length > 0) {
         await tx.folioRoutingRule.createMany({
           data: rules.map(r => ({
+            hotelId: group.hotelId,
             groupBookingId: groupId,
             chargeType: r.chargeType,
             targetFolioId: r.targetFolioId,

@@ -64,6 +64,7 @@ export class WalletService {
 
     const transaction = await prisma.walletTransaction.create({
       data: {
+        hotelId: data.hotelId,
         walletId: wallet.id,
         type: 'DEPOSIT',
         amount,
@@ -129,6 +130,7 @@ export class WalletService {
 
     const transaction = await prisma.walletTransaction.create({
       data: {
+        hotelId: data.hotelId,
         walletId: wallet.id,
         type: 'WITHDRAWAL',
         amount: amount.negated(),
@@ -191,6 +193,7 @@ export class WalletService {
 
     const transaction = await prisma.walletTransaction.create({
       data: {
+        hotelId: data.hotelId,
         walletId: wallet.id,
         type: 'PAYMENT',
         amount: amount.negated(),
@@ -253,6 +256,7 @@ export class WalletService {
 
       await tx.walletTransaction.create({
         data: {
+          hotelId: params.hotelId,
           walletId: wallet.id,
           type: 'WITHDRAWAL',
           amount: amount.negated(),

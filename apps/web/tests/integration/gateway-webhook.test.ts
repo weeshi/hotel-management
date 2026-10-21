@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from 'vites
 import { execSync } from 'child_process';
 import path from 'path';
 import { prisma } from '@/lib/utils/prisma';
+import { enterTenantContext } from '@/lib/tenant/runtime-context';
 
 process.env.DANGER_BYPASS_WEBHOOK_IP_CHECK = 'true';
 
@@ -93,6 +94,9 @@ describe('Gateway Webhook Integration Tests', () => {
   });
 
   async function seedBookingWithBalance(hotelId: string, amount = 500) {
+    // Bind the ambient span to the fixture's own hotel so hotelId injection and
+    // any tenantTx call resolve against it (not the canonical `test-hotel`).
+    enterTenantContext({ mode: 'TENANT', hotelId });
     const guest = await prisma.guest.create({
       data: { name: 'Test Guest', email: 'test@webhook.com', phone: '+218910000000', hotelId },
     });

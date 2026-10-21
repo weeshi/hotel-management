@@ -255,6 +255,7 @@ export class ChannelManagerService {
             webTotalAmount: rate * nights,
             rooms: {
               create: [{
+                hotelId,
                 roomTypeId: mapping!.roomTypeId,
                 ratePlanId: mapping?.ratePlanId ?? undefined,
                 nightlyRate: rate,

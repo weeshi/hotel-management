@@ -65,9 +65,11 @@ function createClient(
   label: string
 ): PrismaClient {
   const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-  const testUrl = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
   if (!process.env[explicitEnv] && !isTest) warnOnce(flag, label);
-  const url = isTest ? testUrl : (process.env[explicitEnv] || process.env.DATABASE_URL);
+  const url =
+    process.env[explicitEnv] ||
+    process.env.DATABASE_URL ||
+    (isTest ? 'postgresql://postgres:postgres@localhost:5432/hotel_test' : undefined);
   return new PrismaClient({ datasourceUrl: url });
 }
 
@@ -211,40 +213,76 @@ function injectHotelId(obj: unknown, hotelId: string): void {
   rec.hotelId = hotelId;
 }
 
-function nestedCreateTargets(node: unknown): Record<string, unknown>[] {
-  if (!node || typeof node !== 'object') return [];
+function nestedCreateTargets(node: unknown, depth = 0): Record<string, unknown>[] {
+  if (!node || typeof node !== 'object' || depth > 8) return [];
   const rec = node as Record<string, unknown>;
   const collected: Record<string, unknown>[] = [];
   const nestedHotelModel = getNestedHotelModel();
+
+  // `create` may be a single object OR an array of objects
+  // (`rooms: { create: [{...}, {...}] }`); both shapes must be stamped.
+  const collectCreate = (target: unknown): void => {
+    if (Array.isArray(target)) {
+      for (const entry of target) {
+        if (entry && typeof entry === 'object') {
+          collected.push(entry as Record<string, unknown>);
+          collected.push(...nestedCreateTargets(entry, depth + 1));
+        }
+      }
+    } else if (target && typeof target === 'object') {
+      collected.push(target as Record<string, unknown>);
+      collected.push(...nestedCreateTargets(target, depth + 1));
+    }
+  };
+
   for (const [key, val] of Object.entries(rec)) {
+    if (!val || typeof val !== 'object') continue;
     if (nestedHotelModel.has(key)) {
       if (Array.isArray(val)) {
         for (const entry of val) {
           if (entry && typeof entry === 'object') {
-            const target = (entry as Record<string, unknown>).create;
-            if (target && typeof target === 'object') collected.push(target as Record<string, unknown>);
+            collectCreate((entry as Record<string, unknown>).create);
           }
         }
-      } else if (val && typeof val === 'object') {
-        const target = (val as Record<string, unknown>).create;
-        if (target && typeof target === 'object') collected.push(target as Record<string, unknown>);
+      } else {
+        collectCreate((val as Record<string, unknown>).create);
         const manyData = (val as Record<string, unknown>).createMany;
         if (manyData && typeof manyData === 'object') {
-          const rows = (manyData as Record<string, unknown>).data;
-          if (Array.isArray(rows)) {
-            for (const row of rows) if (row && typeof row === 'object') collected.push(row as Record<string, unknown>);
-          }
+          collectCreate((manyData as Record<string, unknown>).data);
         }
       }
+    } else if (key !== 'connect' && key !== 'connectOrCreate') {
+      collected.push(...nestedCreateTargets(val, depth + 1));
     }
-    const deeper = key === 'create' || key === 'connect' ? undefined : val;
-    if (deeper && typeof deeper === 'object') collected.push(...nestedCreateTargets(deeper));
   }
   return collected;
 }
 
 function injectNestedHotelId(node: unknown, hotelId: string): void {
   for (const target of nestedCreateTargets(node)) injectHotelId(target, hotelId);
+}
+
+/**
+ * The hotelId a create should stamp on its nested children: the parent's own
+ * explicit `hotelId` when present (a caller may target a specific tenant), else
+ * the ambient context. This keeps children aligned with their parent even when
+ * the two differ, preventing FK mismatches (`*_hotelId_fkey`).
+ */
+function resolveCreateHotelId(args: unknown, fallback: string): string {
+  if (!args || typeof args !== 'object') return fallback;
+  const rec = args as Record<string, unknown>;
+  const data = rec.data;
+  const single = Array.isArray(data) ? data[0] : data;
+  if (single && typeof single === 'object') {
+    const hid = (single as Record<string, unknown>).hotelId;
+    if (typeof hid === 'string') return hid;
+  }
+  const create = rec.create;
+  if (create && typeof create === 'object' && !Array.isArray(create)) {
+    const hid = (create as Record<string, unknown>).hotelId;
+    if (typeof hid === 'string') return hid;
+  }
+  return fallback;
 }
 
 function injectTopLevelHotelId(model: string, operation: string, args: unknown, hotelId: string): void {
@@ -269,6 +307,11 @@ function injectTopLevelHotelId(model: string, operation: string, args: unknown, 
  * here (runtime shape matches Prisma's delegate call contract).
  */
 function relay(client: object, model: string, operation: string, args: unknown): unknown {
+  const ctx = getTenantContext();
+  if (ctx?.mode === 'TENANT' && ctx.hotelId) {
+    injectTopLevelHotelId(model, operation, args, ctx.hotelId);
+    injectNestedHotelId(args, resolveCreateHotelId(args, ctx.hotelId));
+  }
   const delegate = Reflect.get(client, model) as unknown;
   if (!delegate || typeof delegate !== 'object') {
     throw new Error(`[prisma] unknown model in relay: ${model}`);
@@ -317,7 +360,7 @@ const extended = prismaBase.$extends({
 
       if (ctx?.mode === 'TENANT') {
         injectTopLevelHotelId(model, operation, args, ctx.hotelId);
-        injectNestedHotelId(args, ctx.hotelId);
+        injectNestedHotelId(args, resolveCreateHotelId(args, ctx.hotelId));
       }
 
       if (ctx?.mode === 'PLATFORM') {
@@ -414,15 +457,23 @@ export async function tenantTx<T>(
  */
 function withHotelInjection(tx: Prisma.TransactionClient): TenantTxClient {
   const ctx = getTenantContext();
-  // Disable proxy in tests to resolve TypeError; manual injection will be used in tests.
-  if (process.env.VITEST === 'true' || ctx?.mode !== 'TENANT' || !ctx.hotelId) {
+  if (ctx?.mode !== 'TENANT' || !ctx.hotelId) {
     return tx as TenantTxClient;
   }
   const hotelId = ctx.hotelId;
   const handler: ProxyHandler<Prisma.TransactionClient> = {
-    get(target, prop) {
-      const value = Reflect.get(target, prop) as unknown;
-      if (typeof value === 'function' || typeof prop !== 'string' || prop.startsWith('$') || !value || typeof value !== 'object') {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (typeof value === 'function') {
+        return (value as (...a: unknown[]) => unknown).bind(target);
+      }
+      if (
+        typeof prop !== 'string' ||
+        prop.startsWith('$') ||
+        prop.startsWith('_') ||
+        !value ||
+        typeof value !== 'object'
+      ) {
         return value;
       }
       const delegate = value as Record<string, unknown>;
@@ -431,11 +482,14 @@ function withHotelInjection(tx: Prisma.TransactionClient): TenantTxClient {
         get(delegateTarget, delegateProp) {
           const fn = Reflect.get(delegateTarget, delegateProp) as unknown;
           if (typeof fn !== 'function') return fn;
+          if (typeof delegateProp === 'string' && (delegateProp.startsWith('$') || delegateProp.startsWith('_'))) {
+            return (fn as (...a: unknown[]) => unknown).bind(delegateTarget);
+          }
           const opName = String(delegateProp);
-          return (args?: unknown) => {
-            injectTopLevelHotelId(modelName, opName, args, hotelId);
-            injectNestedHotelId(args, hotelId);
-            return (fn as (a?: unknown) => unknown).apply(delegateTarget, [args]);
+          return (...args: unknown[]) => {
+            injectTopLevelHotelId(modelName, opName, args[0], hotelId);
+            injectNestedHotelId(args[0], resolveCreateHotelId(args[0], hotelId));
+            return (fn as (...a: unknown[]) => unknown).apply(delegateTarget, args);
           };
         },
       });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { createHash } from 'crypto';
 import { NextRequest } from 'next/server';
 import { Role } from '@hotel/shared';
@@ -34,7 +34,8 @@ afterAll(async () => {
 });
 
 async function authRequest(userId: string, role: string, init: RequestInit = {}) {
-  const token = await signAccessToken({ userId, role });
+  // Platform routes require a 2FA-verified session (	v); mirror that here.
+  const token = await signAccessToken({ userId, role, tv: role === 'SUPER_ADMIN' ? true : undefined });
   const headers = new Headers(init.headers);
   headers.set('authorization', `Bearer ${token}`);
   return new NextRequest(BASE_URL, {

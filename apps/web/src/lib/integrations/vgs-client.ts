@@ -63,11 +63,11 @@ export async function vgsDeleteToken(
 
     const errorText = await res.text().catch(() => 'Unknown error');
     return { ok: false, status: res.status, error: errorText };
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
       return { ok: false, status: 408, error: 'VGS delete timeout (30s)' };
     }
-    return { ok: false, status: 0, error: err.message || 'Network error' };
+    return { ok: false, status: 0, error: err instanceof Error ? err.message : 'Network error' };
   }
 }
 

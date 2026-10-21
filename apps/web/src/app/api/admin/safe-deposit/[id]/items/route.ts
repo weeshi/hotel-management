@@ -19,6 +19,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
 
     const item = await prisma.safeDepositBoxItem.create({
       data: {
+        hotelId: box.hotelId,
         safeDepositBoxId: params.id,
         description: body.description,
         quantity: body.quantity,

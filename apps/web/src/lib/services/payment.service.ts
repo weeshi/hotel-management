@@ -33,6 +33,7 @@ export class PaymentService {
     const refund = await tenantTx(async (tx) => {
       const created = await tx.refund.create({
         data: {
+          hotelId,
           paymentId,
           amount: data.amount,
           reason: data.reason,

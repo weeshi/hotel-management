@@ -96,6 +96,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
           }
           await tx.bookingRoom.create({
             data: {
+              hotelId: booking.hotelId,
               bookingId: params.id,
               roomId: r.roomId,
               ratePlanId: r.ratePlanId,
@@ -170,6 +171,7 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
 
           await tx.bookingService.create({
             data: {
+              hotelId: booking.hotelId,
               bookingId: params.id,
               serviceId: svc.serviceId,
               quantity: svc.quantity,

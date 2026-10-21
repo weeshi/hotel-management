@@ -81,6 +81,7 @@ export class GuestDocumentService {
 
     return prisma.guestDocument.create({
       data: {
+        hotelId,
         guestId,
         documentType: type,
         fileName: file.name.slice(0, 255),

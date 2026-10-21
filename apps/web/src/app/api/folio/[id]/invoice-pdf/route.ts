@@ -16,7 +16,7 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
     const invoiceNo = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${params.id.slice(0, 6).toUpperCase()}`;
 
     const invoice = await prisma.invoice.create({
-      data: { folioId: params.id, invoiceNo },
+      data: { hotelId: user.hotelId, folioId: params.id, invoiceNo },
     });
 
     const buffer = await pdfService.generate({

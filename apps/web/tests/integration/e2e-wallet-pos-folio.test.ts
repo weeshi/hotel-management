@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
 import path from 'path';
+import { enterTenantContext } from '@/lib/tenant/runtime-context';
 
 const TEST_DB_URL = 'postgresql://postgres:postgres@localhost:5432/hotel_test';
 
@@ -49,6 +50,9 @@ describe('Phase 2 E2E: Wallet-POS-Folio Money Flow', () => {
     const hotel = await prisma.hotel.create({
       data: { name: 'E2E Test Hotel', currency: 'LYD' },
     });
+    // This flow builds its own tenant (not the canonical `test-hotel`); retarget
+    // the ambient span so hotelId injection + tenantTx bind to THIS hotel.
+    enterTenantContext({ mode: 'TENANT', hotelId: hotel.id });
     const admin = await prisma.user.create({
       data: {
         email: 'e2e.admin@test.com', password: 'hashed',
