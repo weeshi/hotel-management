@@ -9,7 +9,7 @@ import { pushToOTAProcessor } from './jobs/pushToOTA.job';
 import { processInboundBookingProcessor } from './jobs/processInboundBooking.job';
 import { pushRatePlanProcessor } from './jobs/pushRatePlan.job';
 import { reconcileInventoryProcessor } from './jobs/reconcileInventory.job';
-import { processPurgeVCCProcessor } from './jobs/purgeVCC.job';
+import { processPurgeVCCProcessor, type PurgeVCCJobData } from './jobs/purgeVCC.job';
 import { webhookDeliveryProcessor } from './jobs/webhookDelivery.job';
 import { childLogger } from '@/lib/observability/logger';
 
@@ -32,7 +32,7 @@ const PROCESSORS: Record<QueueKey, (job: any) => Promise<any>> = {
   ingest: withTenantJob(processInboundBookingProcessor),
   rates: withTenantJob(pushRatePlanProcessor),
   reconcile: withTenantJob(reconcileInventoryProcessor),
-  purge: withTenantJob(processPurgeVCCProcessor),
+  purge: withTenantJob<Partial<PurgeVCCJobData>, void>(processPurgeVCCProcessor),
   webhook: withTenantJob(webhookDeliveryProcessor),
   dlq: async () => undefined,
 };

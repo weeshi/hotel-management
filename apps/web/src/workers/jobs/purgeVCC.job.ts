@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/utils/prisma';
+﻿import { prisma } from '@/lib/utils/prisma';
 import { vgsDeleteToken } from '@/lib/integrations/vgs-client';
 import { createAuditLog } from '@/lib/services';
 import { childLogger } from '@/lib/observability/logger';
@@ -6,8 +6,12 @@ import { childLogger } from '@/lib/observability/logger';
 const log = childLogger({ component: 'worker', queue: 'purge' });
 
 export interface PurgeVCCJobData {
+  /** Required for strict TENANT execution via withTenantJob. */
+  hotelId?: string;
   paymentId: string;
-  tokenType: 'number' | 'expiry' | 'cvv';
+  bookingId?: string | null;
+  /** Omitted → purge all three tokens in one job. */
+  tokenType?: TokenType;
   attempt: number;
 }
 
@@ -21,7 +25,10 @@ export const PURGE_JOB_OPTIONS = {
   removeOnComplete: { count: 1000, age: 86400 },
 } as const;
 
-async function getTokenField(tokenType: 'number' | 'expiry' | 'cvv'): Promise<string> {
+const TOKEN_TYPES = ['number', 'expiry', 'cvv'] as const;
+type TokenType = (typeof TOKEN_TYPES)[number];
+
+async function getTokenField(tokenType: TokenType): Promise<string> {
   switch (tokenType) {
     case 'number':
       return 'vccToken';
@@ -32,7 +39,16 @@ async function getTokenField(tokenType: 'number' | 'expiry' | 'cvv'): Promise<st
   }
 }
 
-async function getTokenValue(payment: any, tokenType: 'number' | 'expiry' | 'cvv'): Promise<string | null> {
+interface VccTokenFields {
+  vccToken: string | null;
+  vccExpiryToken: string | null;
+  vccCVVToken: string | null;
+}
+
+async function getTokenValue(
+  payment: VccTokenFields,
+  tokenType: TokenType
+): Promise<string | null> {
   switch (tokenType) {
     case 'number':
       return payment.vccToken;
@@ -45,7 +61,7 @@ async function getTokenValue(payment: any, tokenType: 'number' | 'expiry' | 'cvv
 
 async function markTokenPurged(
   paymentId: string,
-  tokenType: 'number' | 'expiry' | 'cvv'
+  tokenType: TokenType
 ): Promise<void> {
   const field = await getTokenField(tokenType);
   await prisma.payment.update({
@@ -65,7 +81,20 @@ async function checkAllTokensPurged(paymentId: string): Promise<boolean> {
 }
 
 export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
-  const { paymentId, tokenType, attempt } = jobData;
+  if (jobData.tokenType) {
+    await purgeSingleToken(jobData, jobData.tokenType);
+    return;
+  }
+  for (const tokenType of TOKEN_TYPES) {
+    await purgeSingleToken(jobData, tokenType);
+  }
+}
+
+async function purgeSingleToken(
+  jobData: PurgeVCCJobData,
+  tokenType: TokenType
+): Promise<void> {
+  const { paymentId, attempt } = jobData;
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -234,21 +263,54 @@ export async function processPurgeVCC(jobData: PurgeVCCJobData): Promise<void> {
   throw new Error(`VGS purge failed: ${result.status} - ${result.error}`);
 }
 
-const TOKEN_TYPES: Array<'number' | 'expiry' | 'cvv'> = ['number', 'expiry', 'cvv'];
+export interface EnqueuePurgeJobParams {
+  hotelId: string;
+  paymentId: string;
+  bookingId?: string | null;
+}
 
-export async function enqueuePurgeJobsForPayment(paymentId: string): Promise<void> {
+/**
+ * Enqueues ONE `purge-vcc` job per payment. The payload always carries
+ * `hotelId` so `withTenantJob` runs the child in strict TENANT mode (RLS).
+ * A missing `tokenType` means "purge all three tokens" inside the job.
+ */
+export async function enqueuePurgeJobsForPayment(params: EnqueuePurgeJobParams): Promise<void> {
   const { getQueue } = await import('@/workers/queue');
   const purgeQueue = getQueue('purge');
 
-  for (const tokenType of TOKEN_TYPES) {
-    await purgeQueue.add(
-      'purge-token',
-      { paymentId, tokenType, attempt: 1 },
-      PURGE_JOB_OPTIONS
-    );
-  }
+  await purgeQueue.add(
+    'purge-vcc',
+    {
+      hotelId: params.hotelId,
+      paymentId: params.paymentId,
+      bookingId: params.bookingId ?? undefined,
+      attempt: 1,
+    },
+    PURGE_JOB_OPTIONS
+  );
 }
 
-export async function processPurgeVCCProcessor(job: any): Promise<void> {
-  return processPurgeVCC(job.data);
+/** Minimal structural shape of a BullMQ job — keeps this processor testable. */
+export interface PurgeVCCJob {
+  name: string;
+  id?: string;
+  data: Partial<PurgeVCCJobData>;
+}
+
+export async function processPurgeVCCProcessor(job: PurgeVCCJob): Promise<void> {
+  // The repeatable scheduler enqueues the cross-tenant scan with an empty
+  // payload; it must fan out per-payment jobs, never be treated as a purge.
+  if (job.name === 'daily-vcc-purge-scan') {
+    const { runDailyVCCPurgeScan } = await import('@/workers/queue');
+    await runDailyVCCPurgeScan();
+    return;
+  }
+
+  const { paymentId, tokenType, attempt } = job.data;
+  if (!paymentId) {
+    log.error({ jobId: job.id, name: job.name }, 'invalid purge job payload — skipping');
+    return;
+  }
+
+  return processPurgeVCC({ paymentId, tokenType, attempt: attempt ?? 1 });
 }

@@ -31,6 +31,7 @@ async function postHandler(request: NextRequest, { params }: { params: { id: str
     // Create BookingService record
     const bookingService = await prisma.bookingService.create({
       data: {
+        hotelId: booking.hotelId,
         bookingId: params.id,
         serviceId,
         quantity: qty,

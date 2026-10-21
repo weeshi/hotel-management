@@ -38,6 +38,7 @@ build → start (web) + worker-cm (background)
 | `VGS_PROXY_URL` | `https://tntxxx.verygoodproxy.com` (VGS Forward Proxy URL) |
 | `VGS_VAULT_ID` | `vlt_xxxxx` (VGS Vault ID for tokenization) |
 | `VGS_REVEAL_DOMAIN` | `reveal.verygoodsecurity.com` (VGS Reveal Iframe domain) |
+| `VGS_MANAGEMENT_API_KEY` | مفتاح VGS Management API (لازم لمهمة الحذف اليومية `purge-vcc` — بدونه تفشل عملية الحذف) |
 
 > **قاعدة ذهبية:** `NEXT_PUBLIC_*` تُبنى داخل الحزمة وقت `build`، لذلك لا تغيّرها بعد البناء — حدّدها قبل `next build`.
 
@@ -228,7 +229,7 @@ curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3211/api/health/worker
 - [ ] **Reveal Domain**: `VGS_REVEAL_DOMAIN` مضبوط (افتراضي: `reveal.verygoodsecurity.com`)
 - [ ] **No PAN/CVV in DB**: تحقق أن قاعدة البيانات لا تحتوي على حقول PAN/CVV — فقط `vccToken`/`vccExpiryToken`/`vccCVVToken`
 - [ ] **Audit Log**: `VCCAuditLog` يسجل `tokenized`/`revealed`/`purged` لكل عملية
-- [ ] **Purge Job**: Job يومي يعمل 03:30، يحذف tokens بعد `checkOut + 7 أيام` عبر VGS API
+- [ ] **Purge Job**: Job يومي يعمل **03:00 Africa/Tripoli** (`daily-vcc-purge-scan`)، يحذف tokens بعد `checkOut + 7 أيام` عبر VGS API ويتطلب `VGS_MANAGEMENT_API_KEY`
 - [ ] **SAQ A Attestation**: نموذج SAQ A مكتمل وموقع (VGS يتحمل مسؤولية Vault)
 - [ ] **Network Segmentation**: VGS Proxy هو الجهة الوحيدة التي تلمس PAN — خوادم التطبيق لا ترى PAN أبداً
 - [ ] **Backup Exclusion**: استبعاد جداول VCC من النسخ الاحتياطية أو تشفير منفصل

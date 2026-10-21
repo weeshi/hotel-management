@@ -105,6 +105,7 @@ async function createSafeBoxHandler(request: NextRequest) {
           openedById: user.userId,
           items: items?.length ? {
             create: items.map((it: any) => ({
+              hotelId: user.hotelId,
               description: it.description,
               quantity: it.quantity || 1,
               notes: it.notes || null,
@@ -156,6 +157,7 @@ async function createSafeBoxHandler(request: NextRequest) {
 
         await tx.invoice.create({
           data: {
+            hotelId: user.hotelId,
             externalClientId,
             invoiceNo,
             total: rentalFee,

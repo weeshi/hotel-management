@@ -80,8 +80,8 @@ try {
         } else {
           throw new Error('فشل جلب بيانات البطاقة');
         }
-      } catch (err: any) {
-        setError(err.message || 'فشل جلب بيانات البطاقة الافتراضية');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'فشل جلب بيانات البطاقة الافتراضية');
       } finally {
         setIsLoading(false);
       }
@@ -120,8 +120,7 @@ try {
 
   // Handle iframe load
   const handleIframeLoad = () => {
-    // Iframe loaded successfully
-    console.log('[VCCReveal] VGS Reveal iframe loaded');
+    // Iframe loaded successfully — no telemetry needed (PCI: never log card data)
   };
 
   // Handle iframe error
@@ -284,14 +283,4 @@ try {
     </div>,
     document.body
   );
-}
-
-// Helper for iframe load/error handlers (defined outside to avoid recreation)
-function handleIframeLoad() {
-  console.log('[VCCReveal] VGS Reveal iframe loaded successfully');
-}
-
-function handleIframeError() {
-  // Error handled by parent component state
-  console.error('[VCCReveal] Failed to load VGS Reveal iframe');
 }

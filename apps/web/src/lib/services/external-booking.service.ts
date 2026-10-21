@@ -261,6 +261,7 @@ export class ExternalBookingService {
             webTotalAmount: totalCharges,
             rooms: {
               create: bookingRooms.map((r) => ({
+                hotelId,
                 roomId: r.roomId,
                 roomTypeId: r.roomTypeId,
                 ratePlanId: r.ratePlanId,

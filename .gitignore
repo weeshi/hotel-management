@@ -17,6 +17,7 @@ dist/
 # Project junk
 hotel-management.zip
 opencode.json
+/opencode
 todos.md
 TEST_CHECKLIST.md
 AGENTS_old_no_use.md

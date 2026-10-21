@@ -104,6 +104,7 @@ async function executeRefund(user: { userId: string; hotelId: string }, folioId:
 
           await tx.walletTransaction.create({
             data: {
+              hotelId: folio.booking.hotelId,
               walletId: wallet.id,
               type: 'REFUND_FROM_FOLIO',
               amount: deposit,

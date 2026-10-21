@@ -39,3 +39,16 @@ export function getTenantHotelId(): string | undefined {
   const ctx = als.getStore();
   return ctx?.mode === 'TENANT' ? ctx.hotelId : undefined;
 }
+
+/**
+ * Sets the ambient tenancy context for the CURRENT async execution span
+ * (unlike {@link runWithTenant}, which scopes a callback). Boundaries that
+ * already own the request/test lifecycle use this to establish context once
+ * and let every subsequent `await` inherit it.
+ *
+ * Production code should prefer `runWithTenant`/`tenantTx`; this is the
+ * primitive the test harness uses to emulate a request boundary per test.
+ */
+export function enterTenantContext(ctx: TenantContext | undefined): void {
+  als.enterWith(ctx);
+}

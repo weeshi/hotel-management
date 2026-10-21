@@ -42,7 +42,7 @@ async function handler(request: NextRequest, { params }: { params: { id: string 
         const newBalance = wallet.balance.sub(amountDecimal);
         await prisma.wallet.update({ where: { id: wallet.id }, data: { balance: newBalance } });
         await prisma.walletTransaction.create({
-          data: { walletId: wallet.id, type: 'PAYMENT', amount: amountDecimal.negated(), balanceBefore: wallet.balance, balanceAfter: newBalance, description: `تسديد فاتورة #${booking.bookingNo}`, referenceId: params.id },
+          data: { hotelId: booking.hotelId, walletId: wallet.id, type: 'PAYMENT', amount: amountDecimal.negated(), balanceBefore: wallet.balance, balanceAfter: newBalance, description: `تسديد فاتورة #${booking.bookingNo}`, referenceId: params.id },
         });
         const payment = await prisma.payment.create({
           data: { hotelId: booking.hotelId, bookingId: params.id, folioId: booking.folio?.id, amount, method: 'WALLET', status: 'SUCCEEDED' },

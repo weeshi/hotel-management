@@ -182,6 +182,7 @@ export class BookingService {
           webTotalAmount: data.webTotalAmount ?? 0,
           rooms: {
             create: bookingRooms.map((r) => ({
+              hotelId: data.hotelId,
               roomId: r.roomId,
               roomTypeId: r.roomTypeId,
               ratePlanId: r.ratePlanId,
@@ -237,6 +238,7 @@ export class BookingService {
           if (service) {
             await tx.bookingService.create({
               data: {
+                hotelId: data.hotelId,
                 bookingId: created.id,
                 serviceId: svc.serviceId,
                 quantity: svc.quantity,
@@ -267,6 +269,7 @@ export class BookingService {
         for (const svc of servicesWithPrice) {
           await tx.bookingService.create({
             data: {
+              hotelId: data.hotelId,
               bookingId: created.id,
               serviceId: svc.serviceId,
               quantity: svc.quantity,
@@ -396,6 +399,7 @@ export class BookingService {
             });
             await tx.walletTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 walletId: wallet.id,
                 type: 'PAYMENT',
                 amount: deduction,
@@ -674,6 +678,7 @@ for (const room of booking.rooms) {
 
       const newBookingRoom = await tx.bookingRoom.create({
         data: {
+          hotelId: booking.hotelId,
           bookingId,
           roomId: targetRoomId,
           nightlyRate: Number(targetRoom.roomType.baseRate),
@@ -1060,6 +1065,7 @@ for (const room of booking.rooms) {
 
             await tx.walletTransaction.create({
               data: {
+                hotelId: booking.hotelId,
                 walletId: wallet.id,
                 type: 'REFUND',
                 amount: refundDecimal,
@@ -1121,6 +1127,7 @@ for (const room of booking.rooms) {
 
             await tx.refund.create({
               data: {
+                hotelId: booking.hotelId,
                 paymentId: payment.id,
                 amount: applied,
                 reason: `إلغاء حجز #${booking.bookingNo}: ${options?.reason || ''}`,

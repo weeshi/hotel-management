@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll, vi, beforeAll } from 'vitest';
 import { prisma, resetDb, seedTestData, closeDb } from '../helpers/db';
-import { processPurgeVCC, PURGE_JOB_OPTIONS } from '@/workers/jobs/purgeVCC.job';
+import {
+  processPurgeVCC,
+  processPurgeVCCProcessor,
+  PURGE_JOB_OPTIONS,
+} from '@/workers/jobs/purgeVCC.job';
 import { subDays } from 'date-fns';
 
 // Mock VGS client before importing processPurgeVCC
@@ -10,7 +14,14 @@ vi.mock('@/lib/integrations/vgs-client', () => ({
   getVGSManagementBaseUrl: vi.fn(),
 }));
 
+// Mock the queue module so the dispatcher test never touches Redis/BullMQ.
+vi.mock('@/workers/queue', () => ({
+  runDailyVCCPurgeScan: vi.fn(),
+  getQueue: vi.fn(),
+}));
+
 import { vgsDeleteToken } from '@/lib/integrations/vgs-client';
+import { runDailyVCCPurgeScan } from '@/workers/queue';
 
 let data: Awaited<ReturnType<typeof seedTestData>>;
 
@@ -208,6 +219,67 @@ describe('VCC Purge Flow — Processor Unit Tests', () => {
         where: { id: paymentId },
       });
       expect(payment!.vccToken).not.toBeNull();
+    });
+  });
+
+  describe('processPurgeVCCProcessor — dispatcher', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('routes the daily scan repeatable job to runDailyVCCPurgeScan', async () => {
+      vi.mocked(runDailyVCCPurgeScan).mockResolvedValue({ scanned: 0, enqueued: 0 });
+
+      await processPurgeVCCProcessor({ name: 'daily-vcc-purge-scan', data: {} });
+
+      expect(runDailyVCCPurgeScan).toHaveBeenCalledTimes(1);
+      expect(vgsDeleteToken).not.toHaveBeenCalled();
+    });
+
+    it('purges all three tokens for a purge-vcc job carrying hotelId/paymentId/bookingId', async () => {
+      vgsDeleteToken.mockResolvedValue({ ok: true, status: 204 });
+
+      await processPurgeVCCProcessor({
+        name: 'purge-vcc',
+        data: { hotelId: data.hotel.id, paymentId, bookingId },
+      });
+
+      const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+      expect(payment!.vccToken).toBeNull();
+      expect(payment!.vccExpiryToken).toBeNull();
+      expect(payment!.vccCVVToken).toBeNull();
+      expect(payment!.vccPurgedAt).not.toBeNull();
+
+      const audit = await prisma.vCCAuditLog.findFirst({
+        where: { paymentId, action: 'purged' },
+      });
+      expect(audit).not.toBeNull();
+      expect(audit!.hotelId).toBe(data.hotel.id);
+
+      expect(vgsDeleteToken).toHaveBeenCalledTimes(3);
+    });
+
+    it('treats VGS 404 as success for every token (idempotent)', async () => {
+      vgsDeleteToken.mockResolvedValue({ ok: true, status: 404 });
+
+      await processPurgeVCCProcessor({
+        name: 'purge-vcc',
+        data: { hotelId: data.hotel.id, paymentId, bookingId },
+      });
+
+      const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+      expect(payment!.vccToken).toBeNull();
+      expect(payment!.vccPurgedAt).not.toBeNull();
+      expect(vgsDeleteToken).toHaveBeenCalledTimes(3);
+    });
+
+    it('rejects an invalid payload without touching VGS', async () => {
+      await processPurgeVCCProcessor({
+        name: 'purge-vcc',
+        data: { hotelId: data.hotel.id },
+      });
+
+      expect(vgsDeleteToken).not.toHaveBeenCalled();
     });
   });
 });
