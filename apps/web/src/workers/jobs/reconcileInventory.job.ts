@@ -1,6 +1,6 @@
 import { Job, JobsOptions } from 'bullmq';
 import { prisma } from '@/lib/utils/prisma';
-import { queues, formatLocalDate } from '@/workers/queue';
+import { queues, formatLocalDate, runWebBookingExpiryScan } from '@/workers/queue';
 import { JOB_PRIORITY, buildJobId } from '@/lib/bullmq';
 import { getRedis } from '@/lib/redis';
 import { childLogger } from '@/lib/observability/logger';
@@ -28,7 +28,16 @@ interface ReconcileResult {
  * Runs daily at 03:00 via JobScheduler; can also be triggered manually.
  * Priority: LOW (background audit).
  */
-export async function reconcileInventoryProcessor(job: Job<ReconcileInventoryData>): Promise<ReconcileResult> {
+export async function reconcileInventoryProcessor(
+  job: Job<ReconcileInventoryData>,
+): Promise<
+  ReconcileResult | { scannedHotels: number; expiredBookings: number }
+> {
+  // M4 — the hourly web-booking expiry scan shares the reconcile queue.
+  if (job.name === 'hourly-web-booking-expiry') {
+    return runWebBookingExpiryScan();
+  }
+
   const { hotelId, provider, date: targetDate, cursor, processedCount = 0 } = job.data;
   const jobId = job.id || `reconcile:${hotelId || 'all'}:${provider || 'all'}:${targetDate || ''}`;
   const log = childLogger({ component: 'worker', queue: 'reconcile', jobId, hotelId });

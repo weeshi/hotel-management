@@ -5,7 +5,7 @@ import { BookingRepository } from '@/lib/repositories/booking.repository';
 import { FolioRepository } from '@/lib/repositories/folio.repository';
 import { PricingService } from '@/lib/services/pricing.service';
 import { GuestService } from '@/lib/services/guest.service';
-import { ValidationError, NotFoundError } from '@/lib/utils/errors';
+import { ValidationError, NotFoundError, ConflictError } from '@/lib/utils/errors';
 
 const bookingRepo = new BookingRepository();
 const folioRepo = new FolioRepository();
@@ -163,6 +163,71 @@ export class BookingService {
     }
 
     const booking = await tenantTx(async (tx) => {
+      // --- M3: atomic web-quota lock (closes the TOCTOU oversell race). ---
+      // Every room-type reservation (web or reception) serializes on the
+      // RoomType row so two concurrent requests cannot both pass the quota
+      // check and oversell the same nights.
+      const quotaTargets = bookingRooms.filter(
+        (r) => r.roomTypeId && (!r.roomId || data.source === 'WEBSITE'),
+      );
+      for (const target of quotaTargets) {
+        const roomTypeId = target.roomTypeId;
+        if (!roomTypeId) continue;
+
+        await tx.$executeRawUnsafe(
+          'SELECT id FROM "RoomType" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+          roomTypeId,
+          data.hotelId,
+        );
+
+        const roomType = await tx.roomType.findFirst({
+          where: { id: roomTypeId, hotelId: data.hotelId },
+          select: { id: true, webRoomLimit: true },
+        });
+        if (!roomType) throw new NotFoundError('نوع الغرفة غير موجود');
+
+        const physicalAvailable = await tx.room.count({
+          where: {
+            hotelId: data.hotelId,
+            roomTypeId,
+            status: { not: 'MAINTENANCE' },
+            bookingRooms: {
+              none: {
+                checkIn: { lt: target.checkOut },
+                checkOut: { gt: target.checkIn },
+                booking: { status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
+              },
+            },
+          },
+        });
+
+        const pendingReserved = await tx.bookingRoom.count({
+          where: {
+            roomTypeId,
+            roomId: null,
+            checkIn: { lt: target.checkOut },
+            checkOut: { gt: target.checkIn },
+            booking: {
+              hotelId: data.hotelId,
+              status: 'PENDING',
+              source: 'WEBSITE',
+            },
+          },
+        });
+
+        const onlineAvailable =
+          roomType.webRoomLimit != null
+            ? Math.min(
+                Math.max(0, roomType.webRoomLimit - pendingReserved),
+                physicalAvailable,
+              )
+            : physicalAvailable;
+
+        if (onlineAvailable < 1) {
+          throw new ConflictError('لا توجد غرف متاحة من هذا النوع في التواريخ المحددة');
+        }
+      }
+
       const created = await tx.booking.create({
         data: {
           bookingNo,
@@ -308,6 +373,99 @@ export class BookingService {
     return updated;
   }
 
+  /**
+   * M4 — assign a physical room to one room row of a web/room-type booking.
+   * Locks the target Room row, verifies availability and date-overlap, then
+   * transitions the booking to CONFIRMED once every row has a room.
+   */
+  async assignPhysicalRoom(params: {
+    bookingId: string;
+    hotelId: string;
+    bookingRoomId: string;
+    roomId: string;
+    userId?: string;
+  }) {
+    const { bookingId, hotelId, bookingRoomId, roomId, userId } = params;
+
+    return tenantTx(async (tx) => {
+      await tx.$executeRawUnsafe(
+        'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+        roomId,
+        hotelId,
+      );
+
+      const booking = await tx.booking.findFirst({
+        where: { id: bookingId, hotelId },
+        include: { rooms: true },
+      });
+      if (!booking) throw new NotFoundError('الحجز غير موجود');
+      if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+        throw new ValidationError('لا يمكن تخصيص غرفة لحجز غير معلّق أو مؤكد');
+      }
+
+      const bookingRoom = booking.rooms.find((r) => r.id === bookingRoomId);
+      if (!bookingRoom) throw new NotFoundError('غرفة الحجز غير موجودة');
+
+      const room = await tx.room.findFirst({ where: { id: roomId, hotelId } });
+      if (!room) throw new NotFoundError('الغرفة غير موجودة');
+      if (room.status !== 'AVAILABLE') {
+        throw new ConflictError('الغرفة غير متاحة للتخصيص');
+      }
+      if (bookingRoom.roomTypeId && room.roomTypeId !== bookingRoom.roomTypeId) {
+        throw new ValidationError('نوع الغرفة لا يطابق نوع الغرفة المحجوز');
+      }
+
+      const conflict = await tx.bookingRoom.findFirst({
+        where: {
+          id: { not: bookingRoomId },
+          roomId,
+          checkIn: { lt: bookingRoom.checkOut },
+          checkOut: { gt: bookingRoom.checkIn },
+          booking: {
+            hotelId,
+            status: { in: ['CONFIRMED', 'CHECKED_IN'] },
+          },
+        },
+        select: { id: true },
+      });
+      if (conflict) {
+        throw new ConflictError('الغرفة محجوزة في الفترة المحددة');
+      }
+
+      await tx.bookingRoom.update({
+        where: { id: bookingRoomId },
+        data: { roomId },
+      });
+
+      const stillUnassigned = booking.rooms.filter(
+        (r) => r.id !== bookingRoomId && !r.roomId,
+      );
+      if (booking.status === 'PENDING' && stillUnassigned.length === 0) {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: 'CONFIRMED' },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          hotelId,
+          userId: userId ?? null,
+          bookingId,
+          action: 'ASSIGN_ROOM',
+          entity: 'BookingRoom',
+          entityId: bookingRoomId,
+          newValue: JSON.stringify({ roomId }),
+        },
+      });
+
+      return tx.booking.findFirst({
+        where: { id: bookingId, hotelId },
+        include: { rooms: { include: { room: true, roomType: true } } },
+      });
+    });
+  }
+
   async checkIn(bookingId: string, hotelId: string, payment?: { method: string; amount: number }) {
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId, hotelId },
@@ -338,9 +496,16 @@ export class BookingService {
       // --- Charges are already posted at booking creation time (create()). ---
       // checkIn() ONLY: occupies rooms, records payment, deducts wallet, updates status.
 
+      // --- M4: a physical room must be assigned to EVERY room row before any
+      // state mutation. A booking that still points only at a room-type can
+      // never be checked in.
+      if (booking.rooms.some((r) => !r.roomId)) {
+        throw new ValidationError('يجب تخصيص غرفة فيزيائية لكل غرف الحجز قبل تسجيل الدخول');
+      }
+
       // 1. Set room statuses to OCCUPIED
       for (const room of booking.rooms) {
-        if (!room.roomId) continue; // Skip web bookings without assigned room
+        if (!room.roomId) continue; // narrowed by the guard above
         await tx.room.update({
           where: { id: room.roomId },
           data: { status: 'OCCUPIED' },

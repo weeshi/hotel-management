@@ -305,17 +305,34 @@ describe('BookingService - Public Booking Creation', () => {
     bookingService = new BookingService();
 
     (prisma.$transaction as vi.Mock).mockImplementation(async (cb) => {
+      // M3 quota lock looks the RoomType up inside the tx, so fall back to a
+      // neutral row when a test did not stage this lookup explicitly.
+      const quotaRoomTypeLookup = vi.fn(async (...args: unknown[]) => {
+        const found = await (prisma.roomType.findFirst as vi.Mock)(...args);
+        return found ?? { id: 'rt-quota', webRoomLimit: null };
+      });
+
       const tx = {
         $queryRaw: vi.fn().mockResolvedValue([{ value: 1 }]),
-        room: { findFirst: prisma.room.findFirst },
-        roomType: { findUnique: prisma.roomType.findUnique, findFirst: prisma.roomType.findFirst },
+        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+        room: {
+          findFirst: prisma.room.findFirst,
+          count: vi.fn().mockResolvedValue(1),
+        },
+        roomType: {
+          findUnique: prisma.roomType.findUnique,
+          findFirst: quotaRoomTypeLookup,
+        },
         ratePlan: { findMany: prisma.ratePlan.findMany, findUnique: prisma.ratePlan.findUnique, findFirst: prisma.ratePlan.findFirst },
         cancellationPolicy: { findUnique: prisma.cancellationPolicy.findUnique, findFirst: prisma.cancellationPolicy.findFirst },
         booking: { create: prisma.booking.create, update: prisma.booking.update },
         folio: { create: prisma.folio.create, update: prisma.folio.update },
         folioTransaction: { create: prisma.folioTransaction.create },
         bookingService: { create: prisma.bookingService.create },
-        bookingRoom: { findFirst: prisma.bookingRoom.findFirst },
+        bookingRoom: {
+          findFirst: prisma.bookingRoom.findFirst,
+          count: vi.fn().mockResolvedValue(0),
+        },
         guest: { findFirst: prisma.guest.findFirst, create: prisma.guest.create, upsert: prisma.guest.upsert },
       };
       return cb(tx);

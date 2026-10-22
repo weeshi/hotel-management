@@ -36,3 +36,10 @@ export class ValidationError extends AppError {
     this.name = 'ValidationError';
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(message = 'تعارض في البيانات') {
+    super(message, 409, 'CONFLICT');
+    this.name = 'ConflictError';
+  }
+}

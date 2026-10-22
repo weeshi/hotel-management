@@ -18,6 +18,7 @@ dist/
 hotel-management.zip
 opencode.json
 /opencode
+.audit.*.json
 todos.md
 TEST_CHECKLIST.md
 AGENTS_old_no_use.md

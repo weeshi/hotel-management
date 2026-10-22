@@ -6,6 +6,7 @@ import { Button, Badge, Input, Modal, Card, EmptyState } from '@/components/ui';
 import { apiGet } from '@/lib/utils/api-client';
 import { useAuth } from '@/contexts/auth-context';
 import { VCCReveal } from '@/components/bookings/VCCReveal';
+import { AssignRoomModal } from '@/components/bookings/AssignRoomModal';
 
 interface Booking {
   id: string;
@@ -14,7 +15,15 @@ interface Booking {
   guest?: { name: string };
   status: string;
   createdAt: string;
-  rooms: { room: { roomNumber: string } }[];
+  rooms: {
+    id: string;
+    roomId: string | null;
+    roomTypeId: string | null;
+    checkIn: string;
+    checkOut: string;
+    room: { roomNumber: string } | null;
+    roomType?: { name: string } | null;
+  }[];
   folio?: { balance: number };
 }
 
@@ -53,6 +62,14 @@ export default function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookingDetail, setBookingDetail] = useState<BookingDetail | null>(null);
   const [vccOpen, setVccOpen] = useState(false);
+  const [assignRoomTarget, setAssignRoomTarget] = useState<{
+    bookingId: string;
+    bookingRoomId: string;
+    roomTypeId: string | null;
+    roomTypeName?: string;
+    checkIn: string;
+    checkOut: string;
+  } | null>(null);
 
   async function openBookingDetails(booking: Booking) {
     setSelectedBooking(booking);
@@ -151,8 +168,11 @@ export default function BookingsPage() {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-[var(--text-secondary)]">{guestName}</span>
-                  <span className="text-[var(--text-muted)]">
-                    {booking.rooms?.map(r => r.room.roomNumber).join('، ') || '—'}
+                  <span className="flex items-center gap-2 text-[var(--text-muted)]">
+                    {booking.rooms?.map(r => r.room?.roomNumber || 'بانتظار تخصيص').join('، ') || '—'}
+                    {booking.rooms?.some(r => !r.roomId) && booking.status === 'PENDING' && (
+                      <Badge variant="yellow">بانتظار تخصيص غرفة</Badge>
+                    )}
                     {booking.folio && ` | رصيد: ${booking.folio.balance} د.ل`}
                   </span>
                 </div>
@@ -182,9 +202,42 @@ export default function BookingsPage() {
                 <span className="text-[var(--text-muted)]">النزيل:</span>
                 <span className="mr-2">{selectedBooking.guestName || selectedBooking.guest?.name || 'غير محدد'}</span>
               </div>
-              <div>
+              <div className="col-span-2">
                 <span className="text-[var(--text-muted)]">الغرف:</span>
-                <span className="mr-2">{selectedBooking.rooms?.map(r => r.room.roomNumber).join('، ') || '—'}</span>
+                <div className="mt-2 space-y-2">
+                  {selectedBooking.rooms?.map((bookingRoom) => (
+                    <div
+                      key={bookingRoom.id}
+                      className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2"
+                    >
+                      <span>
+                        {bookingRoom.room?.roomNumber ||
+                          bookingRoom.roomType?.name ||
+                          'غرفة'}
+                      </span>
+                      {bookingRoom.roomId ? (
+                        <Badge variant="green">مخصصة</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            setAssignRoomTarget({
+                              bookingId: selectedBooking.id,
+                              bookingRoomId: bookingRoom.id,
+                              roomTypeId: bookingRoom.roomTypeId,
+                              roomTypeName: bookingRoom.roomType?.name,
+                              checkIn: bookingRoom.checkIn,
+                              checkOut: bookingRoom.checkOut,
+                            })
+                          }
+                        >
+                          تخصيص غرفة
+                        </Button>
+                      )}
+                    </div>
+                  )) || '—'}
+                </div>
               </div>
               {selectedBooking.folio && (
     <div data-component="ReceptionBookingsPage">
@@ -194,7 +247,8 @@ export default function BookingsPage() {
               )}
             </div>
             <div className="flex gap-2 pt-4 border-t border-[var(--border)]">
-              {selectedBooking.status === 'CONFIRMED' && (
+              {selectedBooking.status === 'CONFIRMED' &&
+                selectedBooking.rooms?.every((r) => r.roomId) && (
                 <Button size="sm" onClick={() => router.push(`/reception/checkin?bookingId=${selectedBooking.id}`)}>
                   🔑 تسجيل دخول
                 </Button>
@@ -215,6 +269,20 @@ export default function BookingsPage() {
           </div>
         )}
       </Modal>
+
+      {assignRoomTarget && (
+        <AssignRoomModal
+          open={!!assignRoomTarget}
+          onClose={() => setAssignRoomTarget(null)}
+          bookingId={assignRoomTarget.bookingId}
+          bookingRoomId={assignRoomTarget.bookingRoomId}
+          roomTypeId={assignRoomTarget.roomTypeId}
+          roomTypeName={assignRoomTarget.roomTypeName}
+          checkIn={assignRoomTarget.checkIn}
+          checkOut={assignRoomTarget.checkOut}
+          onAssigned={fetchBookings}
+        />
+      )}
 
       <VCCReveal
         isOpen={vccOpen}

@@ -54,6 +54,16 @@ export async function registerRepeatableJobs(): Promise<void> {
     { override: true }
   );
 
+  // M4 — hourly scan of unconfirmed web bookings (confirmationCutoffHours).
+  await reconcileScheduler.upsertJobScheduler(
+    'hourly-web-booking-expiry',
+    { pattern: '0 * * * *' },
+    'hourly-web-booking-expiry',
+    {},
+    { priority: JOB_PRIORITY.LOW, removeOnComplete: { age: 3600, count: 100 } },
+    { override: true }
+  );
+
   const purgeScheduler = new JobScheduler(
     QUEUE_CONFIGS.find((c) => c.key === 'purge')!.name,
     { connection, prefix: PREFIX }
@@ -67,7 +77,7 @@ export async function registerRepeatableJobs(): Promise<void> {
     { override: true }
   );
 
-  log.info('Repeatable jobs registered via JobScheduler: daily-snapshot-all (02:00), daily-reconcile-all (03:00), daily-vcc-purge-scan (03:00 Tripoli)');
+  log.info('Repeatable jobs registered via JobScheduler: daily-snapshot-all (02:00), daily-reconcile-all (03:00), hourly-web-booking-expiry (hourly), daily-vcc-purge-scan (03:00 Tripoli)');
 }
 
 export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueued: number }> {
@@ -110,6 +120,8 @@ export async function runDailyVCCPurgeScan(): Promise<{ scanned: number; enqueue
     return { scanned: vccPayments.length, enqueued };
   });
 }
+
+export { runWebBookingExpiryScan } from '@/lib/services/web-booking-expiry.service';
 
 export async function getQueueHealth(): Promise<
   Record<string, { waiting: number; active: number; failed: number }>
