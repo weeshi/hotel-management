@@ -36,7 +36,7 @@ async function getHandler(request: NextRequest) {
       limit,
       where,
       include: {
-        rooms: { include: { room: true } },
+        rooms: { include: { room: true, roomType: true } },
         guest: true,
         folio: true,
         bookingServices: { include: { service: true } },
