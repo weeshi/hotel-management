@@ -109,3 +109,33 @@
     animation: none;
   }
 }
+
+/* Tape Chart print/export: landscape sheet with only the grid visible. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible !important;
+  }
+
+  [data-print-root] {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  [data-print-hide] {
+    display: none !important;
+  }
+}
+
