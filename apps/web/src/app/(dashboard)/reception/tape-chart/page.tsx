@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button, Input } from '@/components/ui';
 import { apiGet } from '@/lib/utils/api-client';
 import { TapeChart, DailyRoomGrid } from '@/components/tape-chart';
-import type { TapeChartData } from '@/components/tape-chart/types';
+import type { TapeChartData, TapeChartFilters } from '@/components/tape-chart/types';
 
 type ViewMode = 'tape-chart' | 'daily-grid';
+
+const EMPTY_FILTERS: TapeChartFilters = { q: '', roomTypeId: '', floor: '', status: '' };
 
 function generateDateRange(from: Date, days: number): Date[] {
   const dates: Date[] = [];
@@ -33,6 +35,8 @@ export default function TapeChartPage() {
   const [fromDate, setFromDate] = useState(formatDateInput(today));
   const [gridDate, setGridDate] = useState(formatDateInput(today));
   const [rangeDays, setRangeDays] = useState(14);
+  const [filters, setFilters] = useState<TapeChartFilters>(EMPTY_FILTERS);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [data, setData] = useState<TapeChartData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,40 +46,52 @@ export default function TapeChartPage() {
     return generateDateRange(from, rangeDays);
   }, [fromDate, rangeDays]);
 
-  async function fetchData() {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(filters.q), 300);
+    return () => clearTimeout(timer);
+  }, [filters.q]);
+
+  const buildQuery = useCallback((from: string, to: string): string => {
+    const params = new URLSearchParams({ from, to });
+    if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+    if (filters.roomTypeId) params.set('roomTypeId', filters.roomTypeId);
+    if (filters.floor) params.set('floor', filters.floor);
+    if (filters.status) params.set('status', filters.status);
+    return params.toString();
+  }, [debouncedSearch, filters.roomTypeId, filters.floor, filters.status]);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const toDate = new Date(fromDate);
       toDate.setDate(toDate.getDate() + rangeDays);
-      const res = await apiGet(
-        `/api/admin/tape-chart?from=${fromDate}&to=${formatDateInput(toDate)}`
-      );
+      const query = buildQuery(fromDate, formatDateInput(toDate));
+      const res = await apiGet<TapeChartData>(`/api/admin/tape-chart?${query}`);
       if (res.success) setData(res.data || null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [fromDate, rangeDays, buildQuery]);
 
-  useEffect(() => { fetchData(); }, [fromDate, rangeDays]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  async function fetchGridDay() {
+  const fetchGridDay = useCallback(async () => {
     setLoading(true);
     try {
       const gridDay = new Date(gridDate);
       const nextDay = new Date(gridDay);
       nextDay.setDate(nextDay.getDate() + 1);
-      const res = await apiGet(
-        `/api/admin/tape-chart?from=${gridDate}&to=${formatDateInput(nextDay)}`
-      );
+      const query = buildQuery(gridDate, formatDateInput(nextDay));
+      const res = await apiGet<TapeChartData>(`/api/admin/tape-chart?${query}`);
       if (res.success) setData(res.data || null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [gridDate, buildQuery]);
 
   useEffect(() => {
     if (viewMode === 'daily-grid') fetchGridDay();
-  }, [viewMode, gridDate]);
+  }, [viewMode, fetchGridDay]);
 
   return (
     <div data-component="TapeChartPage">
@@ -166,7 +182,13 @@ export default function TapeChartPage() {
         </div>
       ) : data ? (
         viewMode === 'tape-chart' ? (
-          <TapeChart data={data} dateColumns={dateColumns} onRefresh={fetchData} />
+          <TapeChart
+            data={data}
+            dateColumns={dateColumns}
+            onRefresh={fetchData}
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
         ) : (
           <DailyRoomGrid rooms={data.rooms} bookingRooms={data.bookingRooms} selectedDate={gridDate} />
         )
