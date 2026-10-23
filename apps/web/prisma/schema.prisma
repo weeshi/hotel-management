@@ -642,14 +642,22 @@ model BookingService {
 //  الحجوزات الجماعية والمجموعات
 // ============================================================
 model GroupBooking {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
   hotelId       String
-  hotel         Hotel    @relation(fields: [hotelId], references: [id])
-  masterFolioId String?  @unique
-  masterFolio   Folio?   @relation("MasterFolio", fields: [masterFolioId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  hotel         Hotel     @relation(fields: [hotelId], references: [id])
+  companyName   String?
+  contactName   String?
+  contactPhone  String?
+  contactEmail  String?
+  checkIn       DateTime?
+  checkOut      DateTime?
+  status        String    @default("ACTIVE")
+  notes         String?
+  masterFolioId String?   @unique
+  masterFolio   Folio?    @relation("MasterFolio", fields: [masterFolioId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   bookings     Booking[]
   routingRules FolioRoutingRule[]
