@@ -6,6 +6,7 @@ import { apiPut } from '@/lib/utils/api-mutation';
 import type { GroupBookingData, RoutingRuleData, FolioData } from './types';
 import { AssignBookingsModal } from './AssignBookingsModal';
 import { CreateSubBookingModal } from './CreateSubBookingModal';
+import { GroupReportModal } from './GroupReportModal';
 
 interface Props {
   group: GroupBookingData;
@@ -33,6 +34,7 @@ function folioBalance(folio: FolioData | null) {
 export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
   const [showAssign, setShowAssign] = useState(false);
   const [showSubBooking, setShowSubBooking] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [editingRules, setEditingRules] = useState(false);
   const [rules, setRules] = useState<RoutingRuleData[]>(group.routingRules);
   const [saving, setSaving] = useState(false);
@@ -82,6 +84,9 @@ export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
         title={`👥 ${group.name}`}
         action={
           <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowReport(true)}>
+              📊 تقرير المجموعة الموحّد
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => setShowAssign(true)}>
               + إضافة حجوزات
             </Button>
@@ -209,6 +214,12 @@ export function GroupBookingCard({ group, hotelId, onRefresh }: Props) {
         onSuccess={onRefresh}
         groupId={group.id}
         hotelId={hotelId}
+      />
+      <GroupReportModal
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        groupId={group.id}
+        groupName={group.name}
       />
     </>
   );
