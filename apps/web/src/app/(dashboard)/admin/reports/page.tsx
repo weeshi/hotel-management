@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from '@/components/ui';
-import { PeriodSelector, StatCards, ReportTypeTabs, ExportButtons, ShareReportModal, ReportSettingsModal } from '@/components/reports';
+import { PeriodSelector, StatCards, ReportTypeTabs, ExportButtons, ShareReportModal, ReportSettingsModal, ExecutiveKpiPanel } from '@/components/reports';
 
 const periodOptions = [
   { value: 'day', label: 'اليوم' },
@@ -209,6 +209,10 @@ export default function AdminReportsPage() {
         <div className="flex items-center gap-3">
           <PeriodSelector value={period} options={periodOptions} onChange={setPeriod} />
         </div>
+      </div>
+
+      <div className="mb-6">
+        <ExecutiveKpiPanel startDate={dateFrom} endDate={dateTo} />
       </div>
 
       <div className="flex items-center justify-between gap-3 mb-6">

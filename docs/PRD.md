@@ -188,8 +188,24 @@
 - **كشف الحساب (`getClientStatement`):** المسار `GET /api/admin/external-clients/[id]/invoices` يعيد بيانات العميل، ومؤشرات `totalInvoiced`, `totalPaid`, `outstandingBalance`, و`overdueBalance` (حيث `dueDate < now` والحالة `ISSUED`)، وقائمة الفواتير.
 - **الثوابت:** `CORPORATE_INVOICE_STATUSES = ['DRAFT','ISSUED','PAID','VOID']` مع تحقق `z.nativeEnum` لحقل طريقة الدفع (`PaymentMethod`) — صفر `any`.
 
-#### 4. مؤشرات الأداء التنفيذية والتنبيهات (`Executive KPIs & Alerts`)
-- لوحة قيادة تنفيذية تعرض نسبة الإشغال (`Occupancy Rate`)، متوسط السعر اليومي (`ADR`)، العائد لكل غرفة متاحة (`RevPAR`)، توزيع الإيرادات حسب القسم، والتنبيهات التشغيلية الفورية.
+#### 4. مؤشرات الأداء التنفيذية والتنبيهات (`Executive KPIs & Alerts` — `v9.6`، USALI-style) ✅
+- **الخدمة:** `ExecutiveKpiService.getExecutiveKpis({ hotelId, startDate, endDate })` عبر `GET /api/admin/reports/executive-kpis` (ADMIN/MANAGER/ACCOUNTANT)، بنافذة افتراضية **Month-to-Date** بتوقيت طرابلس (`getTripoliMonthToDateWindow`).
+- **النافذة التقويمية الشاملة:** `toTripoliDayIndex`/`tripoliDayStart`/`parseTripoliWindow` يحوّلان `YYYY-MM-DD` و`Date`/ISO إلى يومهما التقويمي في `Africa/Tripoli` (`+02:00`)، بدلالة **شاملة** ليوم النهاية (`endDayExclusive = endDayIndex + 1`) ⇒ `2026-03-01..2026-03-31` = 31 يوماً؛ اليوم الواحد صالح (`totalDays = 1`) ويُرفض النطاق المعكوس بـ `ValidationError`. الاستعلامات تستخدم `[startBound, endBound)`.
+- **تقييد الفترة الجزئية:** إذا تجاوزت نهاية النافذة «اليوم» بتوقيت طرابلس، تُقصّ كل الحسابات (الليالي المشغولة، الإيراد المستحق، الليالي المتاحة) عند اليوم؛ ويُعاد `period.effectiveEndDate` و`period.isPartialPeriod`، وتظهر شارة «فترة جزئية (حتى اليوم)» في الواجهة. النافذة التي تبدأ في المستقبل تُعيد `totalDays = 0` وقيماً صفرية.
+- **الجرد (`inventory`):** `totalPhysicalRooms`, `maintenanceRooms`, `sellableRooms`, `availableRoomNights = sellableRooms × totalDays`، و`occupiedRoomNights`.
+- **الإشغال الاستحقاقي (حجوزات فعلية فقط):** `OCCUPYING_BOOKING_STATUSES = ['CHECKED_IN','CHECKED_OUT']` — تُستبعد `CONFIRMED` غير الواصلة. يُستعلم عن `BookingRoom` المتقاطع (`checkIn < endBound AND checkOut > startBound`)، ويُحسب التقاطع بفرق **مؤشرات الأيام التقويمية** (`overlapEndDay − overlapStartDay`) بدل `Math.ceil` الزمني ⇒ دخول 14:00/خروج 12:00 = ليلة واحدة. `accruedRoomRevenue = Σ(nightlyRate × nights)`.
+- **مؤشرات USALI-style:** `occupancyRate` (حقيقية قد تتجاوز 100%)، `isOverbooked`، `adr = accruedRoomRevenue / occupiedRoomNights`، `revPar = accruedRoomRevenue / availableRoomNights`.
+- **اكتمال الدفتر:** يُجمَّع `type IN ('CHARGE','DISCOUNT','REFUND')`؛ تُدمج قيود `REFUND` ذات الفئة الإيرادية في فئتها الأصلية (إلغاء/مغادرة مبكرة/نقل غرفة)، وتُستبعد `REFUND` بفئة `REFUND`/`PAYMENT` (استرداد دفعة). `netRevenue` = CHARGE غير TAX − الخصومات + عكس الإيراد؛ `taxTotal` = TAX + عكسه؛ `grossBilled = netRevenue + taxTotal`؛ `totalCollected` = SUCCEEDED صافي `refundedAmount`؛ `collectionRate = totalCollected / grossBilled`. تُستبعد الفواتير `VOID` ومدفوعاتها.
+- **التوزيع والتنبيهات:** `revenueByCategory` (صافي كل فئة بعد العكس) و`operationalAlerts` (`pendingWebBookings`, `unassignedBookingRooms`).
+- **البنية التقنية الدقيقة:** تجميعات قاعدة بيانات لـ `count` (الغرف/التنبيهات) و`groupBy` (قيود الدفتر) و`aggregate` (المدفوعات)؛ أما تقاطع `BookingRoom` فيُجلب مفلتراً بالتواريخ ويُحسب **في الذاكرة** (وليس تجميعاً في قاعدة البيانات). **الواجهة:** `ExecutiveKpiPanel` أعلى `/admin/reports` بتسميات «إيراد الغرف المستحق (Accrued)» و«إيرادات الدفتر المفوترة خلال الفترة (Billed Ledger)» و«نسبة تحصيل الفترة (شاملة العربونات)».
+
+**Known Limitations (قيود معروفة — موثّقة):**
+1. الليالي المتاحة تُحسب من **عدد الغرف الحالي** و**حالة الصيانة الحالية**، وليست لقطة تاريخية.
+2. غرف الصيانة تُخصم من العرض المتاح (خلافاً لمعايير صناعية تُبقي الغرف خارج الخدمة ضمن العرض).
+3. إجماليات الدفتر تُنسب إلى **تاريخ القيد**؛ لذا يظهر إلغاء قيدٍ في فترةٍ لاحقة كتصحيحٍ في تلك الفترة اللاحقة (وليس بأثر رجعي).
+4. «التجاوز» يُقاس مقابل `checkOut` المحجوز، لا مقابل المغادرة الفعلية.
+5. `totalCollected` يقتصر على مدفوعات بحالة `SUCCEEDED` (وفق المواصفة)؛ استرداد دفعةٍ يحوّل حالتها إلى `PARTIALLY_REFUNDED`/`REFUNDED` فتُستبعد من هذا المجموع، بينما تبقى الإيرادات المفوترة غير متأثرة.
+6. رسوم الغرف (`ROOM_CHARGE`) تُرحَّل للفاتورة **كامل مدة الإقامة عند إنشاء الحجز** (وليس ليلياً)؛ لذا قد يختلف `accruedRoomRevenue` عن `revenueByCategory.ROOM_CHARGE` عندما يقع تاريخ الترحيل خارج نافذة التقرير (موثّق باختبار انحدار).
 
 ---
 
