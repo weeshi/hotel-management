@@ -175,14 +175,18 @@
 - **الملخص المالي الموحد (`financialSummary`):** ملخص الفاتورة الرئيسية (`masterFolio`)، إجماليات الفواتير الفرعية النشطة (`subFoliosTotals` مع استثناء الفواتير الملغاة `VOID` الصفرية)، الإجماليات الموحدة (`consolidatedTotals`)، تفصيل الرسوم حسب الفئة (`chargesByCategory`) وتفصيل المدفوعات الصافية حسب الطريقة (`paymentsByMethod`) مقسّمة إلى `masterAmount` و`subFoliosAmount` و`totalAmount`.
 - **الواجهة (`GroupReportModal.tsx`):** نافذة تقرير شاملة قابلة للطباعة (`data-print-root` / `data-print-hide`) مرتبطة ببطاقة المجموعة (`GroupBookingCard.tsx`).
 
-#### 3. أتمتة الفوترة الشهرية للشركات (`Corporate Monthly Billing` — `ExternalClient` & `Invoice` — `v9.5`)
-- **النموذج المعماري:** يرتبط العميل الخارجي / الشركة (`ExternalClient`) بفواتير مؤسسية (`Invoice`) تحمل رقماً تسلسلياً فريداً `CORP-YYYYMM-XXXX` وتمر بدورة حياة محكومة (`DRAFT` $\rightarrow$ `ISSUED` $\rightarrow$ `PAID` أو `VOID`).
+#### 3. أتمتة الفوترة الشهرية للشركات (`Corporate Monthly Billing` — `ExternalClient` & `Invoice` — `v9.5`) ✅
+- **النموذج المعماري:** يرتبط العميل الخارجي / الشركة (`ExternalClient`) بفواتير مؤسسية (`Invoice`) تحمل رقماً تسلسلياً فريداً `CORP-YYYYMM-XXXX` (شهر الفترة `periodEnd` بتوقيت UTC) وتمر بدورة حياة محكومة (`DRAFT` $\rightarrow$ `ISSUED` $\rightarrow$ `PAID` أو `VOID`). الحقول المضافة: `status`, `periodStart`, `periodEnd`, `dueDate`, `paidAt`, `subtotal` (Decimal), `taxAmount` (Decimal), `paidAmount` (Decimal), `notes`, `items` (Json snapshot), `updatedAt`.
 - **توليد الكشف الشهري (`generateMonthlyStatement`):**
-  * المسار: `POST /api/admin/external-clients/[id]/invoices`.
-  * يجمع البنود المستحقة خلال فترة الفوترة `[periodStart, periodEnd]`، ويحسب `subtotal`، `taxAmount`، و`total`، ويحدد `dueDate`، وينشئ الفاتورة بحالة `ISSUED` داخل `tenantTx` مع تدوين `CREATE_CORPORATE_INVOICE` في `AuditLog`.
+  * المسار: `POST /api/admin/external-clients/[id]/invoices` (ADMIN/MANAGER/ACCOUNTANT + CSRF).
+  * يجمع آلياً البنود غير المفوترة خلال `[periodStart, periodEnd]` من فواتير/رسوم الحجوزات المرتبطة بالشركة (عبر `GroupBooking.companyName` أو صناديق الأمانات المرتبطة بـ `externalClientId`)، مع **استثناء أي فاتورة فرعية سبق ترحيلها على فاتورة مؤسسية غير `VOID`** (يُستدل عليها من `Invoice.folioId` أو لقطة `items[].folioId`).
+  * يدعم بنوداً صريحة `lineItems[]` (بنود عقد/خدمات مختارة) تكون مرجعية عند تمريرها.
+  * يحسب `subtotal`، `taxAmount` (وفق `taxRate`)، و`total`، ويحدد `dueDate`، وينشئ الفاتورة بحالة `ISSUED` داخل `tenantTx` مع تدوين `CREATE_CORPORATE_INVOICE` في `AuditLog`.
 - **تسجيل الدفعات وتتبع أعمار الديون (`recordInvoicePayment` & Aging):**
-  * المسار: `POST /api/admin/external-clients/[id]/invoices/[invoiceId]/pay`.
-  * يقفل صف الفاتورة بـ `FOR UPDATE` داخل `tenantTx`، ويحدث `paidAmount` (سداد جزئي أو كلي)، ويحول الفاتورة تلقائياً إلى `PAID` مع ختم `paidAt` عند اكتمال السداد (`paidAmount === total`)، ويرفض السداد على الفواتير المسددة (`PAID`) أو الملغاة (`VOID`)، ويحسب الرصيد القائم (`outstandingBalance`) والرصيد المتأخر بعد الاستحقاق (`overdueBalance`).
+  * المسار: `POST /api/admin/external-clients/[id]/invoices/[invoiceId]/pay` (ADMIN/MANAGER/ACCOUNTANT + CSRF).
+  * يقفل صف الفاتورة بـ `FOR UPDATE` داخل `tenantTx`، ويحدث `paidAmount` (سداد جزئي أو كلي)، ويحول الفاتورة تلقائياً إلى `PAID` مع ختم `paidAt` عند اكتمال السداد (`paidAmount >= total`)، ويرفض السداد الزائد وعلى الفواتير المسددة (`PAID`) أو الملغاة (`VOID`)، ويسجل `PAY_CORPORATE_INVOICE` في `AuditLog`.
+- **كشف الحساب (`getClientStatement`):** المسار `GET /api/admin/external-clients/[id]/invoices` يعيد بيانات العميل، ومؤشرات `totalInvoiced`, `totalPaid`, `outstandingBalance`, و`overdueBalance` (حيث `dueDate < now` والحالة `ISSUED`)، وقائمة الفواتير.
+- **الثوابت:** `CORPORATE_INVOICE_STATUSES = ['DRAFT','ISSUED','PAID','VOID']` مع تحقق `z.nativeEnum` لحقل طريقة الدفع (`PaymentMethod`) — صفر `any`.
 
 #### 4. مؤشرات الأداء التنفيذية والتنبيهات (`Executive KPIs & Alerts`)
 - لوحة قيادة تنفيذية تعرض نسبة الإشغال (`Occupancy Rate`)، متوسط السعر اليومي (`ADR`)، العائد لكل غرفة متاحة (`RevPAR`)، توزيع الإيرادات حسب القسم، والتنبيهات التشغيلية الفورية.

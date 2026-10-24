@@ -1032,12 +1032,26 @@ model Invoice {
   externalClientId String?
   externalClient   ExternalClient? @relation(fields: [externalClientId], references: [id])
   invoiceNo        String          @unique
+  // Corporate monthly billing lifecycle (constrained in code: DRAFT | ISSUED | PAID | VOID)
+  status           String          @default("ISSUED")
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  dueDate          DateTime?
+  paidAt           DateTime?
+  subtotal         Decimal         @default(0)
+  taxAmount        Decimal         @default(0)
+  paidAmount       Decimal         @default(0)
+  notes            String?
+  items            Json?
   total            Float           @default(0)
   pdfUrl           String?
   createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([folioId])
   @@index([externalClientId])
+  @@index([hotelId, externalClientId])
+  @@index([hotelId, status])
 }
 
 model TaxRule {

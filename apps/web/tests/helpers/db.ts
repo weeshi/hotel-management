@@ -88,6 +88,7 @@ export async function resetDb() {
     prismaRaw.restaurantOrder.deleteMany(),
     prismaRaw.menuItem.deleteMany(),
     prismaRaw.menuCategory.deleteMany(),
+    prismaRaw.externalClient.deleteMany(),
     prismaRaw.user.deleteMany(),
     prismaRaw.hotel.deleteMany(),
   ]);
