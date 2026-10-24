@@ -4,3 +4,4 @@ export { ReportTypeTabs } from './ReportTypeTabs';
 export { ExportButtons } from './ExportButtons';
 export { ShareReportModal } from './ShareReportModal';
 export { ReportSettingsModal } from './ReportSettingsModal';
+export { ExecutiveKpiPanel } from './ExecutiveKpiPanel';

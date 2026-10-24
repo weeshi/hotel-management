@@ -40,15 +40,29 @@
 - [x] `tests/integration/corporate-billing.test.ts` (10/10)
 - [x] تنظيف `resetDb` بإضافة `externalClient` قبل حذف الفنادق
 
-## بوابة التحقق (Part 2 + Part 2.1 + Part 3)
+## Part 4 — لوحة القيادة التنفيذية USALI-style (Executive KPIs — v9.6) ✅
+- [x] `parseTripoliWindow` — أيام تقويمية **شاملة النهاية** بتوقيت `Africa/Tripoli` (`endDayExclusive = endDayIndex + 1`) + رفض النطاق المعكوس
+- [x] عدّ ليالٍ بفرق مؤشرات الأيام التقويمية (`overlapEndDay − overlapStartDay`) بدل `Math.ceil` الزمني
+- [x] قاعدة الحالة: `CHECKED_IN`/`CHECKED_OUT` فقط (استبعاد `CONFIRMED`)
+- [x] `ExecutiveKpiService.getExecutiveKpis` — جرد الغرف + إشغال استحقاقي `accruedRoomRevenue` (ADR/RevPAR/Occupancy) + `isOverbooked`
+- [x] اكتمال الدفتر: `CHARGE`/`DISCOUNT`/`REFUND` مع دمج عكس الإيراد في فئته الأصلية (واستبعاد استرداد الدفعات)
+- [x] فصل الضريبة (`netRevenue`/`taxTotal`/`grossBilled`) + `totalCollected`/`collectionRate` مع استبعاد `VOID`
+- [x] تقييد الفترة الجزئية عند اليوم (`effectiveEndDate`/`isPartialPeriod`) + شارة «فترة جزئية» في الواجهة
+- [x] `revenueByCategory` + تنبيهات (`pendingWebBookings`/`unassignedBookingRooms`)
+- [x] `GET /api/admin/reports/executive-kpis` (ADMIN/MANAGER/ACCOUNTANT) + نافذة افتراضية Month-to-Date
+- [x] `ExecutiveKpiPanel` مدمجة في `/admin/reports` (تسميات Accrued / Billed Ledger / نسبة تحصيل الفترة)
+- [x] `tests/integration/executive-kpi.test.ts` (21/21 — يشمل اصطلاح إشارة الإلغاء، استرداد الدفعة، مطابقة الاستحقاق/الدفتر، والفترة الجزئية)
+- [x] تنظيف `resetDb`: `refund` قبل `payment` + `safeBoxTransaction`/`safeDepositBoxItem`/`safeDepositBox`
+
+## بوابة التحقق (Part 2 + Part 2.1 + Part 3 + Part 4)
 - [x] `npx tsc --noEmit` نظيف
 - [x] `npx vitest run tests/integration/group-booking-report.test.ts` — 11/11
 - [x] `npx vitest run tests/integration/corporate-billing.test.ts` — 10/10
+- [x] `npx vitest run tests/integration/executive-kpi.test.ts` — 21/21
 - [x] `npx next lint` (صفر أخطاء)
-- [x] `npx vitest run` (الحزمة الكاملة) — 34 ملفاً / 320 اختباراً أخضر
+- [x] `npx vitest run` (الحزمة الكاملة) — 35 ملفاً / 341 اختباراً أخضر
 - [x] تحديث `README.md` (Roadmap + API + Changelog) و`docs/PRD.md`
 
 ## متبقٍ من المرحلة 5 — التشغيل المتقدم
-- [ ] لوحة قيادة متقدمة مع مؤشرات الأداء
 - [ ] نظام التنبيهات والإشعارات المتقدمة
 - [ ] دعم محركات حجز إضافية في التكامل الخارجي (normalizers جديدة)
