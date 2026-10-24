@@ -31,15 +31,24 @@
 - [x] `tests/integration/group-booking-report.test.ts` (11/11 — +4 اختبارات تحصين)
 - [x] توثيق `docs/PRD.md` (المرجع الأعلى) + ربطه أعلى `README.md`
 
-## بوابة التحقق (Part 2 + Part 2.1)
+## Part 3 — الفوترة الشهرية الآجلة للشركات (Corporate Billing — v9.5) ✅
+- [x] توسيع `Invoice`: `status`/`periodStart`/`periodEnd`/`dueDate`/`paidAt`/`subtotal`/`taxAmount`/`paidAmount`/`notes`/`items`/`updatedAt` (+ `prisma db push` + `generate`)
+- [x] `CorporateBillingService.generateMonthlyStatement` — تجميع آلي للفواتير غير المفوترة + بنود صريحة `lineItems` + `CORP-YYYYMM-XXXX`
+- [x] `CorporateBillingService.recordInvoicePayment` — قفل `FOR UPDATE` + منع الزائد/`PAID`/`VOID` + تحول تلقائي إلى `PAID`/`paidAt`
+- [x] `CorporateBillingService.getClientStatement` — كشف حساب + `totalInvoiced`/`totalPaid`/`outstandingBalance`/`overdueBalance`
+- [x] المسارات: `GET|POST /api/admin/external-clients/[id]/invoices` و`POST .../[invoiceId]/pay` (+ CSRF + أدوار)
+- [x] `tests/integration/corporate-billing.test.ts` (10/10)
+- [x] تنظيف `resetDb` بإضافة `externalClient` قبل حذف الفنادق
+
+## بوابة التحقق (Part 2 + Part 2.1 + Part 3)
 - [x] `npx tsc --noEmit` نظيف
 - [x] `npx vitest run tests/integration/group-booking-report.test.ts` — 11/11
+- [x] `npx vitest run tests/integration/corporate-billing.test.ts` — 10/10
 - [x] `npx next lint` (صفر أخطاء)
-- [x] `npx vitest run` (الحزمة الكاملة) — 33 ملفاً / 310 اختباراً أخضر
-- [x] تحديث `README.md` (Roadmap + API + Changelog)
+- [x] `npx vitest run` (الحزمة الكاملة) — 34 ملفاً / 320 اختباراً أخضر
+- [x] تحديث `README.md` (Roadmap + API + Changelog) و`docs/PRD.md`
 
 ## متبقٍ من المرحلة 5 — التشغيل المتقدم
-- [ ] أتمتة الفوترة الشهرية للشركات (Corporate Billing) لكل `ExternalClient`
 - [ ] لوحة قيادة متقدمة مع مؤشرات الأداء
 - [ ] نظام التنبيهات والإشعارات المتقدمة
 - [ ] دعم محركات حجز إضافية في التكامل الخارجي (normalizers جديدة)
